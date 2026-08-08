@@ -1,0 +1,133 @@
+import type { Customer } from "@/types/domain";
+
+export const mockCustomers: Customer[] = [
+  {
+    id: "cust-1001",
+    displayName: "Avery Stone",
+    firstName: "Avery",
+    lastName: "Stone",
+    email: "avery.stone@example.com",
+    phone: "+1 (203) 555-0148",
+    status: "active",
+    joinedAt: "2025-03-15T10:00:00.000Z",
+    totalOrders: 8,
+    lifetimeValueUsd: 1240,
+    addresses: [
+      {
+        id: "addr-1001-primary",
+        label: "Primary Residence",
+        line1: "123 Heritage Lane",
+        city: "Greenwich",
+        state: "CT",
+        postalCode: "06830",
+        country: "US",
+      },
+    ],
+  },
+  {
+    id: "cust-1002",
+    displayName: "Jordan Mercer",
+    firstName: "Jordan",
+    lastName: "Mercer",
+    email: "jordan.mercer@example.com",
+    phone: "+1 (914) 555-0161",
+    status: "active",
+    joinedAt: "2025-08-08T09:30:00.000Z",
+    totalOrders: 6,
+    lifetimeValueUsd: 980,
+    addresses: [
+      {
+        id: "addr-1002-primary",
+        label: "Townhouse",
+        line1: "45 Orchard View",
+        city: "Scarsdale",
+        state: "NY",
+        postalCode: "10583",
+        country: "US",
+      },
+    ],
+  },
+  {
+    id: "cust-1003",
+    displayName: "Harper Wells",
+    firstName: "Harper",
+    lastName: "Wells",
+    email: "harper.wells@example.com",
+    phone: "+1 (475) 555-0190",
+    status: "active",
+    joinedAt: "2026-01-21T14:30:00.000Z",
+    totalOrders: 7,
+    lifetimeValueUsd: 1085,
+    addresses: [
+      {
+        id: "addr-1003-primary",
+        label: "Main Property",
+        line1: "78 Fieldstone Drive",
+        city: "Westport",
+        state: "CT",
+        postalCode: "06880",
+        country: "US",
+      },
+    ],
+  },
+  {
+    id: "cust-1004",
+    displayName: "Morgan Price",
+    firstName: "Morgan",
+    lastName: "Price",
+    email: "morgan.price@example.com",
+    phone: "+1 (646) 555-0122",
+    status: "lead",
+    joinedAt: "2026-05-02T11:15:00.000Z",
+    totalOrders: 4,
+    lifetimeValueUsd: 660,
+    addresses: [
+      {
+        id: "addr-1004-primary",
+        label: "Apartment",
+        line1: "200 Riverside Boulevard",
+        city: "New York",
+        state: "NY",
+        postalCode: "10069",
+        country: "US",
+      },
+    ],
+  },
+  {
+    id: "cust-1005",
+    displayName: "Casey Brooks",
+    firstName: "Casey",
+    lastName: "Brooks",
+    email: "casey.brooks@example.com",
+    phone: "+1 (212) 555-0103",
+    status: "active",
+    joinedAt: "2026-06-11T08:45:00.000Z",
+    totalOrders: 6,
+    lifetimeValueUsd: 880,
+    addresses: [
+      {
+        id: "addr-1005-primary",
+        label: "Penthouse",
+        line1: "18 Hudson Point",
+        city: "New York",
+        state: "NY",
+        postalCode: "10013",
+        country: "US",
+      },
+    ],
+  },
+];
+
+export const mockCustomerSummary = {
+  totalCustomers: mockCustomers.length,
+  activeCustomers: mockCustomers.filter((customer) => customer.status === "active")
+    .length,
+  totalOrders: mockCustomers.reduce(
+    (sum, customer) => sum + customer.totalOrders,
+    0,
+  ),
+  lifetimeRevenueUsd: mockCustomers.reduce(
+    (sum, customer) => sum + customer.lifetimeValueUsd,
+    0,
+  ),
+};

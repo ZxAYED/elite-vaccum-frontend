@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+:root {
+  --font-poppins: var(--font-poppins);
+  --background: #fcfcfb;
+  --foreground: #122428;
+  --surface: #ffffff;
+  --surface-muted: #f4f7f6;
+  --brand: #1c4f50;
+  --brand-hover: #153d3e;
+  --brand-soft: #e8f4f0;
+  --primary: #1c4f50;
+  --primary-foreground: #ffffff;
+  --secondary: #64748b;
+  --secondary-foreground: #ffffff;
+  --accent: #1c4f50;
+  --accent-foreground: #ffffff;
+  --muted: #e8edee;
+  --muted-foreground: #5f6f78;
+  --card: #ffffff;
+  --card-foreground: #122428;
+  --border: #d7e1e4;
+  --input: #d7e1e4;
+  --success: #15803d;
+  --warning: #b45309;
+  --destructive: #b91c1c;
+  --focus-ring: rgba(28, 79, 80, 0.22);
+  --radius: 0.5rem;
+  --radius-control: 1rem;
+  --radius-card: 1.5rem;
+  --gradient-start: #eff8f5;
+  --gradient-end: #d9ece7;
+}
+
+html {
+  color-scheme: light;
+}
+
+.bg-primary {
+  background-color: var(--primary);
+}
+.bg-primary-foreground {
+  background-color: var(--primary-foreground);
+}
+.bg-secondary {
+  background-color: var(--secondary);
+}
+.bg-secondary-foreground {
+  background-color: var(--secondary-foreground);
+}
+.bg-accent {
+  background-color: var(--accent);
+}
+.bg-accent-foreground {
+  background-color: var(--accent-foreground);
+}
+.bg-muted {
+  background-color: var(--muted);
+}
+.bg-card {
+  background-color: var(--card);
+}
+.bg-surface {
+  background-color: var(--surface);
+}
+.bg-brand-soft {
+  background-color: var(--brand-soft);
+}
+
+.text-primary {
+  color: var(--primary);
+}
+.text-primary-foreground {
+  color: var(--primary-foreground);
+}
+.text-secondary {
+  color: var(--secondary);
+}
+.text-secondary-foreground {
+  color: var(--secondary-foreground);
+}
+.text-accent {
+  color: var(--accent);
+}
+.text-accent-foreground {
+  color: var(--accent-foreground);
+}
+.text-muted-foreground {
+  color: var(--muted-foreground);
+}
+.text-card-foreground {
+  color: var(--card-foreground);
+}
+.text-foreground {
+  color: var(--foreground);
+}
+
+.border {
+  border-color: var(--border);
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(
+    90deg,
+    var(--gradient-start),
+    var(--gradient-end)
+  );
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-poppins, Arial, Helvetica, sans-serif);
+}
+
+* {
+  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fadeIn {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+
+.card {
+  position: relative;
+  background: linear-gradient(to bottom right, #2c5f5f, #3c8c8c);
+  color: white;
+  padding: 20px;
+  border-radius: 12px;
+  overflow: hidden;
+  width: 300px;
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100%;
+  background: linear-gradient(to bottom left, rgba(0,0,0,0.2), transparent);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

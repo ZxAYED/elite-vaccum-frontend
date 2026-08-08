@@ -1,0 +1,426 @@
+import type {
+  Address,
+  Appointment,
+  PaymentStatus,
+  Product,
+  Quote,
+} from "@/types/domain";
+
+import { mockNotifications } from "@/data/mock/notifications";
+import { mockOrders } from "@/data/mock/orders";
+import { mockPayments } from "@/data/mock/payments";
+import { mockProducts } from "@/data/mock/products";
+import { mockServiceRequests } from "@/data/mock/service-requests";
+import { mockServices } from "@/data/mock/services";
+import { mockTechnicians } from "@/data/mock/technicians";
+import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
+
+export interface QuoteLineItem {
+  id: string;
+  label: string;
+  description: string;
+  amountUsd: number;
+}
+
+export interface SuggestedSlot {
+  date: string;
+  windows: string[];
+}
+
+export interface CustomerQuote extends Quote {
+  lineItems: QuoteLineItem[];
+  suggestedSlots: SuggestedSlot[];
+}
+
+export interface CustomerAppointment extends Appointment {
+  arrivalWindowLabel: string;
+  technicianNote: string;
+  preparationChecklist: string[];
+}
+
+export interface ServiceTimelineEvent {
+  id: string;
+  label: string;
+  detail: string;
+  occurredAt: string;
+}
+
+export interface CompletionSummary {
+  completedAt: string;
+  workPerformed: string[];
+  followUp: string;
+}
+
+export interface CustomerServiceDetail {
+  requestId: string;
+  timeline: ServiceTimelineEvent[];
+  quote?: CustomerQuote;
+  appointment?: CustomerAppointment;
+  completionSummary?: CompletionSummary;
+}
+
+export type StoreOrderStatus = "processing" | "shipped" | "delivered";
+export type ReviewStatus = "pending" | "submitted";
+
+export interface StoreOrderItem {
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPriceUsd: number;
+}
+
+export interface StoreOrder {
+  id: string;
+  customerId: string;
+  status: StoreOrderStatus;
+  placedAt: string;
+  totalUsd: number;
+  paymentStatus: PaymentStatus;
+  trackingNumber: string;
+  etaLabel: string;
+  deliveryAddress: Address;
+  items: StoreOrderItem[];
+}
+
+export interface CartItem {
+  productId: string;
+  quantity: number;
+}
+
+export interface CustomerReviewRecord {
+  id: string;
+  kind: "service" | "product";
+  status: ReviewStatus;
+  title: string;
+  relatedLabel: string;
+  href: string;
+  rating?: number;
+  submittedAt?: string;
+  excerpt?: string;
+}
+
+export interface PaymentLedgerEntry {
+  id: string;
+  title: string;
+  category: "service" | "product";
+  amountUsd: number;
+  status: PaymentStatus;
+  processedAt: string;
+  detail: string;
+  href: string;
+}
+
+export const mockCustomerServiceRequests = mockServiceRequests.filter(
+  (request) => request.customerId === mockCurrentUser.customerId,
+);
+
+const customerPrimaryAddress =
+  mockCurrentCustomer.addresses[0] ?? mockCustomerServiceRequests[0]?.serviceAddress;
+
+export const mockCustomerServiceDetailsByRequestId: Record<
+  string,
+  CustomerServiceDetail
+> = {
+  "REQ-1001": {
+    requestId: "REQ-1001",
+    timeline: [
+      {
+        id: "timeline-1001-1",
+        label: "Request Submitted",
+        detail: "Photos and issue notes were received for motor diagnostics.",
+        occurredAt: "2026-08-06T13:18:00.000Z",
+      },
+      {
+        id: "timeline-1001-2",
+        label: "Technical Review",
+        detail: "A specialist reviewed the overheating symptoms and recommended an on-site visit.",
+        occurredAt: "2026-08-06T16:42:00.000Z",
+      },
+      {
+        id: "timeline-1001-3",
+        label: "Quote Issued",
+        detail: "Pricing is ready and awaiting your approval before scheduling.",
+        occurredAt: "2026-08-07T08:00:00.000Z",
+      },
+    ],
+    quote: {
+      id: "QUO-1001",
+      serviceRequestId: "REQ-1001",
+      status: "sent",
+      subtotalUsd: 196,
+      totalUsd: 216,
+      issuedAt: "2026-08-07T08:00:00.000Z",
+      expiresAt: "2026-08-11T23:59:00.000Z",
+      notes:
+        "If the motor needs a full replacement after inspection, the technician will provide an updated approval request before proceeding.",
+      lineItems: [
+        {
+          id: "quote-line-1001",
+          label: "On-site diagnostic visit",
+          description: "Arrival, motor testing, and airflow verification.",
+          amountUsd: 89,
+        },
+        {
+          id: "quote-line-1002",
+          label: "Motor repair labor",
+          description: "Repair and reset for the existing central unit.",
+          amountUsd: 107,
+        },
+      ],
+      suggestedSlots: [
+        {
+          date: "2026-08-10",
+          windows: ["8:00 AM - 10:00 AM", "1:00 PM - 3:00 PM"],
+        },
+        {
+          date: "2026-08-11",
+          windows: ["10:00 AM - 12:00 PM", "3:00 PM - 5:00 PM"],
+        },
+      ],
+    },
+  },
+  "REQ-1006": {
+    requestId: "REQ-1006",
+    timeline: [
+      {
+        id: "timeline-1006-1",
+        label: "Request Submitted",
+        detail: "Preventive maintenance visit requested for the main residence.",
+        occurredAt: "2026-07-31T15:10:00.000Z",
+      },
+      {
+        id: "timeline-1006-2",
+        label: "Visit Confirmed",
+        detail: "The annual maintenance visit has been scheduled with a technician.",
+        occurredAt: "2026-08-03T09:10:00.000Z",
+      },
+      {
+        id: "timeline-1006-3",
+        label: "Technician Assigned",
+        detail: "Naomi Carter will handle the appointment and bring standard maintenance parts.",
+        occurredAt: "2026-08-06T17:22:00.000Z",
+      },
+    ],
+    appointment: {
+      id: "APT-1006",
+      serviceRequestId: "REQ-1006",
+      status: "confirmed",
+      startAt: "2026-08-14T11:00:00.000Z",
+      endAt: "2026-08-14T13:00:00.000Z",
+      address: customerPrimaryAddress,
+      technicianId: "tech-002",
+      arrivalWindowLabel: "Friday, August 14, 2026 between 11:00 AM and 1:00 PM",
+      technicianNote:
+        "Please keep the utility area clear so the power unit and inlet connections are easy to access.",
+      preparationChecklist: [
+        "Confirm parking or gate instructions for the technician.",
+        "Have your current hose and attachments available for fit checks.",
+        "Make note of any rooms with weaker suction since the last visit.",
+      ],
+    },
+  },
+  "REQ-1007": {
+    requestId: "REQ-1007",
+    timeline: [
+      {
+        id: "timeline-1007-1",
+        label: "Request Submitted",
+        detail: "Accessory compatibility review requested after a recent hose replacement.",
+        occurredAt: "2026-07-08T10:00:00.000Z",
+      },
+      {
+        id: "timeline-1007-2",
+        label: "Visit Completed",
+        detail: "The technician matched a new wand and updated the accessory adapter kit.",
+        occurredAt: "2026-07-12T11:45:00.000Z",
+      },
+    ],
+    completionSummary: {
+      completedAt: "2026-07-12T11:45:00.000Z",
+      workPerformed: [
+        "Verified compatibility between the hose handle and replacement wand.",
+        "Installed an updated adapter ring for a tighter seal.",
+        "Tested accessory airflow after the fit adjustment.",
+      ],
+      followUp:
+        "No additional service is required. A product review can be left from your orders area once replacements are delivered.",
+    },
+  },
+};
+
+export const mockCustomerProductOrders: StoreOrder[] = [
+  {
+    id: "SHOP-1001",
+    customerId: mockCurrentCustomer.id,
+    status: "delivered",
+    placedAt: "2026-07-30T14:10:00.000Z",
+    totalUsd: 96,
+    paymentStatus: "paid",
+    trackingNumber: "ECV-TRK-7301",
+    etaLabel: "Delivered on August 2, 2026",
+    deliveryAddress: customerPrimaryAddress,
+    items: [
+      {
+        id: "shop-item-1001",
+        productId: "prd-hand-tool",
+        quantity: 1,
+        unitPriceUsd: 48,
+      },
+      {
+        id: "shop-item-1002",
+        productId: "prd-bag",
+        quantity: 2,
+        unitPriceUsd: 24,
+      },
+    ],
+  },
+  {
+    id: "SHOP-1002",
+    customerId: mockCurrentCustomer.id,
+    status: "processing",
+    placedAt: "2026-08-05T10:30:00.000Z",
+    totalUsd: 167,
+    paymentStatus: "pending",
+    trackingNumber: "ECV-TRK-8052",
+    etaLabel: "Estimated delivery by August 11, 2026",
+    deliveryAddress: customerPrimaryAddress,
+    items: [
+      {
+        id: "shop-item-1003",
+        productId: "prd-brush-head",
+        quantity: 1,
+        unitPriceUsd: 64,
+      },
+      {
+        id: "shop-item-1004",
+        productId: "prd-adapter",
+        quantity: 1,
+        unitPriceUsd: 18,
+      },
+      {
+        id: "shop-item-1005",
+        productId: "prd-roller",
+        quantity: 1,
+        unitPriceUsd: 85,
+      },
+    ],
+  },
+];
+
+export const mockCartItems: CartItem[] = [
+  { productId: "prd-hand-tool", quantity: 1 },
+  { productId: "prd-bag", quantity: 2 },
+];
+
+export const mockCustomerReviews: CustomerReviewRecord[] = [
+  {
+    id: "review-service-1007",
+    kind: "service",
+    status: "submitted",
+    title: "Accessory fit service review",
+    relatedLabel: "REQ-1007",
+    href: "/user/services/REQ-1007",
+    rating: 5,
+    submittedAt: "2026-07-13T09:00:00.000Z",
+    excerpt:
+      "Quick diagnosis, clean install, and everything now seals better than the original setup.",
+  },
+  {
+    id: "review-product-1001",
+    kind: "product",
+    status: "pending",
+    title: "Deluxe Hand Tool review",
+    relatedLabel: "SHOP-1001",
+    href: "/user/orders/SHOP-1001",
+  },
+];
+
+export const mockCustomerPaymentMethods = [
+  {
+    id: "pm-1001",
+    brand: "Visa",
+    last4: "4242",
+    expiryLabel: "12/26",
+    default: true,
+  },
+];
+
+export const mockPaymentLedger: PaymentLedgerEntry[] = [
+  ...mockPayments
+    .filter((payment) => payment.customerId === mockCurrentCustomer.id)
+    .map((payment) => {
+      const relatedOrder = mockOrders.find((order) => order.id === payment.orderId);
+      return {
+        id: payment.id,
+        title: relatedOrder?.summary ?? "Service invoice",
+        category: "service" as const,
+        amountUsd: payment.amountUsd,
+        status: payment.status,
+        processedAt: payment.processedAt,
+        detail: payment.methodLabel,
+        href: relatedOrder?.serviceRequestId
+          ? `/user/services/${relatedOrder.serviceRequestId}`
+          : "/user/services",
+      };
+    }),
+  ...mockCustomerProductOrders.map((order) => ({
+    id: `pay-${order.id.toLowerCase()}`,
+    title: `Store order ${order.id}`,
+    category: "product" as const,
+    amountUsd: order.totalUsd,
+    status: order.paymentStatus,
+    processedAt: order.placedAt,
+    detail: `${order.items.length} item${order.items.length > 1 ? "s" : ""}`,
+    href: `/user/orders/${order.id}`,
+  })),
+].sort(
+  (left, right) =>
+    new Date(right.processedAt).getTime() - new Date(left.processedAt).getTime(),
+);
+
+export const mockNotificationHrefById: Record<string, string> = {
+  "notif-1001": "/user/services/REQ-1001#quote",
+  "notif-1002": "/user/services/REQ-1006#appointment",
+  "notif-1003": "/user/payments",
+  "notif-1004": "/user/services",
+};
+
+export const mockCustomerNotifications = mockNotifications.filter(
+  (notification) => notification.userId === mockCurrentUser.id,
+);
+
+export function getServiceRequestById(requestId: string) {
+  return mockCustomerServiceRequests.find((request) => request.id === requestId);
+}
+
+export function getServiceDetailByRequestId(requestId: string) {
+  return mockCustomerServiceDetailsByRequestId[requestId];
+}
+
+export function getProductBySlug(slug: string) {
+  return mockProducts.find((product) => product.slug === slug);
+}
+
+export function getProductById(productId: string) {
+  return mockProducts.find((product) => product.id === productId);
+}
+
+export function getStoreOrderById(orderId: string) {
+  return mockCustomerProductOrders.find((order) => order.id === orderId);
+}
+
+export function getTechnicianById(technicianId?: string) {
+  if (!technicianId) return undefined;
+  return mockTechnicians.find((technician) => technician.id === technicianId);
+}
+
+export function getServiceById(serviceId: string) {
+  return mockServices.find((service) => service.id === serviceId);
+}
+
+export function getCartProducts() {
+  return mockCartItems.map((item) => ({
+    ...item,
+    product: getProductById(item.productId) as Product,
+  }));
+}
