@@ -131,8 +131,7 @@ export default async function UserServicesPage({ searchParams }: UserServicesPag
                 </div>
 
                 <div className="w-full rounded-2xl bg-gray-50 p-4 lg:w-56">
-                  <p className="text-sm text-gray-500">Next action</p>
-                  <Button asChild className="mt-4 w-full" variant={quote ? "default" : "outline"}>
+                  <Button asChild className="w-full" variant={quote ? "default" : "outline"}>
                     <Link href={actionHref}>
                       {actionLabel}
                       <ArrowRight size={16} />

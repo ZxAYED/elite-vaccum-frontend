@@ -9,44 +9,44 @@ import SmartIntegration from "@/components/landing/home/SmartIntegration";
 import { TestimonialsCarousel } from "@/components/landing/home/TestimonialsCarousel";
 import { TrustSection } from "@/components/landing/home/TrustSection";
 import { CustomerAccessPanel } from "@/components/landing/home/CustomerAccessPanel";
-import { FadeIn } from "@/components/motion/Animated";
+import { MotionSection } from "@/components/motion/MotionSection";
 
 export default function Home() {
   return (
     <main className="bg-[var(--background)]">
-      <FadeIn y={24} once={false}>
+      <MotionSection y={28} amount={0.08}>
         <HeroSection />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <PrimaryJourneyCards />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <FeaturedProductsSection />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <EngineeredSupportSection />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <HowItWorks />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <SmartIntegration />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <ProvenSection />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <TrustSection />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <CustomerAccessPanel />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <TestimonialsCarousel />
-      </FadeIn>
-      <FadeIn y={30} delay={0.03} once={false}>
+      </MotionSection>
+      <MotionSection delay={0.04}>
         <ExperienceCard />
-      </FadeIn>
+      </MotionSection>
     </main>
   );
 }

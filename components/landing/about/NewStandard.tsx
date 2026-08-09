@@ -8,9 +8,12 @@ export default function NewStandard() {
   return (
     <section className="py-16 md:py-24 lg:py-32 bg-[#F9F9F9]">
       <div className="max-w-360 mx-auto px-5 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
+        <FadeIn
+          className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start"
+          once={false}
+        >
           {/* Left: Text + Stats */}
-          <FadeIn className="space-y-10" once={false}>
+          <div className="space-y-10">
             <div>
               <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary leading-tight">
                 A new standard for
@@ -56,16 +59,16 @@ export default function NewStandard() {
                 </div>
               </StaggerItem>
             </StaggerGroup>
-          </FadeIn>
+          </div>
 
           {/* Right: Image with Verified Badge */}
-          <FadeIn className="relative rounded-2xl overflow-hidden shadow-2xl group" delay={0.12} once={false}>
+          <div className="relative overflow-hidden rounded-2xl shadow-2xl">
             <Image
               src={about}
               alt="Technician using smart device for home service diagnostics in modern home"
               width={1080}
               height={1080}
-              className="w-full h-auto object-cover scale-105 group-hover:scale-115 transition-transform duration-700"
+              className="h-auto w-full object-cover"
             />
 
             {/* Overlay gradient for text readability if needed */}
@@ -78,8 +81,8 @@ export default function NewStandard() {
                 Verified Secure
               </span>
             </div>
-          </FadeIn>
-        </div>
+          </div>
+        </FadeIn>
 
         {/* Vision & Mission Cards */}
         <StaggerGroup className="grid md:grid-cols-2 gap-8 mt-16 lg:mt-20" delay={0.08} once={false}>

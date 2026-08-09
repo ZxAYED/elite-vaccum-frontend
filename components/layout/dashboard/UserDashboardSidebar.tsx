@@ -12,6 +12,7 @@ import {
   Shield,
   SquareCheckBig,
   StretchHorizontal,
+  UserRound,
   X,
 } from "lucide-react";
 
@@ -26,7 +27,8 @@ const navItems = [
   { label: "Billing", href: "/user/billing", icon: ReceiptText },
   { label: "Reviews", href: "/user/reviews", icon: ReceiptText },
   { label: "Notifications", href: "/user/notifications", icon: Bell },
-  { label: "Profile", href: "/user/profile", icon: Settings },
+  { label: "Profile", href: "/user/profile", icon: UserRound },
+  { label: "Settings", href: "/user/settings", icon: Settings },
 ];
 
 export default function UserDashboardSidebar({

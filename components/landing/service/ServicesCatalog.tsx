@@ -335,7 +335,11 @@ export function ServicesCatalog() {
               system or book a same-day repair appointment.
             </p>
             <Pressable className="mt-8">
-              <Button asChild variant="outline" size="pill" className="bg-white">
+              <Button
+                asChild
+                size="pill"
+                className="bg-white text-primary shadow-[0_18px_40px_-24px_rgba(255,255,255,0.75)] hover:bg-teal-50 hover:text-primary"
+              >
                 <Link href="/services/request?service=vacuum-repair">
                   Request Service Now
                 </Link>

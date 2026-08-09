@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "Elite Central Vacuum",
   description:
     "Elite Central Vacuum frontend experience for service requests, maintenance, and central vacuum support.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport: Viewport = {

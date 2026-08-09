@@ -5,60 +5,56 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
-const easing = [0.22, 1, 0.36, 1] as const;
+const sectionEase = [0.22, 1, 0.36, 1] as const;
 
-interface FadeInProps extends PropsWithChildren {
+interface MotionSectionProps extends PropsWithChildren {
   className?: string;
   delay?: number;
   duration?: number;
+  y?: number;
   amount?: number;
   once?: boolean;
-  y?: number;
+  as?: "div" | "section";
 }
 
-interface PressableProps extends PropsWithChildren {
-  className?: string;
-}
-
-export function FadeIn({
+export function MotionSection({
   children,
   className,
   delay = 0,
   duration = 0.82,
-  amount = 0.18,
-  once = true,
   y = 42,
-}: FadeInProps) {
+  amount = 0.18,
+  once = false,
+  as = "div",
+}: MotionSectionProps) {
   const reduceMotion = useReducedMotion();
+  const Comp = as === "section" ? motion.section : motion.div;
 
   if (reduceMotion) {
-    return <div className={className}>{children}</div>;
+    const StaticComp = as;
+    return <StaticComp className={className}>{children}</StaticComp>;
   }
 
   return (
-    <motion.div
+    <Comp
       className={className}
       initial={{ opacity: 0, y, filter: "blur(10px)" }}
       whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      viewport={{ once, amount }}
-      transition={{
-        duration,
-        delay,
-        ease: easing,
-      }}
+      viewport={{ amount, once }}
+      transition={{ duration, delay, ease: sectionEase }}
     >
       {children}
-    </motion.div>
+    </Comp>
   );
 }
 
-export function StaggerGroup({
+export function MotionStagger({
   children,
   className,
   delay = 0,
   amount = 0.18,
-  once = true,
-}: FadeInProps) {
+  once = false,
+}: MotionSectionProps) {
   const reduceMotion = useReducedMotion();
 
   if (reduceMotion) {
@@ -67,10 +63,10 @@ export function StaggerGroup({
 
   return (
     <motion.div
-      className={className}
+      className={cn(className)}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once, amount }}
+      viewport={{ amount, once }}
       variants={{
         hidden: {},
         visible: {
@@ -86,12 +82,12 @@ export function StaggerGroup({
   );
 }
 
-export function StaggerItem({
+export function MotionStaggerItem({
   children,
   className,
   duration = 0.76,
   y = 34,
-}: FadeInProps) {
+}: MotionSectionProps) {
   const reduceMotion = useReducedMotion();
 
   if (reduceMotion) {
@@ -107,35 +103,8 @@ export function StaggerItem({
           opacity: 1,
           y: 0,
           filter: "blur(0px)",
-          transition: {
-            duration,
-            ease: easing,
-          },
+          transition: { duration, ease: sectionEase },
         },
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-export function Pressable({ children, className }: PressableProps) {
-  const reduceMotion = useReducedMotion();
-
-  if (reduceMotion) {
-    return <div className={cn("inline-flex", className)}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      className={cn("inline-flex", className)}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{
-        type: "spring",
-        stiffness: 380,
-        damping: 24,
-        mass: 0.8,
       }}
     >
       {children}

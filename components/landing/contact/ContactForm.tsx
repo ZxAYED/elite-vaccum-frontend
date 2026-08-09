@@ -1,14 +1,10 @@
 "use client";
 
 import { Send } from "lucide-react";
+import Link from "next/link";
 
 import { FormField } from "@/components/forms/FormField";
 import { FormStatus } from "@/components/forms/FormStatus";
-import {
-  inputClassName,
-  selectClassName,
-  textAreaClassName,
-} from "@/components/forms/formStyles";
 import {
   FadeIn,
   Pressable,
@@ -16,8 +12,25 @@ import {
   StaggerItem,
 } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 import { useSchemaForm } from "@/lib/use-schema-form";
 import { contactSchema } from "@/lib/validation";
+
+const serviceCategoryOptions = [
+  { value: "repair", label: "Repair Request" },
+  { value: "installation", label: "Installation Planning" },
+  { value: "maintenance", label: "Maintenance Plan" },
+  { value: "products", label: "Product Support" },
+  { value: "other", label: "Other Inquiry" },
+] as const;
 
 export default function ContactForm() {
   const form = useSchemaForm({
@@ -38,39 +51,45 @@ export default function ContactForm() {
 
   return (
     <>
-      <section className="py-20 md:py-28">
-        <div className="mx-auto max-w-[1440px] px-4">
-          <div className="grid gap-12 md:grid-cols-3">
-            <FadeIn className="md:col-span-2" once={false}>
-              <h2 className="mb-4 text-3xl font-bold text-primary">
-                Send a Message
-              </h2>
-              <p className="mb-8 max-w-2xl text-slate-600">
-                Have a question about installation, repair, or maintenance?
-                Share the details below and this form will be ready for backend
-                routing once the contact API is connected.
-              </p>
+      <section className="py-10 md:py-14">
+        <div className="mx-auto max-w-7xl px-4">
+          <div className="grid gap-6 lg:grid-cols-[2fr_1fr] lg:items-stretch">
+            <FadeIn
+              className="h-full rounded-[var(--radius-card)] bg-white p-6 shadow-[0_20px_60px_-46px_rgba(28,79,80,0.48)] ring-1 ring-teal-100 md:p-8"
+              once={false}
+            >
+              <div className="mb-7">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700">
+                  Contact Form
+                </p>
+                <h2 className="mt-2 text-3xl font-bold text-primary">
+                  Send a Message
+                </h2>
+                <p className="mt-3 max-w-2xl text-slate-600">
+                  Share the service details and we will route the request to the
+                  right Elite support workflow once backend wiring is connected.
+                </p>
+              </div>
 
               <form
-                className="space-y-6"
+                className="space-y-5"
                 noValidate
                 onSubmit={form.handleSubmit}
               >
                 <FormStatus status={form.status} />
 
-                <StaggerGroup className="space-y-6" delay={0.05} once={false}>
+                <StaggerGroup className="space-y-5" delay={0.05} once={false}>
                   <StaggerItem>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-5 md:grid-cols-2">
                       <FormField
                         error={form.errors.name}
                         htmlFor="name"
                         label="Full Name"
                         required
                       >
-                        <input
+                        <Input
                           {...form.getInputProps("name")}
                           autoComplete="name"
-                          className={inputClassName}
                           placeholder="Jordan Mercer..."
                           type="text"
                         />
@@ -82,10 +101,9 @@ export default function ContactForm() {
                         label="Email Address"
                         required
                       >
-                        <input
+                        <Input
                           {...form.getInputProps("email")}
                           autoComplete="email"
-                          className={inputClassName}
                           inputMode="email"
                           placeholder="name@example.com..."
                           spellCheck={false}
@@ -96,16 +114,15 @@ export default function ContactForm() {
                   </StaggerItem>
 
                   <StaggerItem>
-                    <div className="grid gap-6 md:grid-cols-2">
+                    <div className="grid gap-5 md:grid-cols-2">
                       <FormField
                         error={form.errors.phone}
                         htmlFor="phone"
                         label="Phone Number"
                       >
-                        <input
+                        <Input
                           {...form.getInputProps("phone")}
                           autoComplete="tel"
-                          className={inputClassName}
                           inputMode="tel"
                           placeholder="+1 (203) 555-0148..."
                           type="tel"
@@ -118,19 +135,34 @@ export default function ContactForm() {
                         label="Service Category"
                         required
                       >
-                        <select
-                          {...form.getInputProps("serviceCategory")}
-                          className={selectClassName}
+                        <Select
+                          value={String(form.values.serviceCategory ?? "")}
+                          onValueChange={(value) =>
+                            form.setFieldValue("serviceCategory", value)
+                          }
                         >
-                          <option value="">Select a category...</option>
-                          <option value="repair">Repair Request</option>
-                          <option value="installation">
-                            Installation Planning
-                          </option>
-                          <option value="maintenance">Maintenance Plan</option>
-                          <option value="products">Product Support</option>
-                          <option value="other">Other Inquiry</option>
-                        </select>
+                          <SelectTrigger
+                            id="serviceCategory"
+                            aria-invalid={
+                              form.errors.serviceCategory ? true : undefined
+                            }
+                            aria-describedby={
+                              form.errors.serviceCategory
+                                ? form.getErrorId("serviceCategory")
+                                : undefined
+                            }
+                            className="h-12 rounded-[var(--radius-control)]"
+                          >
+                            <SelectValue placeholder="Select a category..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {serviceCategoryOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormField>
                     </div>
                   </StaggerItem>
@@ -142,9 +174,9 @@ export default function ContactForm() {
                       label="Your Message"
                       required
                     >
-                      <textarea
+                      <Textarea
                         {...form.getInputProps("message")}
-                        className={textAreaClassName}
+                        className="min-h-36"
                         placeholder="Tell us what you need help with..."
                         rows={5}
                       />
@@ -167,49 +199,39 @@ export default function ContactForm() {
               </form>
             </FadeIn>
 
-            <StaggerGroup className="space-y-6" delay={0.12} once={false}>
-              <StaggerItem>
-                <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm">
-                  <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-                    Coverage Planning
+            <StaggerGroup className="h-full" delay={0.12} once={false}>
+              <StaggerItem className="h-full">
+                <aside className="flex h-full flex-col rounded-[var(--radius-card)] bg-primary p-6 text-primary-foreground shadow-[0_22px_64px_-48px_rgba(28,79,80,0.72)] md:p-7">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200">
+                    Support Guidance
                   </p>
-                  <h3 className="mt-4 text-2xl font-bold text-slate-950">
-                    Replace Demo Service Areas Before Launch
+                  <h3 className="mt-4 text-2xl font-bold text-white">
+                    Help us route your request
                   </h3>
-                  <p className="mt-4 text-sm leading-6 text-slate-600">
-                    This project intentionally avoids inventing a public office
-                    address or verified coverage map. Swap this card for
-                    approved territory details when the real business data is
-                    ready.
+                  <p className="mt-4 text-sm leading-6 text-primary-foreground/85">
+                    A few specific details help our team identify the right
+                    service path before we respond.
                   </p>
-                  <div className="mt-6 rounded-3xl bg-[var(--brand-soft)] p-5 text-sm text-slate-700">
-                    <p className="font-semibold text-slate-900">
-                      Good candidates for future live data:
+
+                  <div className="mt-6 rounded-3xl bg-white/10 p-5 text-sm ring-1 ring-white/10">
+                    <p className="font-semibold text-white">
+                      Include these if available:
                     </p>
-                    <ul className="mt-3 space-y-2">
-                      <li>Verified states, counties, or ZIP coverage</li>
-                      <li>Dispatch hours for installation and repairs</li>
-                      <li>Office, showroom, or warehouse contact details</li>
+                    <ul className="mt-3 space-y-2 text-primary-foreground/85">
+                      <li>Power unit location and model label</li>
+                      <li>Which inlet or room has the issue</li>
+                      <li>Preferred visit window or urgency level</li>
                     </ul>
                   </div>
-                </div>
-              </StaggerItem>
 
-              <StaggerItem>
-                <div className="rounded-[var(--radius-card)] bg-primary p-8 text-primary-foreground">
-                  <h3 className="mb-6 text-2xl font-bold text-white">
-                    Quick Support FAQ
-                  </h3>
-
-                  <div className="space-y-6">
-                    <div>
+                  <div className="mt-6 space-y-6 lg:mt-auto">
+                    <div className="border-t border-white/15 pt-6">
                       <h4 className="mb-3 text-sm text-emerald-300">
                         Can you help with sudden suction loss?
                       </h4>
                       <p className="text-sm text-primary-foreground/90">
                         Yes. Share when the issue started and whether it affects
-                        one inlet or the full system so the request is routed to
-                        the right service type.
+                        one inlet or the full system.
                       </p>
                     </div>
 
@@ -219,22 +241,11 @@ export default function ContactForm() {
                       </h4>
                       <p className="text-sm text-primary-foreground/90">
                         Photos of the power unit, inlet covers, hose handles,
-                        and any visible model labels are the most helpful
-                        starting point.
-                      </p>
-                    </div>
-
-                    <div className="border-t border-white/15 pt-6">
-                      <h4 className="mb-3 text-sm text-emerald-300">
-                        Is this contact form live yet?
-                      </h4>
-                      <p className="text-sm text-primary-foreground/90">
-                        Not yet. This pass adds validation and accessibility so
-                        the form is ready for real backend wiring next.
+                        and visible model labels are most helpful.
                       </p>
                     </div>
                   </div>
-                </div>
+                </aside>
               </StaggerItem>
             </StaggerGroup>
           </div>
@@ -242,7 +253,7 @@ export default function ContactForm() {
       </section>
 
       <FadeIn
-        className="bg-primary py-16 max-w-[1440px] rounded-xl mx-auto text-primary-foreground md:my-20 "
+        className="mx-auto my-10 max-w-7xl rounded-[var(--radius-card)] bg-primary py-12 text-primary-foreground md:my-14"
         once={false}
       >
         <div className="mx-auto max-w-4xl px-4 text-center">
@@ -255,10 +266,12 @@ export default function ContactForm() {
           </p>
           <Pressable>
             <Button
-              className="rounded-full px-8 py-6 text-base"
-              variant="secondary"
+              asChild
+              className="rounded-full bg-white px-8 py-6 text-base text-primary shadow-[0_18px_40px_-24px_rgba(255,255,255,0.75)] hover:bg-teal-50 hover:text-primary"
             >
-              Schedule Service
+              <Link href="/services/request?service=vacuum-repair">
+                Schedule Service
+              </Link>
             </Button>
           </Pressable>
         </div>
