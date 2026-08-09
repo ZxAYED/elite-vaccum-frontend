@@ -12,7 +12,6 @@ import {
   Shield,
   SquareCheckBig,
   StretchHorizontal,
-  WalletCards,
   X,
 } from "lucide-react";
 
@@ -23,11 +22,11 @@ const navItems = [
     href: "/user/services",
     icon: SquareCheckBig,
   },
-  { label: "My Orders", href: "/user/orders", icon: Package },
-  { label: "Payments", href: "/user/payments", icon: WalletCards },
+  { label: "Orders", href: "/user/orders", icon: Package },
+  { label: "Billing", href: "/user/billing", icon: ReceiptText },
   { label: "Reviews", href: "/user/reviews", icon: ReceiptText },
   { label: "Notifications", href: "/user/notifications", icon: Bell },
-  { label: "Account", href: "/user/profile", icon: Settings },
+  { label: "Profile", href: "/user/profile", icon: Settings },
 ];
 
 export default function UserDashboardSidebar({

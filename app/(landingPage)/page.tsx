@@ -14,37 +14,37 @@ import { FadeIn } from "@/components/motion/Animated";
 export default function Home() {
   return (
     <main className="bg-[var(--background)]">
-      <FadeIn y={18}>
+      <FadeIn y={24} once={false}>
         <HeroSection />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <PrimaryJourneyCards />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <FeaturedProductsSection />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <EngineeredSupportSection />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <HowItWorks />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <SmartIntegration />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <ProvenSection />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <TrustSection />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <CustomerAccessPanel />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <TestimonialsCarousel />
       </FadeIn>
-      <FadeIn y={34} delay={0.04}>
+      <FadeIn y={30} delay={0.03} once={false}>
         <ExperienceCard />
       </FadeIn>
     </main>

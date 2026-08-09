@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { QuoteActionPanel } from "@/components/customer-portal/QuoteActionPanel";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { getDashboardServiceOrderByRequestId } from "@/data/mock/customer-dashboard";
 import {
   getServiceById,
   getServiceDetailByRequestId,
@@ -46,6 +47,12 @@ export default async function ServiceRequestDetailPage({
   const technician = getTechnicianById(
     detail.appointment?.technicianId ?? request.assignedTechnicianId,
   );
+  const requestedSchedule =
+    request.requestedSchedule?.label ??
+    `${formatMonthDay(request.preferredDate)} at ${request.preferredTime}`;
+  const currentSchedule =
+    request.currentSchedule?.label ?? requestedSchedule;
+  const serviceOrder = getDashboardServiceOrderByRequestId(request.id);
 
   return (
     <div className="min-h-screen">
@@ -56,7 +63,7 @@ export default async function ServiceRequestDetailPage({
               <Link href="/user/services">Back to requests</Link>
             </Button>
             <Button asChild>
-              <Link href="/user/payments">View related payments</Link>
+              <Link href="/user/billing">View related billing</Link>
             </Button>
           </>
         }
@@ -75,14 +82,14 @@ export default async function ServiceRequestDetailPage({
 
             <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-sm font-medium text-gray-500">Preferred date</p>
+                <p className="text-sm font-medium text-gray-500">Requested schedule</p>
                 <p className="mt-2 font-semibold text-gray-900">
-                  {formatLongDate(request.preferredDate)}
+                  {requestedSchedule}
                 </p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4">
-                <p className="text-sm font-medium text-gray-500">Preferred time</p>
-                <p className="mt-2 font-semibold text-gray-900">{request.preferredTime}</p>
+                <p className="text-sm font-medium text-gray-500">Current schedule</p>
+                <p className="mt-2 font-semibold text-gray-900">{currentSchedule}</p>
               </div>
               <div className="rounded-2xl bg-gray-50 p-4">
                 <p className="text-sm font-medium text-gray-500">Service type</p>
@@ -137,6 +144,45 @@ export default async function ServiceRequestDetailPage({
                 </div>
               </div>
             </div>
+
+            {request.equipment ? (
+              <div className="mt-6 rounded-2xl border border-gray-200 p-5">
+                <p className="text-sm font-semibold text-gray-500">
+                  Equipment information
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  {[
+                    ["Manufacturer", request.equipment.manufacturer],
+                    ["Model", request.equipment.modelNumber],
+                    ["Serial", request.equipment.serialNumber],
+                    ["Unit location", request.equipment.unitLocation],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-xl bg-gray-50 p-3">
+                      <p className="text-xs text-gray-500">{label}</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {value || "Not provided"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {request.rejectionHistory?.length ? (
+              <div className="mt-6 rounded-2xl border border-rose-100 bg-rose-50 p-5">
+                <p className="text-sm font-semibold text-rose-800">
+                  Request rejection history
+                </p>
+                <div className="mt-3 space-y-2">
+                  {request.rejectionHistory.map((entry) => (
+                    <div key={entry.id} className="text-sm text-rose-800">
+                      <span className="font-semibold">{entry.reason}</span>
+                      {entry.comments ? ` - ${entry.comments}` : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -211,8 +257,44 @@ export default async function ServiceRequestDetailPage({
                   initialStatus={detail.quote.status}
                   slots={detail.quote.suggestedSlots}
                   title={request.title}
+                  currentScheduleLabel={currentSchedule}
+                  rejectionHistory={detail.quote.rejectionHistory}
                 />
+                <Button asChild className="mt-4 w-full" variant="outline">
+                  <Link href={`/user/services/${request.id}/quotation`}>
+                    Open dedicated quotation page
+                  </Link>
+                </Button>
               </div>
+            </section>
+          ) : null}
+
+          {serviceOrder ? (
+            <section className="rounded-3xl border border-teal-100 bg-teal-50 p-6 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">
+                Service Order Created
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-primary">
+                {serviceOrder.id}
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                The accepted quotation has moved into the customer order flow.
+              </p>
+              <Button asChild className="mt-5">
+                <Link href={`/user/orders/${serviceOrder.id}`}>View Service Order</Link>
+              </Button>
+            </section>
+          ) : request.status === "accepted" ? (
+            <section className="rounded-3xl border border-teal-100 bg-teal-50 p-6 shadow-sm">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">
+                Request Accepted
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-primary">
+                Quotation in preparation
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Our team accepted the request and is preparing your quotation.
+              </p>
             </section>
           ) : null}
 

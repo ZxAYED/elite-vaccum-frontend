@@ -10,7 +10,7 @@ export default function NewStandard() {
       <div className="max-w-360 mx-auto px-5 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-start">
           {/* Left: Text + Stats */}
-          <FadeIn className="space-y-10">
+          <FadeIn className="space-y-10" once={false}>
             <div>
               <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary leading-tight">
                 A new standard for
@@ -33,7 +33,7 @@ export default function NewStandard() {
             </div>
 
             {/* Stats */}
-            <StaggerGroup className="flex flex-wrap gap-12 md:gap-16" delay={0.08}>
+            <StaggerGroup className="flex flex-wrap gap-12 md:gap-16" delay={0.08} once={false}>
               <StaggerItem>
                 <div className="text-center md:text-left mx-auto md:mx-0">
                 <div className="text-xl font-bold text-primary text-center">
@@ -59,7 +59,7 @@ export default function NewStandard() {
           </FadeIn>
 
           {/* Right: Image with Verified Badge */}
-          <FadeIn className="relative rounded-2xl overflow-hidden shadow-2xl group" delay={0.12}>
+          <FadeIn className="relative rounded-2xl overflow-hidden shadow-2xl group" delay={0.12} once={false}>
             <Image
               src={about}
               alt="Technician using smart device for home service diagnostics in modern home"
@@ -82,7 +82,7 @@ export default function NewStandard() {
         </div>
 
         {/* Vision & Mission Cards */}
-        <StaggerGroup className="grid md:grid-cols-2 gap-8 mt-16 lg:mt-20" delay={0.08}>
+        <StaggerGroup className="grid md:grid-cols-2 gap-8 mt-16 lg:mt-20" delay={0.08} once={false}>
           {/* Vision */}
           <StaggerItem>
             <div className=" border border-teal-100 rounded-2xl p-8 md:p-10 hover:shadow-lg transition-shadow">

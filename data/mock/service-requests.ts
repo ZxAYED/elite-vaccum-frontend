@@ -33,6 +33,24 @@ export const mockServiceRequests: ServiceRequest[] = [
       },
     ],
     submittedAt: "2026-08-06T13:18:00.000Z",
+    requestedSchedule: {
+      date: "2026-08-10",
+      time: "10:00 AM",
+      label: "August 10, 2026 at 10:00 AM",
+    },
+    currentSchedule: {
+      date: "2026-08-10",
+      time: "10:00 AM",
+      label: "August 10, 2026 at 10:00 AM",
+    },
+    equipment: {
+      manufacturer: "AeroFlow",
+      modelNumber: "AF-500",
+      serialNumber: "AF500-2219",
+      unitLocation: "Basement",
+    },
+    problemLocation: "Basement utility room",
+    additionalNotes: "Please call from the driveway before arrival.",
   },
   {
     id: "REQ-1006",
@@ -51,6 +69,21 @@ export const mockServiceRequests: ServiceRequest[] = [
     assignedTechnicianId: "tech-002",
     attachments: [],
     submittedAt: "2026-07-31T15:10:00.000Z",
+    requestedSchedule: {
+      date: "2026-08-14",
+      time: "11:00 AM",
+      label: "August 14, 2026 at 11:00 AM",
+    },
+    currentSchedule: {
+      date: "2026-08-14",
+      time: "11:00 AM",
+      label: "August 14, 2026 at 11:00 AM",
+    },
+    equipment: {
+      manufacturer: "Elite",
+      modelNumber: "ECV-700",
+      unitLocation: "Garage",
+    },
   },
   {
     id: "REQ-1007",
@@ -69,6 +102,86 @@ export const mockServiceRequests: ServiceRequest[] = [
     assignedTechnicianId: "tech-001",
     attachments: [],
     submittedAt: "2026-07-08T10:00:00.000Z",
+    requestedSchedule: {
+      date: "2026-07-12",
+      time: "09:30 AM",
+      label: "July 12, 2026 at 09:30 AM",
+    },
+    currentSchedule: {
+      date: "2026-07-12",
+      time: "09:30 AM",
+      label: "July 12, 2026 at 09:30 AM",
+    },
+  },
+  {
+    id: "REQ-1008",
+    customerId: "cust-1001",
+    serviceId: "svc-inlet-diagnostics",
+    title: "Low Suction Fix",
+    description:
+      "Kitchen and hallway inlets have weak suction compared with the garage inlet.",
+    status: "rejected",
+    urgency: "normal",
+    preferredDate: "2026-08-20",
+    preferredTime: "02:00 PM",
+    propertyLabel: "Primary Residence",
+    serviceAddress: addressByCustomerId["cust-1001"],
+    attachments: [],
+    submittedAt: "2026-08-08T11:10:00.000Z",
+    requestedSchedule: {
+      date: "2026-08-20",
+      time: "02:00 PM",
+      label: "August 20, 2026 at 02:00 PM",
+    },
+    currentSchedule: {
+      date: "2026-08-20",
+      time: "02:00 PM",
+      label: "August 20, 2026 at 02:00 PM",
+    },
+    equipment: {
+      manufacturer: "Unknown",
+      unitLocation: "Garage",
+    },
+    rejectionHistory: [
+      {
+        id: "req-reject-1008",
+        reason: "Outside service scope",
+        comments:
+          "Customer was advised to submit photos of the non-central portable unit instead.",
+        rejectedAt: "2026-08-08T15:20:00.000Z",
+        actorLabel: "Admin",
+      },
+    ],
+  },
+  {
+    id: "REQ-1009",
+    customerId: "cust-1001",
+    serviceId: "svc-central-installation",
+    title: "New System Installation",
+    description:
+      "New construction rough-in review with requested visit before framing closes.",
+    status: "accepted",
+    urgency: "priority",
+    preferredDate: "2026-08-24",
+    preferredTime: "09:00 AM",
+    propertyLabel: "Primary Residence",
+    serviceAddress: addressByCustomerId["cust-1001"],
+    attachments: [],
+    submittedAt: "2026-08-08T14:05:00.000Z",
+    requestedSchedule: {
+      date: "2026-08-24",
+      time: "09:00 AM",
+      label: "August 24, 2026 at 09:00 AM",
+    },
+    currentSchedule: {
+      date: "2026-08-25",
+      time: "01:00 PM",
+      label: "August 25, 2026 at 01:00 PM",
+    },
+    equipment: {
+      unitLocation: "Mechanical room",
+    },
+    additionalNotes: "Builder can provide rough-in drawings on arrival.",
   },
   {
     id: "REQ-1002",

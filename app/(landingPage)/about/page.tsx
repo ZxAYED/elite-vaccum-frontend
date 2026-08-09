@@ -22,7 +22,11 @@ export default function About() {
 
         {/* CTA Section */}
         <section className="bg-[#F9F9F9] text-black py-16 md:py-20">
-          <StaggerGroup className="max-w-4xl mx-auto px-4 text-center" delay={0.06}>
+          <StaggerGroup
+            className="max-w-4xl mx-auto px-4 text-center"
+            delay={0.06}
+            once={false}
+          >
             <StaggerItem>
               <h2 className="text-3xl md:text-4xl font-bold mb-6 text-primary">
                 Work with the best.

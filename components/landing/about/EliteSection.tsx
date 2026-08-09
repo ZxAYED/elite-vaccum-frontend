@@ -50,7 +50,7 @@ export default function EliteSection() {
     <section className="space-y-24 bg-[#F9F9F9]">
       {/* Stats */}
       <div className="text-center space-y-10 py-12 px-8 md:px-0">
-        <FadeIn>
+        <FadeIn once={false}>
           <h2 className="text-3xl font-semibold text-emerald-900">
             Elite by the numbers
           </h2>
@@ -59,7 +59,7 @@ export default function EliteSection() {
           </p>
         </FadeIn>
 
-        <StaggerGroup className="grid md:grid-cols-2 gap-8 mt-16 lg:mt-20 max-w-360 mx-auto" delay={0.06}>
+        <StaggerGroup className="grid md:grid-cols-2 gap-8 mt-16 lg:mt-20 max-w-360 mx-auto" delay={0.06} once={false}>
           {stats.map((item) => {
             const Icon = item.icon;
             return (
@@ -81,7 +81,7 @@ export default function EliteSection() {
 
       {/* Leadership */}
       <div className="text-center space-y-10">
-        <FadeIn>
+        <FadeIn once={false}>
           <h3 className="text-3xl font-semibold text-emerald-900">
             The Leadership Team
           </h3>
@@ -90,7 +90,7 @@ export default function EliteSection() {
           </p>
         </FadeIn>
 
-        <StaggerGroup className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-360 mx-auto px-4" delay={0.06}>
+        <StaggerGroup className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-360 mx-auto px-4" delay={0.06} once={false}>
           {team.map((member) => (
             <StaggerItem key={member.name}>
               <div className="bg-white border rounded-xl p-4 md:p-6 text-center shadow-sm">
@@ -112,7 +112,7 @@ export default function EliteSection() {
 
       {/* Trust badges */}
       <div className="bg-muted py-10 px-8 md:px-0">
-        <StaggerGroup className="max-w-360 mx-auto grid grid-cols-1 md:grid-cols-4 gap-6" delay={0.06}>
+        <StaggerGroup className="max-w-360 mx-auto grid grid-cols-1 md:grid-cols-4 gap-6" delay={0.06} once={false}>
           {badges.map((badge) => {
             const Icon = badge.icon;
             return (

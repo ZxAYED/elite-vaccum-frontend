@@ -9,6 +9,7 @@ export type ServiceRequestStatus =
   | "draft"
   | "submitted"
   | "under-review"
+  | "accepted"
   | "quoted"
   | "scheduled"
   | "in-progress"
@@ -125,6 +126,7 @@ export type PublicServiceIconKey =
 
 export interface ServiceOffering {
   slug: string;
+  serviceId: string;
   group: PublicServiceGroup;
   title: string;
   summary: string;
@@ -156,6 +158,27 @@ export interface ServiceRequestAttachment {
   kind: "photo" | "video" | "document";
 }
 
+export interface ServiceScheduleWindow {
+  date: string;
+  time: string;
+  label?: string;
+}
+
+export interface ServiceRequestEquipment {
+  manufacturer?: string;
+  modelNumber?: string;
+  serialNumber?: string;
+  unitLocation?: string;
+}
+
+export interface RejectionHistoryEntry {
+  id: string;
+  reason: string;
+  comments?: string;
+  rejectedAt: string;
+  actorLabel: string;
+}
+
 export interface ServiceRequest {
   id: string;
   customerId: string;
@@ -172,6 +195,12 @@ export interface ServiceRequest {
   assignedTechnicianId?: string;
   attachments: ServiceRequestAttachment[];
   submittedAt: string;
+  requestedSchedule?: ServiceScheduleWindow;
+  currentSchedule?: ServiceScheduleWindow;
+  equipment?: ServiceRequestEquipment;
+  problemLocation?: string;
+  additionalNotes?: string;
+  rejectionHistory?: RejectionHistoryEntry[];
 }
 
 export interface Quote {

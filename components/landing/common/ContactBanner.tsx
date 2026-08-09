@@ -18,7 +18,7 @@ export default function ContactBanner() {
       <div className="absolute inset-0 bg-black/15" />
       <section className="bg-linear-to-br from-primary to-primary/80 text-primary-foreground py-16 md:py-24 absolute inset-0">
         <div className="max-w-360 mx-auto px-4">
-          <StaggerGroup className="max-w-2xl" delay={0.08}>
+          <StaggerGroup className="max-w-2xl" delay={0.06} once={false}>
             <StaggerItem>
               <div className="inline-block rounded-full px-4 py-2 text-lg font-medium text-[#BCFF56]">
                 CALL & CHATS

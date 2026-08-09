@@ -10,6 +10,9 @@ const easing = [0.22, 1, 0.36, 1] as const;
 interface FadeInProps extends PropsWithChildren {
   className?: string;
   delay?: number;
+  duration?: number;
+  amount?: number;
+  once?: boolean;
   y?: number;
 }
 
@@ -21,7 +24,10 @@ export function FadeIn({
   children,
   className,
   delay = 0,
-  y = 28,
+  duration = 0.72,
+  amount = 0.24,
+  once = true,
+  y = 30,
 }: FadeInProps) {
   const reduceMotion = useReducedMotion();
 
@@ -34,9 +40,9 @@ export function FadeIn({
       className={className}
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, amount: 0.22 }}
+      viewport={{ once, amount }}
       transition={{
-        duration: 0.62,
+        duration,
         delay,
         ease: easing,
       }}
@@ -50,6 +56,8 @@ export function StaggerGroup({
   children,
   className,
   delay = 0,
+  amount = 0.22,
+  once = true,
 }: FadeInProps) {
   const reduceMotion = useReducedMotion();
 
@@ -62,13 +70,13 @@ export function StaggerGroup({
       className={className}
       initial="hidden"
       whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
+      viewport={{ once, amount }}
       variants={{
         hidden: {},
         visible: {
           transition: {
             delayChildren: delay,
-            staggerChildren: 0.08,
+            staggerChildren: 0.1,
           },
         },
       }}
@@ -81,6 +89,7 @@ export function StaggerGroup({
 export function StaggerItem({
   children,
   className,
+  duration = 0.68,
   y = 28,
 }: FadeInProps) {
   const reduceMotion = useReducedMotion();
@@ -98,7 +107,7 @@ export function StaggerItem({
           opacity: 1,
           y: 0,
           transition: {
-            duration: 0.55,
+            duration,
             ease: easing,
           },
         },
@@ -120,7 +129,7 @@ export function Pressable({ children, className }: PressableProps) {
     <motion.div
       className={cn("inline-flex", className)}
       whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.9 }}
+      whileTap={{ scale: 0.97 }}
       transition={{
         type: "spring",
         stiffness: 380,

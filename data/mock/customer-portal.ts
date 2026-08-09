@@ -4,6 +4,7 @@ import type {
   PaymentStatus,
   Product,
   Quote,
+  RejectionHistoryEntry,
 } from "@/types/domain";
 
 import { mockNotifications } from "@/data/mock/notifications";
@@ -30,6 +31,7 @@ export interface SuggestedSlot {
 export interface CustomerQuote extends Quote {
   lineItems: QuoteLineItem[];
   suggestedSlots: SuggestedSlot[];
+  rejectionHistory?: RejectionHistoryEntry[];
 }
 
 export interface CustomerAppointment extends Appointment {
@@ -250,6 +252,41 @@ export const mockCustomerServiceDetailsByRequestId: Record<
         "No additional service is required. A product review can be left from your orders area once replacements are delivered.",
     },
   },
+  "REQ-1008": {
+    requestId: "REQ-1008",
+    timeline: [
+      {
+        id: "timeline-1008-1",
+        label: "Request Submitted",
+        detail: "Low suction request submitted with address and requested schedule.",
+        occurredAt: "2026-08-08T11:10:00.000Z",
+      },
+      {
+        id: "timeline-1008-2",
+        label: "Request Rejected",
+        detail: "Admin rejected the request and left a reason for the customer.",
+        occurredAt: "2026-08-08T15:20:00.000Z",
+      },
+    ],
+  },
+  "REQ-1009": {
+    requestId: "REQ-1009",
+    timeline: [
+      {
+        id: "timeline-1009-1",
+        label: "Request Submitted",
+        detail: "Installation request submitted with requested visit window.",
+        occurredAt: "2026-08-08T14:05:00.000Z",
+      },
+      {
+        id: "timeline-1009-2",
+        label: "Request Accepted",
+        detail:
+          "Admin accepted the request and updated the current schedule for technician availability.",
+        occurredAt: "2026-08-08T16:45:00.000Z",
+      },
+    ],
+  },
 };
 
 export const mockCustomerProductOrders: StoreOrder[] = [
@@ -385,7 +422,7 @@ export const mockPaymentLedger: PaymentLedgerEntry[] = [
 export const mockNotificationHrefById: Record<string, string> = {
   "notif-1001": "/user/services/REQ-1001#quote",
   "notif-1002": "/user/services/REQ-1006#appointment",
-  "notif-1003": "/user/payments",
+  "notif-1003": "/user/billing",
   "notif-1004": "/user/services",
 };
 
@@ -399,6 +436,19 @@ export function getServiceRequestById(requestId: string) {
 
 export function getServiceDetailByRequestId(requestId: string) {
   return mockCustomerServiceDetailsByRequestId[requestId];
+}
+
+export function getCustomerQuotations() {
+  return mockCustomerServiceRequests
+    .map((request) => {
+      const detail = mockCustomerServiceDetailsByRequestId[request.id];
+      return detail?.quote ? { request, detail, quote: detail.quote } : null;
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+}
+
+export function getCustomerQuotationByRequestId(requestId: string) {
+  return getCustomerQuotations().find((item) => item.request.id === requestId);
 }
 
 export function getProductBySlug(slug: string) {

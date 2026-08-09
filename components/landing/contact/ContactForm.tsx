@@ -41,7 +41,7 @@ export default function ContactForm() {
       <section className="py-20 md:py-28">
         <div className="mx-auto max-w-[1440px] px-4">
           <div className="grid gap-12 md:grid-cols-3">
-            <FadeIn className="md:col-span-2">
+            <FadeIn className="md:col-span-2" once={false}>
               <h2 className="mb-4 text-3xl font-bold text-primary">
                 Send a Message
               </h2>
@@ -51,10 +51,14 @@ export default function ContactForm() {
                 routing once the contact API is connected.
               </p>
 
-              <form className="space-y-6" noValidate onSubmit={form.handleSubmit}>
+              <form
+                className="space-y-6"
+                noValidate
+                onSubmit={form.handleSubmit}
+              >
                 <FormStatus status={form.status} />
 
-                <StaggerGroup className="space-y-6" delay={0.05}>
+                <StaggerGroup className="space-y-6" delay={0.05} once={false}>
                   <StaggerItem>
                     <div className="grid gap-6 md:grid-cols-2">
                       <FormField
@@ -120,7 +124,9 @@ export default function ContactForm() {
                         >
                           <option value="">Select a category...</option>
                           <option value="repair">Repair Request</option>
-                          <option value="installation">Installation Planning</option>
+                          <option value="installation">
+                            Installation Planning
+                          </option>
                           <option value="maintenance">Maintenance Plan</option>
                           <option value="products">Product Support</option>
                           <option value="other">Other Inquiry</option>
@@ -161,7 +167,7 @@ export default function ContactForm() {
               </form>
             </FadeIn>
 
-            <StaggerGroup className="space-y-6" delay={0.12}>
+            <StaggerGroup className="space-y-6" delay={0.12} once={false}>
               <StaggerItem>
                 <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm">
                   <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
@@ -172,8 +178,9 @@ export default function ContactForm() {
                   </h3>
                   <p className="mt-4 text-sm leading-6 text-slate-600">
                     This project intentionally avoids inventing a public office
-                    address or verified coverage map. Swap this card for approved
-                    territory details when the real business data is ready.
+                    address or verified coverage map. Swap this card for
+                    approved territory details when the real business data is
+                    ready.
                   </p>
                   <div className="mt-6 rounded-3xl bg-[var(--brand-soft)] p-5 text-sm text-slate-700">
                     <p className="font-semibold text-slate-900">
@@ -234,7 +241,10 @@ export default function ContactForm() {
         </div>
       </section>
 
-      <FadeIn className="bg-primary py-16 text-primary-foreground md:py-20">
+      <FadeIn
+        className="bg-primary py-16 max-w-[1440px] rounded-xl mx-auto text-primary-foreground md:my-20 "
+        once={false}
+      >
         <div className="mx-auto max-w-4xl px-4 text-center">
           <h2 className="mb-6 text-3xl font-bold text-white md:text-4xl">
             Ready to get started?
@@ -244,7 +254,10 @@ export default function ContactForm() {
             once the backend workflow is enabled.
           </p>
           <Pressable>
-            <Button className="rounded-full px-8 py-6 text-base" variant="secondary">
+            <Button
+              className="rounded-full px-8 py-6 text-base"
+              variant="secondary"
+            >
               Schedule Service
             </Button>
           </Pressable>
