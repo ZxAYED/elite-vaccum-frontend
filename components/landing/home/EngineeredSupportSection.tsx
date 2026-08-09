@@ -1,5 +1,7 @@
-import { ArrowRight, Drill, ShieldCheck, Wrench } from "lucide-react";
+import { ArrowRight, HousePlus, ShieldCheck, Wrench } from "lucide-react";
 import Link from "next/link";
+
+import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 
 const services = [
   {
@@ -18,7 +20,7 @@ const services = [
     title: "Installation",
     description:
       "Thoughtful new-system planning and retrofit support for renovations, luxury homes, and builder projects.",
-    icon: Drill,
+    icon: HousePlus,
   },
 ];
 
@@ -26,7 +28,7 @@ export function EngineeredSupportSection() {
   return (
     <section className="py-14 md:py-18">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
+        <FadeIn className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
             Engineered Support
           </p>
@@ -37,29 +39,32 @@ export function EngineeredSupportSection() {
             Our technicians support the full lifecycle of your system, from first
             install to precise maintenance and long-term reliability.
           </p>
-        </div>
+        </FadeIn>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+        <StaggerGroup className="mt-10 grid auto-rows-fr gap-6 lg:grid-cols-3" delay={0.06}>
           {services.map(({ title, description, icon: Icon }) => (
-            <article
-              className="rounded-[2rem] border border-teal-100 bg-white p-7 shadow-[0_26px_52px_-44px_rgba(28,79,80,0.45)]"
-              key={title}
-            >
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
-                <Icon size={22} />
-              </div>
-              <h3 className="mt-6 text-2xl font-semibold text-slate-900">{title}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600">{description}</p>
-              <Link
-                className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 transition hover:text-teal-800"
-                href="/services"
-              >
-                Book Service
-                <ArrowRight size={16} />
-              </Link>
-            </article>
+            <StaggerItem key={title}>
+              <article className="landing-card flex h-full flex-col p-7">
+                <div className="landing-icon-tile flex size-12 items-center justify-center bg-teal-50 text-teal-700">
+                  <Icon size={22} />
+                </div>
+                <h3 className="mt-6 min-h-[3.5rem] text-2xl font-semibold text-slate-900">
+                  {title}
+                </h3>
+                <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{description}</p>
+                <Pressable className="mt-8 w-fit">
+                  <Link
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-teal-700 transition hover:text-teal-800"
+                    href="/services"
+                  >
+                    Book Service
+                    <ArrowRight size={16} />
+                  </Link>
+                </Pressable>
+              </article>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
     </section>
   );

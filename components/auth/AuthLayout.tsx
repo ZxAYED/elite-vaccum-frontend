@@ -1,8 +1,8 @@
 import Image from "next/image";
+import type { StaticImageData } from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import authImage from "@/public/auth.png";
 import logo from "@/public/logo.png";
 
 interface AuthLayoutProps {
@@ -10,6 +10,8 @@ interface AuthLayoutProps {
   description: string;
   children: ReactNode;
   footer?: ReactNode;
+  image: StaticImageData;
+  imageAlt: string;
 }
 
 export function AuthLayout({
@@ -17,42 +19,55 @@ export function AuthLayout({
   description,
   children,
   footer,
+  image,
+  imageAlt,
 }: AuthLayoutProps) {
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-[var(--background)]">
-      <main className="flex w-full flex-col justify-center px-6 py-10 sm:px-10 lg:w-1/2 lg:px-20">
-        <Link
-          href="/"
-          className="absolute left-6 top-4 inline-flex h-16 items-center sm:left-10 lg:left-20"
-        >
-          <Image src={logo} alt="Elite Central Vacuum" priority />
-        </Link>
+    <div className="min-h-svh bg-[linear-gradient(180deg,#fbfdfc_0%,#f2f8f6_100%)] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto grid min-h-[calc(100svh-3rem)] max-w-7xl items-center gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(26rem,0.95fr)]">
+        <main className="flex w-full justify-center">
+          <section className="w-full max-w-[29rem] rounded-[1.75rem] bg-white/80 p-6 shadow-[0_24px_70px_-52px_rgba(28,79,80,0.55)] backdrop-blur sm:p-8">
+            <Link href="/" className="mb-10 inline-flex items-center">
+              <Image
+                src={logo}
+                alt="Elite Central Vacuum"
+                priority
+                className="h-auto w-28"
+              />
+            </Link>
 
-        <div className="mx-auto w-full max-w-md pt-16">
-          <header className="mb-8">
-            <h1 className="text-balance text-4xl font-bold text-slate-950">
-              {title}
-            </h1>
-            <p className="mt-3 text-pretty text-sm text-slate-600">
-              {description}
-            </p>
-          </header>
+            <header className="mb-8">
+              <h1 className="text-balance text-4xl font-bold tracking-[-0.04em] text-slate-950">
+                {title}
+              </h1>
+              <p className="mt-3 text-pretty text-sm leading-6 text-slate-600">
+                {description}
+              </p>
+            </header>
 
-          <div className="space-y-6">{children}</div>
-          {footer ? <div className="mt-6">{footer}</div> : null}
-        </div>
-      </main>
+            <div className="space-y-6">{children}</div>
+            {footer ? <div className="mt-6">{footer}</div> : null}
+          </section>
+        </main>
 
-      <aside className="relative hidden lg:flex lg:w-1/2 lg:items-center lg:justify-center lg:bg-[linear-gradient(135deg,var(--brand),var(--brand-hover))]">
-        <Image
-          src={authImage}
-          alt="Elite Central Vacuum technician preparing a service call"
-          width={1600}
-          height={1600}
-          className="h-full w-full object-cover"
-          priority
-        />
-      </aside>
+        <aside className="hidden lg:block">
+          <div className="relative mx-auto aspect-[4/5] max-h-[calc(100svh-5rem)] overflow-hidden rounded-[2rem] bg-[var(--brand-soft)] shadow-[0_30px_90px_-56px_rgba(28,79,80,0.72)]">
+            <Image
+              src={image}
+              alt={imageAlt}
+              fill
+              className="object-cover"
+              priority
+              sizes="(min-width: 1024px) 46vw, 100vw"
+            />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary/55 to-transparent p-8 text-white">
+              <p className="max-w-sm text-xl font-semibold leading-tight">
+                Cleaner home care with service history in one calm workspace.
+              </p>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

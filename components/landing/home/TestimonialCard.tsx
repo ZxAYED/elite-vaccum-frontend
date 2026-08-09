@@ -19,14 +19,14 @@ export function TestimonialCard({
   rating,
 }: TestimonialCardProps) {
   return (
-    <article className="flex h-full min-h-[280px] w-full shrink-0 snap-start flex-col rounded-[2rem] border border-teal-100 bg-white p-6 shadow-[0_24px_52px_-46px_rgba(28,79,80,0.45)] sm:w-[23rem]">
+    <article className="landing-card flex h-full min-h-[300px] w-full shrink-0 snap-start flex-col p-6 sm:w-[23rem]">
       <div className="mb-5 flex gap-1">
         {Array.from({ length: rating }).map((_, i) => (
           <Star key={i} size={18} className="fill-teal-600 text-teal-600" />
         ))}
       </div>
 
-      <p className="flex-1 text-sm leading-7 text-slate-600">
+      <p className="flex-1 text-sm leading-8 text-slate-600">
         &apos;{quote}&apos;
       </p>
 

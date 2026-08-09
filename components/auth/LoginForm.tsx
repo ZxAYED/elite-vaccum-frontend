@@ -2,16 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 import { FormField } from "@/components/forms/FormField";
 import { FormStatus } from "@/components/forms/FormStatus";
 import { inputClassName } from "@/components/forms/formStyles";
 import { Button } from "@/components/ui/Button";
-import { useSchemaForm } from "@/lib/use-schema-form";
+import { useSchemaForm, type FormSubmissionState } from "@/lib/use-schema-form";
 import { loginSchema } from "@/lib/validation";
 import google from "@/public/common/google.png";
 
 export function LoginForm() {
+  const [googleStatus, setGoogleStatus] = useState<FormSubmissionState>({
+    type: "idle",
+  });
   const form = useSchemaForm({
     schema: loginSchema,
     initialValues: {
@@ -27,7 +31,9 @@ export function LoginForm() {
 
   return (
     <form className="space-y-5" noValidate onSubmit={form.handleSubmit}>
-      <FormStatus status={form.status} />
+      <FormStatus
+        status={googleStatus.type === "idle" ? form.status : googleStatus}
+      />
 
       <FormField
         error={form.errors.email}
@@ -40,7 +46,7 @@ export function LoginForm() {
           autoComplete="email"
           className={inputClassName}
           inputMode="email"
-          placeholder="name@example.com…"
+          placeholder="name@example.com..."
           spellCheck={false}
           type="email"
         />
@@ -56,7 +62,7 @@ export function LoginForm() {
           {...form.getInputProps("password")}
           autoComplete="current-password"
           className={inputClassName}
-          placeholder="Enter your password…"
+          placeholder="Enter your password..."
           type="password"
         />
       </FormField>
@@ -75,17 +81,23 @@ export function LoginForm() {
         disabled={form.isSubmitting}
         type="submit"
       >
-        {form.isSubmitting ? "Validating…" : "Log In"}
+        {form.isSubmitting ? "Validating..." : "Log In"}
       </Button>
 
       <Button
         className="w-full rounded-[var(--radius-control)] py-6 text-base"
-        disabled
+        onClick={() =>
+          setGoogleStatus({
+            type: "ready",
+            message:
+              "Google sign-in is ready for OAuth wiring. Connect the auth provider to complete this flow.",
+          })
+        }
         type="button"
         variant="outline"
       >
         <Image alt="" className="h-5 w-5" src={google} />
-        Google Sign-In Coming Soon
+        Continue with Google
       </Button>
 
       <p className="text-center text-sm text-slate-600">

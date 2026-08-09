@@ -12,14 +12,10 @@ export default function Contact() {
         <ContactBanner />
 
         {/* Contact Info Grid */}
-        <section className="py-20 md:py-28">
-          <div className="max-w-7xl mx-auto px-4">
-            <ContactInfoGrid />
+        <ContactInfoGrid />
 
-            {/* Main Contact Form */}
-            <ContactForm />
-          </div>
-        </section>
+        {/* Main Contact Form */}
+        <ContactForm />
       </main>
     </>
   );

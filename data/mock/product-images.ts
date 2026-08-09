@@ -1,20 +1,35 @@
 import type { StaticImageData } from "next/image";
 
-import colileAdapter from "@/public/landing/service/products/cable.jpg";
+import { mockProducts } from "@/data/mock/products";
+import productImage from "@/public/product.png";
 import carpetVacuum from "@/public/landing/service/products/canister.jpg";
 import cordlessVacuum from "@/public/landing/service/products/cordless.jpg";
-import scrubRoller from "@/public/landing/service/products/screw.jpg";
-import vacuumBag from "@/public/landing/service/products/vacume-bag.png";
 import vacuumHandTool from "@/public/landing/service/products/vacume.jpg";
-import mopBrush from "@/public/landing/service/products/water-mop.jpg";
 
-export const mockProductImagesById: Record<string, StaticImageData> = {
-  "prd-hand-tool": vacuumHandTool,
-  "prd-canister": carpetVacuum,
-  "prd-cordless": cordlessVacuum,
-  "prd-adapter": colileAdapter,
-  "prd-brush-head": mopBrush,
-  "prd-pipe": vacuumHandTool,
-  "prd-roller": scrubRoller,
-  "prd-bag": vacuumBag,
-};
+export const mockProductImagesById: Record<string, StaticImageData> =
+  Object.fromEntries(
+    mockProducts.map((product) => [product.id, productImage]),
+  ) as Record<string, StaticImageData>;
+
+const sharedGalleryImages = [
+  productImage,
+  vacuumHandTool,
+  carpetVacuum,
+  cordlessVacuum,
+] as const;
+
+export const mockProductGalleryImagesById: Record<string, StaticImageData[]> =
+  Object.fromEntries(
+    mockProducts.map((product, index) => {
+      const rotation = [
+        sharedGalleryImages[index % sharedGalleryImages.length],
+        sharedGalleryImages[(index + 1) % sharedGalleryImages.length],
+        sharedGalleryImages[(index + 2) % sharedGalleryImages.length],
+        sharedGalleryImages[(index + 3) % sharedGalleryImages.length],
+      ];
+
+      return [product.id, rotation];
+    }),
+  ) as Record<string, StaticImageData[]>;
+
+export { sharedGalleryImages };

@@ -1,4 +1,7 @@
 import { Mail, PhoneCall, MessageSquare } from "lucide-react";
+
+import { StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+
 import ContactInfoCard from "./ContactInfoCard";
 
 export default function ContactInfoGrid() {
@@ -29,11 +32,13 @@ export default function ContactInfoGrid() {
   return (
     <section className="py-20 md:py-28">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="grid gap-8 md:grid-cols-3">
+        <StaggerGroup className="grid gap-8 md:grid-cols-3" delay={0.06}>
           {contactInfo.map((item) => (
-            <ContactInfoCard key={item.title} {...item} />
+            <StaggerItem key={item.title}>
+              <ContactInfoCard {...item} />
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
     </section>
   );

@@ -2,16 +2,20 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 import { FormField } from "@/components/forms/FormField";
 import { FormStatus } from "@/components/forms/FormStatus";
 import { inputClassName } from "@/components/forms/formStyles";
 import { Button } from "@/components/ui/Button";
-import { useSchemaForm } from "@/lib/use-schema-form";
+import { useSchemaForm, type FormSubmissionState } from "@/lib/use-schema-form";
 import { registerSchema } from "@/lib/validation";
 import google from "@/public/common/google.png";
 
 export function RegisterForm() {
+  const [googleStatus, setGoogleStatus] = useState<FormSubmissionState>({
+    type: "idle",
+  });
   const form = useSchemaForm({
     schema: registerSchema,
     initialValues: {
@@ -29,7 +33,9 @@ export function RegisterForm() {
 
   return (
     <form className="space-y-5" noValidate onSubmit={form.handleSubmit}>
-      <FormStatus status={form.status} />
+      <FormStatus
+        status={googleStatus.type === "idle" ? form.status : googleStatus}
+      />
 
       <FormField
         error={form.errors.fullName}
@@ -41,7 +47,7 @@ export function RegisterForm() {
           {...form.getInputProps("fullName")}
           autoComplete="name"
           className={inputClassName}
-          placeholder="Jordan Mercer…"
+          placeholder="Jordan Mercer..."
           type="text"
         />
       </FormField>
@@ -57,7 +63,7 @@ export function RegisterForm() {
           autoComplete="email"
           className={inputClassName}
           inputMode="email"
-          placeholder="name@example.com…"
+          placeholder="name@example.com..."
           spellCheck={false}
           type="email"
         />
@@ -74,7 +80,7 @@ export function RegisterForm() {
           {...form.getInputProps("password")}
           autoComplete="new-password"
           className={inputClassName}
-          placeholder="Create a secure password…"
+          placeholder="Create a secure password..."
           type="password"
         />
       </FormField>
@@ -113,17 +119,23 @@ export function RegisterForm() {
         disabled={form.isSubmitting}
         type="submit"
       >
-        {form.isSubmitting ? "Validating…" : "Create Account"}
+        {form.isSubmitting ? "Validating..." : "Create Account"}
       </Button>
 
       <Button
         className="w-full rounded-[var(--radius-control)] py-6 text-base"
-        disabled
+        onClick={() =>
+          setGoogleStatus({
+            type: "ready",
+            message:
+              "Google registration is ready for OAuth wiring. Connect the auth provider to complete account creation.",
+          })
+        }
         type="button"
         variant="outline"
       >
         <Image alt="" className="h-5 w-5" src={google} />
-        Google Sign-Up Coming Soon
+        Continue with Google
       </Button>
 
       <p className="text-center text-sm text-slate-600">

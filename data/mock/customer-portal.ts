@@ -87,6 +87,10 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface CartProduct extends CartItem {
+  product: Product;
+}
+
 export interface CustomerReviewRecord {
   id: string;
   kind: "service" | "product";
@@ -418,7 +422,7 @@ export function getServiceById(serviceId: string) {
   return mockServices.find((service) => service.id === serviceId);
 }
 
-export function getCartProducts() {
+export function getCartProducts(): CartProduct[] {
   return mockCartItems.map((item) => ({
     ...item,
     product: getProductById(item.productId) as Product,

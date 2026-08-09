@@ -38,7 +38,7 @@ export function ForgotPasswordForm() {
           autoComplete="email"
           className={inputClassName}
           inputMode="email"
-          placeholder="name@example.com…"
+          placeholder="name@example.com..."
           spellCheck={false}
           type="email"
         />
@@ -49,7 +49,7 @@ export function ForgotPasswordForm() {
         disabled={form.isSubmitting}
         type="submit"
       >
-        {form.isSubmitting ? "Preparing…" : "Request Password Reset"}
+        {form.isSubmitting ? "Preparing..." : "Request Password Reset"}
       </Button>
 
       <Link

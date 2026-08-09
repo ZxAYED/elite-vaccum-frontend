@@ -2,6 +2,7 @@ export type UserRole = "customer" | "technician" | "admin";
 
 export type CustomerStatus = "active" | "inactive" | "lead";
 export type ProductStatus = "active" | "draft" | "archived";
+export type ProductAvailability = "in-stock" | "special-order";
 export type ServiceStatus = "active" | "inactive";
 export type ServiceUrgency = "normal" | "priority" | "urgent";
 export type ServiceRequestStatus =
@@ -82,11 +83,21 @@ export interface Product {
   categoryId: string;
   slug: string;
   name: string;
+  eyebrow?: string;
   summary: string;
   description: string;
   priceUsd: number;
   status: ProductStatus;
+  availability?: ProductAvailability;
+  popularityRank?: number;
+  addedAt?: string;
   imageAlt: string;
+  highlights?: string[];
+  specifications?: Array<{
+    label: string;
+    value: string;
+  }>;
+  shippingNotes?: string[];
 }
 
 export interface Service {
@@ -98,6 +109,42 @@ export interface Service {
   basePriceUsd: number;
   status: ServiceStatus;
   commonIssues: string[];
+}
+
+export type PublicServiceGroup = "Service & Maintenance" | "Installation";
+
+export type PublicServiceIconKey =
+  | "home-plus"
+  | "wrench"
+  | "activity"
+  | "shield"
+  | "sparkles"
+  | "sliders"
+  | "upload"
+  | "compass";
+
+export interface ServiceOffering {
+  slug: string;
+  group: PublicServiceGroup;
+  title: string;
+  summary: string;
+  iconKey: PublicServiceIconKey;
+}
+
+export interface QuotationLineItem {
+  label: string;
+  amountUsd: number;
+}
+
+export interface ServiceQuotation {
+  slug: string;
+  serviceType: string;
+  identifiedProblem: string;
+  imageIds: string[];
+  lineItems: QuotationLineItem[];
+  taxRate: number;
+  technicianNotes: string;
+  validityLabel: string;
 }
 
 export interface ServiceRequestAttachment {

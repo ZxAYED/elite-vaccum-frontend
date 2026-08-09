@@ -1,0 +1,411 @@
+"use client";
+
+import Link from "next/link";
+import { MapPinned } from "lucide-react";
+import { useMemo, useState } from "react";
+
+import { FormField } from "@/components/forms/FormField";
+import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/Dialog";
+import { Input } from "@/components/ui/Input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
+import type { Address } from "@/types/domain";
+import type { CartProduct } from "@/data/mock/customer-portal";
+import { calculateCartTotals } from "@/lib/store";
+import type { User } from "@/types/domain";
+
+import { CartItemRow } from "./CartItemRow";
+import { OrderTotals } from "./OrderTotals";
+
+interface CheckoutExperienceProps {
+  initialItems: CartProduct[];
+  user: User;
+  addresses: Address[];
+}
+
+interface ShippingFormState {
+  fullName: string;
+  email: string;
+  phone: string;
+  line1: string;
+  line2: string;
+  country: string;
+  state: string;
+  city: string;
+  postalCode: string;
+  saveAddress: boolean;
+}
+
+function createFormState(user: User, address?: Address): ShippingFormState {
+  return {
+    fullName: `${user.firstName} ${user.lastName}`.trim(),
+    email: user.email,
+    phone: user.phone ?? "",
+    line1: address?.line1 ?? "",
+    line2: address?.line2 ?? "",
+    country: address?.country ?? "US",
+    state: address?.state ?? "",
+    city: address?.city ?? "",
+    postalCode: address?.postalCode ?? "",
+    saveAddress: true,
+  };
+}
+
+export function CheckoutExperience({
+  initialItems,
+  user,
+  addresses,
+}: CheckoutExperienceProps) {
+  const [items, setItems] = useState(initialItems);
+  const [selectedAddressId, setSelectedAddressId] = useState(addresses[0]?.id ?? "");
+  const [pendingAddressId, setPendingAddressId] = useState(addresses[0]?.id ?? "");
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [formState, setFormState] = useState<ShippingFormState>(() =>
+    createFormState(user, addresses[0]),
+  );
+
+  const totals = useMemo(() => calculateCartTotals(items), [items]);
+  const selectedAddress = addresses.find((address) => address.id === selectedAddressId);
+
+  const updateQuantity = (productId: string, nextQuantity: number) => {
+    setItems((currentItems) =>
+      currentItems
+        .map((item) =>
+          item.productId === productId
+            ? { ...item, quantity: Math.max(1, nextQuantity) }
+            : item,
+        )
+        .filter((item) => item.quantity > 0),
+    );
+  };
+
+  const removeItem = (productId: string) => {
+    setItems((currentItems) =>
+      currentItems.filter((item) => item.productId !== productId),
+    );
+  };
+
+  const applyAddress = (value: string) => {
+    setSelectedAddressId(value);
+    const nextAddress = addresses.find((address) => address.id === value);
+    if (nextAddress) {
+      setFormState((current) => ({
+        ...createFormState(user, nextAddress),
+        email: current.email,
+      }));
+    }
+    setAddressDialogOpen(false);
+  };
+
+  return (
+    <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_30rem]">
+      <FadeIn className="landing-card landing-card-soft p-6 sm:p-8">
+        <p className="text-sm text-slate-500">Home &gt; Store &gt; Check out</p>
+
+        <div className="mt-6 space-y-8">
+          <div>
+            <h2 className="text-3xl font-semibold text-slate-950">Contact Information</h2>
+            <div className="mt-5">
+              <FormField htmlFor="email" label="Email" required>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formState.email}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      email: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-3xl font-semibold text-slate-950">Shipping Address</h2>
+              <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+                <Pressable>
+                  <DialogTrigger asChild>
+                    <Button type="button" size="pill" variant="outline">
+                      <MapPinned size={16} />
+                      Select address
+                    </Button>
+                  </DialogTrigger>
+                </Pressable>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Select a saved address</DialogTitle>
+                    <DialogDescription>
+                      Choose a saved residence and we&apos;ll prefill the checkout form with
+                      the stored delivery details.
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="mt-5 space-y-4">
+                    <Select value={pendingAddressId} onValueChange={setPendingAddressId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose an address profile" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {addresses.map((address) => (
+                          <SelectItem key={address.id} value={address.id}>
+                            {address.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {addresses
+                      .filter((address) => address.id === pendingAddressId)
+                      .map((address) => (
+                        <div
+                          key={address.id}
+                          className="rounded-[1.3rem] bg-white p-4 shadow-[0_20px_42px_-34px_rgba(28,79,80,0.24)]"
+                        >
+                          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700/80">
+                            {address.label}
+                          </p>
+                          <div className="mt-3 space-y-1 text-sm leading-7 text-slate-600">
+                            <p>{address.line1}</p>
+                            {address.line2 ? <p>{address.line2}</p> : null}
+                            <p>
+                              {address.city}, {address.state} {address.postalCode}
+                            </p>
+                            <p>{address.country}</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="pill"
+                      onClick={() => setAddressDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      size="pill"
+                      onClick={() => applyAddress(pendingAddressId)}
+                    >
+                      Use this address
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {selectedAddress ? (
+              <div className="mt-5 rounded-[1.35rem] bg-white p-4 shadow-[0_22px_48px_-36px_rgba(28,79,80,0.26)]">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700/80">
+                  Address profile
+                </p>
+                <div className="mt-3 flex flex-col gap-1 text-sm leading-7 text-slate-600">
+                  <p className="font-semibold text-slate-950">{selectedAddress.label}</p>
+                  <p>{selectedAddress.line1}</p>
+                  {selectedAddress.line2 ? <p>{selectedAddress.line2}</p> : null}
+                  <p>
+                    {selectedAddress.city}, {selectedAddress.state} {selectedAddress.postalCode}
+                  </p>
+                  <p>{selectedAddress.country}</p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <FormField htmlFor="full-name" label="Name" required>
+                <Input
+                  id="full-name"
+                  value={formState.fullName}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      fullName: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+
+              <FormField htmlFor="phone" label="Phone Number" required>
+                <Input
+                  id="phone"
+                  value={formState.phone}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      phone: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-5">
+              <FormField htmlFor="line1" label="Street address" required>
+                <Input
+                  id="line1"
+                  value={formState.line1}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      line1: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-5">
+              <FormField htmlFor="line2" label="Apartment / Suite">
+                <Input
+                  id="line2"
+                  value={formState.line2}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      line2: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+            </div>
+
+            <div className="mt-5">
+              <FormField htmlFor="country-trigger" label="Country" required>
+                <Select
+                  value={formState.country}
+                  onValueChange={(value) =>
+                    setFormState((current) => ({
+                      ...current,
+                      country: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger id="country-trigger">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="CA">Canada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
+
+            <div className="mt-5 grid gap-5 sm:grid-cols-3">
+              <FormField htmlFor="state" label="State" required>
+                <Input
+                  id="state"
+                  value={formState.state}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      state: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+
+              <FormField htmlFor="city" label="City" required>
+                <Input
+                  id="city"
+                  value={formState.city}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      city: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+
+              <FormField htmlFor="postal-code" label="Zip code" required>
+                <Input
+                  id="postal-code"
+                  value={formState.postalCode}
+                  onChange={(event) =>
+                    setFormState((current) => ({
+                      ...current,
+                      postalCode: event.target.value,
+                    }))
+                  }
+                />
+              </FormField>
+            </div>
+
+            <label className="mt-6 flex items-center gap-3 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={formState.saveAddress}
+                onChange={(event) =>
+                  setFormState((current) => ({
+                    ...current,
+                    saveAddress: event.target.checked,
+                  }))
+                }
+                className="size-5 rounded border border-teal-200 accent-[#1c4f50]"
+              />
+              Save this address for future purchases
+            </label>
+          </div>
+        </div>
+      </FadeIn>
+
+      <FadeIn
+        className="landing-card landing-card-soft h-fit p-6 xl:sticky xl:top-24"
+        delay={0.08}
+      >
+        <h2 className="text-2xl font-semibold text-slate-950">Order Summary</h2>
+
+        <StaggerGroup className="mt-5 space-y-4" delay={0.05}>
+          {items.map((item) => (
+            <StaggerItem key={item.productId}>
+              <CartItemRow
+                item={item}
+                compact
+                onDecrease={() => updateQuantity(item.productId, item.quantity - 1)}
+                onIncrease={() => updateQuantity(item.productId, item.quantity + 1)}
+                onRemove={() => removeItem(item.productId)}
+              />
+            </StaggerItem>
+          ))}
+        </StaggerGroup>
+
+        <div className="mt-6">
+          <OrderTotals totals={totals} />
+        </div>
+
+        <Pressable className="mt-6 w-full">
+          <Button asChild className="w-full" size="pill">
+            <Link href="/checkout/success">Place Order</Link>
+          </Button>
+        </Pressable>
+
+        <p className="mt-4 text-center text-sm leading-6 text-slate-500">
+          By placing this order, you agree to our Terms of Service and Privacy
+          Policy. Secure 256-bit SSL encrypted transaction.
+        </p>
+      </FadeIn>
+    </div>
+  );
+}

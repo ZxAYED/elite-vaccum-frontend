@@ -27,13 +27,35 @@
   --focus-ring: rgba(28, 79, 80, 0.22);
   --radius: 0.5rem;
   --radius-control: 1rem;
-  --radius-card: 1.5rem;
+  --radius-card: 1rem;
   --gradient-start: #eff8f5;
   --gradient-end: #d9ece7;
+  --hero-gradient-start: #003839;
+  --hero-gradient-mid: #0ea5b7;
+  --hero-gradient-end: #404848;
 }
 
 html {
   color-scheme: light;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) #dfeceb;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 11px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: #dfeceb;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 999px;
+  border: 2px solid #dfeceb;
 }
 
 .bg-primary {
@@ -111,11 +133,17 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-poppins, Arial, Helvetica, sans-serif);
+  overflow-x: clip;
 }
 
 * {
   border-color: var(--border);
   box-sizing: border-box;
+}
+
+button:not(:disabled),
+[role="button"]:not(:disabled) {
+  cursor: pointer;
 }
 
 a,
@@ -137,6 +165,33 @@ select {
 
 .fadeIn {
   animation: fadeIn 0.5s ease-in-out;
+}
+
+.text-hero-gradient {
+  background-image: linear-gradient(
+    90deg,
+    var(--hero-gradient-start) 0%,
+    var(--hero-gradient-mid) 56%,
+    var(--hero-gradient-end) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.landing-card {
+  border: 1px solid rgba(209, 227, 229, 0.92);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: 0 28px 60px -48px rgba(28, 79, 80, 0.45);
+}
+
+.landing-card-soft {
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbfa 100%);
+}
+
+.landing-icon-tile {
+  border-radius: calc(var(--radius-card) - 0.125rem);
 }
 
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
+import { FadeIn, Pressable } from "@/components/motion/Animated";
 import avatarOne from "@/public/landing/testimonials/Avatar.png";
 import avatarTwo from "@/public/landing/testimonials/Avatar2.png";
 import avatarThree from "@/public/landing/testimonials/Avatar3.png";
@@ -114,7 +115,7 @@ export function TestimonialsCarousel() {
   return (
     <section className="bg-white py-20 md:py-24">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <FadeIn className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
             <div className="inline-flex rounded-full bg-teal-50 px-5 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
               Service Stories
@@ -125,27 +126,31 @@ export function TestimonialsCarousel() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              aria-label="Scroll testimonials left"
-              className="inline-flex size-11 items-center justify-center rounded-full border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-teal-50 disabled:opacity-40"
-              disabled={!canScrollLeft}
-              onClick={() => scroll("left")}
-              type="button"
-            >
-              <ChevronLeft aria-hidden="true" size={20} />
-            </button>
+            <Pressable>
+              <button
+                aria-label="Scroll testimonials left"
+                className="inline-flex size-11 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-teal-50 disabled:opacity-40"
+                disabled={!canScrollLeft}
+                onClick={() => scroll("left")}
+                type="button"
+              >
+                <ChevronLeft aria-hidden="true" size={20} />
+              </button>
+            </Pressable>
 
-            <button
-              aria-label="Scroll testimonials right"
-              className="inline-flex size-11 items-center justify-center rounded-full border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-teal-50 disabled:opacity-40"
-              disabled={!canScrollRight}
-              onClick={() => scroll("right")}
-              type="button"
-            >
-              <ChevronRight aria-hidden="true" size={20} />
-            </button>
+            <Pressable>
+              <button
+                aria-label="Scroll testimonials right"
+                className="inline-flex size-11 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-teal-50 disabled:opacity-40"
+                disabled={!canScrollRight}
+                onClick={() => scroll("right")}
+                type="button"
+              >
+                <ChevronRight aria-hidden="true" size={20} />
+              </button>
+            </Pressable>
           </div>
-        </div>
+        </FadeIn>
 
         <div
           className="mt-10 flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-4"

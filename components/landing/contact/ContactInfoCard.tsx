@@ -1,6 +1,8 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { Pressable } from "@/components/motion/Animated";
+
 interface ContactInfoCardProps {
   icon: React.ElementType;
   title: string;
@@ -28,13 +30,15 @@ export default function ContactInfoCard({
       <p className="text-sm text-muted-foreground mb-8">{description}</p>
 
       {/* Button */}
-      <Link
-        href={href}
-        className="inline-flex items-center justify-center gap-2 w-full rounded-full bg-[#E8EDEE] px-6 py-3 text-sm font-semibold text-primary hover:bg-neutral-light/80 transition"
-      >
-        {actionLabel}
-        <ArrowRight size={16} />
-      </Link>
+      <Pressable className="w-full">
+        <Link
+          href={href}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#E8EDEE] px-6 py-3 text-sm font-semibold text-primary transition hover:bg-neutral-light/80"
+        >
+          {actionLabel}
+          <ArrowRight size={16} />
+        </Link>
+      </Pressable>
     </div>
   );
 }
