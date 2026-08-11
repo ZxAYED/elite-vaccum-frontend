@@ -31,7 +31,7 @@ import {
   StaggerItem,
 } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
-import { publicServiceOfferings } from "@/data/mock/public-services";
+import { activePublicServiceOfferings } from "@/data/mock/public-services";
 import { cn } from "@/lib/utils";
 import heroVacuum from "@/public/landing/home/vaccum.png";
 import serviceVanImage from "@/public/landing/service/service.png";
@@ -96,7 +96,7 @@ export function ServicesCatalog() {
 
   const visibleServices = useMemo(
     () =>
-      publicServiceOfferings.filter((service) => service.group === activeGroup),
+      activePublicServiceOfferings.filter((service) => service.group === activeGroup),
     [activeGroup],
   );
 

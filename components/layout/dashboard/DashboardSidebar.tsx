@@ -4,32 +4,90 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
+  BarChart3,
+  CalendarDays,
   ClipboardCheck,
-  ShoppingCart,
-  Wrench,
-  Users,
-  DollarSign,
-  Settings,
+  CreditCard,
+  FileText,
+  LayoutDashboard,
   LogOut,
-  X,
+  PackageSearch,
+  Settings,
+  ShoppingBag,
+  Star,
+  Tags,
   UserCog,
+  Users,
+  Wrench,
+  X,
 } from "lucide-react";
 import styles from "./dashboardLayout.module.css";
 
-const navItems = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+type AdminNavItem = {
+  label: string;
+  href?: string;
+  icon: typeof LayoutDashboard;
+  soon?: boolean;
+};
+
+const navGroups: Array<{
+  label?: string;
+  items: AdminNavItem[];
+}> = [
   {
-    label: "Order Confirmation",
-    href: "/admin/order-confirmation",
-    icon: ClipboardCheck,
+    items: [{ label: "Overview", href: "/admin", icon: LayoutDashboard }],
   },
-  { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
-  { label: "Services", href: "/admin/services", icon: Wrench },
-  { label: "Technicians", href: "/admin/technicians", icon: UserCog },
-  { label: "Customers", href: "/admin/customers", icon: Users },
-  { label: "Financials", href: "/admin/financials", icon: DollarSign },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+  {
+    label: "Customers",
+    items: [{ label: "Customers", href: "/admin/customers", icon: Users }],
+  },
+  {
+    label: "Catalog",
+    items: [
+      { label: "Products", icon: PackageSearch, soon: true },
+      { label: "Categories", href: "/admin/categories", icon: Tags },
+    ],
+  },
+  {
+    label: "Service Operations",
+    items: [
+      {
+        label: "Service Requests",
+        href: "/admin/service-requests",
+        icon: ClipboardCheck,
+      },
+      { label: "Services", href: "/admin/services", icon: Wrench },
+      { label: "Quotations", href: "/admin/quotations", icon: FileText },
+      {
+        label: "Schedule",
+        href: "/admin/schedule",
+        icon: CalendarDays,
+      },
+    ],
+  },
+  {
+    label: "Commerce",
+    items: [
+      { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+      { label: "Billing", href: "/admin/financials", icon: CreditCard },
+    ],
+  },
+  {
+    label: "Team",
+    items: [
+      { label: "Technicians", href: "/admin/technicians", icon: UserCog },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [
+      { label: "Reviews", icon: Star, soon: true },
+      { label: "Reports", icon: BarChart3, soon: true },
+    ],
+  },
+  {
+    items: [{ label: "Settings", href: "/admin/settings", icon: Settings }],
+  },
 ];
 
 interface DashboardSidebarProps {
@@ -56,9 +114,9 @@ export default function DashboardSidebar({
           <Link href="/">
             {" "}
             <Image
-              src="/logo_dashboard.png"
+              src="/logo-white.png"
               alt="Elite Logo"
-              width={120}
+              width={112}
               height={48}
               className={styles.logoImage}
             />
@@ -70,27 +128,61 @@ export default function DashboardSidebar({
 
         {/* Navigation */}
         <nav className={styles.sidebarNav}>
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/admin" && pathname?.startsWith(item.href));
-            const IconComponent = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`${styles.sidebarNavItem} ${
-                  isActive ? styles.sidebarNavItemActive : ""
-                }`}
-                onClick={() => {
-                  if (window.innerWidth < 1024) onToggle();
-                }}
-              >
-                <IconComponent size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+          {navGroups.map((group, groupIndex) => (
+            <div
+              className={styles.sidebarNavGroup}
+              key={group.label ?? `primary-${groupIndex}`}
+            >
+              {group.label ? (
+                <p className={styles.sidebarNavGroupLabel}>{group.label}</p>
+              ) : null}
+
+              {group.items.map((item) => {
+                const isActive =
+                  item.href &&
+                  (pathname === item.href ||
+                    (item.href !== "/admin" &&
+                      pathname?.startsWith(item.href)));
+                const IconComponent = item.icon;
+                const content = (
+                  <>
+                    <IconComponent size={17} />
+                    <span>{item.label}</span>
+                    {item.soon ? (
+                      <span className={styles.sidebarSoonBadge}>Soon</span>
+                    ) : null}
+                  </>
+                );
+
+                if (!item.href) {
+                  return (
+                    <div
+                      className={`${styles.sidebarNavItem} ${styles.sidebarNavItemMuted}`}
+                      key={item.label}
+                      title={`${item.label} is planned for a later admin pass`}
+                    >
+                      {content}
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`${styles.sidebarNavItem} ${
+                      isActive ? styles.sidebarNavItemActive : ""
+                    }`}
+                    onClick={() => {
+                      if (window.innerWidth < 1024) onToggle();
+                    }}
+                  >
+                    {content}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* Logout */}

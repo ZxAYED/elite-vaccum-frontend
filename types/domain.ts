@@ -1,9 +1,11 @@
 export type UserRole = "customer" | "technician" | "admin";
 
 export type CustomerStatus = "active" | "inactive" | "lead";
+export type ProductCategoryStatus = "ACTIVE" | "INACTIVE";
 export type ProductStatus = "active" | "draft" | "archived";
 export type ProductAvailability = "in-stock" | "special-order";
 export type ServiceStatus = "active" | "inactive";
+export type ServiceCatalogStatus = "ACTIVE" | "INACTIVE";
 export type ServiceUrgency = "normal" | "priority" | "urgent";
 export type ServiceRequestStatus =
   | "draft"
@@ -16,7 +18,14 @@ export type ServiceRequestStatus =
   | "completed"
   | "cancelled"
   | "rejected";
-export type QuoteStatus = "draft" | "sent" | "accepted" | "declined" | "expired";
+export type QuoteStatus =
+  | "draft"
+  | "sent"
+  | "viewed"
+  | "accepted"
+  | "declined"
+  | "rejected"
+  | "expired";
 export type AppointmentStatus =
   | "requested"
   | "confirmed"
@@ -25,6 +34,8 @@ export type AppointmentStatus =
   | "completed"
   | "cancelled";
 export type TechnicianStatus = "available" | "on-job" | "offline";
+export type AdminTechnicianStatus = "ACTIVE" | "INACTIVE";
+export type TechnicianAvailability = "AVAILABLE" | "BUSY" | "OFF_DUTY";
 export type OrderStatus =
   | "pending"
   | "confirmed"
@@ -34,6 +45,26 @@ export type OrderStatus =
   | "cancelled";
 export type PaymentStatus = "pending" | "paid" | "refunded" | "failed";
 export type NotificationType = "service-update" | "payment" | "account" | "system";
+export type OrderType = "PRODUCT" | "SERVICE";
+export type ProductOrderStatus =
+  | "pending"
+  | "paid"
+  | "processing"
+  | "shipped"
+  | "delivered"
+  | "cancelled"
+  | "refunded";
+export type ServiceOrderStatus =
+  | "scheduled"
+  | "rescheduled"
+  | "technician-assigned"
+  | "on-the-way"
+  | "arrived"
+  | "in-progress"
+  | "report-submitted"
+  | "completed"
+  | "cancelled";
+export type UnifiedOrderStatus = ProductOrderStatus | ServiceOrderStatus;
 
 export interface Address {
   id: string;
@@ -77,6 +108,9 @@ export interface ProductCategory {
   slug: string;
   name: string;
   description: string;
+  status: ServiceCatalogStatus;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Product {
@@ -130,7 +164,13 @@ export interface ServiceOffering {
   group: PublicServiceGroup;
   title: string;
   summary: string;
+  description?: string;
   iconKey: PublicServiceIconKey;
+  image?: string;
+  status: ProductCategoryStatus;
+  sortOrder?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface QuotationLineItem {
@@ -179,6 +219,24 @@ export interface RejectionHistoryEntry {
   actorLabel: string;
 }
 
+export interface ScheduleRescheduleEntry {
+  id: string;
+  previousSchedule: ServiceScheduleWindow;
+  nextSchedule: ServiceScheduleWindow;
+  reason: string;
+  note?: string;
+  changedAt: string;
+  actorLabel: string;
+}
+
+export interface ScheduleCancellationEntry {
+  id: string;
+  reason: string;
+  note?: string;
+  cancelledAt: string;
+  actorLabel: string;
+}
+
 export interface ServiceRequest {
   id: string;
   customerId: string;
@@ -214,6 +272,53 @@ export interface Quote {
   notes?: string;
 }
 
+export interface FlexibleQuotationLineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPriceUsd: number;
+  note?: string;
+}
+
+export interface QuotationRevisionEntry {
+  id: string;
+  version: number;
+  status: QuoteStatus;
+  subtotalUsd: number;
+  discountUsd: number;
+  taxUsd: number;
+  totalUsd: number;
+  createdAt: string;
+  reason?: string;
+}
+
+export interface QuotationRejectionEntry {
+  id: string;
+  reason: string;
+  comments?: string;
+  rejectedAt: string;
+  actorLabel: string;
+}
+
+export interface AdminQuotation extends Quote {
+  customerId: string;
+  serviceId: string;
+  version: number;
+  lineItems: FlexibleQuotationLineItem[];
+  taxUsd: number;
+  discountUsd: number;
+  terms?: string;
+  createdAt: string;
+  updatedAt: string;
+  sentAt?: string;
+  viewedAt?: string;
+  acceptedAt?: string;
+  rejectedAt?: string;
+  serviceOrderId?: string;
+  revisionHistory: QuotationRevisionEntry[];
+  rejectionHistory?: QuotationRejectionEntry[];
+}
+
 export interface Appointment {
   id: string;
   serviceRequestId: string;
@@ -235,6 +340,23 @@ export interface Technician {
   completedJobs: number;
   verified: boolean;
   specializations: string[];
+}
+
+export interface AdminTechnician {
+  id: string;
+  userId: string;
+  displayName: string;
+  email: string;
+  phone: string;
+  status: AdminTechnicianStatus;
+  availability: TechnicianAvailability;
+  rating: number;
+  completedJobs: number;
+  verified: boolean;
+  specializations: string[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface OrderItem {
@@ -281,3 +403,126 @@ export interface Notification {
   isRead: boolean;
   ctaLabel?: string;
 }
+
+export interface OrderTimelineStep {
+  key: string;
+  label: string;
+  detail: string;
+  complete: boolean;
+  active?: boolean;
+  dateLabel?: string;
+}
+
+export interface ProductOrderLineItem {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  summary: string;
+  quantity: number;
+  unitPriceUsd: number;
+  imageSrc: string;
+}
+
+export interface ProductShipment {
+  address: Address;
+  carrier: string;
+  trackingNumber?: string;
+  shippingStatus: ProductOrderStatus;
+  estimatedDelivery?: string;
+  timeline: OrderTimelineStep[];
+}
+
+export interface UnifiedOrderTotal {
+  subtotalUsd: number;
+  shippingUsd?: number;
+  taxUsd: number;
+  discountUsd?: number;
+  totalUsd: number;
+}
+
+export interface UnifiedOrderBase {
+  id: string;
+  type: OrderType;
+  customerId: string;
+  status: UnifiedOrderStatus;
+  total: UnifiedOrderTotal;
+  createdAt: string;
+  invoiceId?: string;
+  paymentId?: string;
+  paymentStatus?: PaymentStatus;
+  cancellation?: {
+    cancelledAt: string;
+    reason: string;
+    note?: string;
+  };
+}
+
+export interface AdminProductOrder extends UnifiedOrderBase {
+  type: "PRODUCT";
+  status: ProductOrderStatus;
+  items: ProductOrderLineItem[];
+  shippingAddress: Address;
+  tracking?: {
+    carrier: string;
+    trackingNumber?: string;
+    shippingStatus: ProductOrderStatus;
+    estimatedDelivery?: string;
+  };
+  shippingTimeline: OrderTimelineStep[];
+}
+
+export interface AdminServiceOrder extends UnifiedOrderBase {
+  type: "SERVICE";
+  status: ServiceOrderStatus;
+  serviceRequestId: string;
+  quotationId: string;
+  serviceId: string;
+  serviceName: string;
+  problemSummary: string;
+  requestedSchedule: ServiceScheduleWindow;
+  currentSchedule: ServiceScheduleWindow;
+  technicianId?: string;
+  serviceLocation: Address;
+  problemLocation?: string;
+  equipment?: ServiceRequestEquipment;
+  attachments: ServiceRequestAttachment[];
+  customerNotes?: string;
+  technicianInstruction?: string;
+  scheduleId?: string;
+  scheduleAdminNote?: string;
+  rescheduleHistory?: ScheduleRescheduleEntry[];
+  scheduleCancellation?: ScheduleCancellationEntry;
+  acceptedQuoteSnapshot: {
+    quotationTotalUsd: number;
+    lineItems: FlexibleQuotationLineItem[];
+    acceptedAt?: string;
+  };
+  timeline: OrderTimelineStep[];
+}
+
+export interface AdminScheduleRecord {
+  id: string;
+  serviceOrderId: string;
+  serviceRequestId: string;
+  customerId: string;
+  serviceId: string;
+  serviceName: string;
+  customerName: string;
+  address: Address;
+  requestedSchedule: ServiceScheduleWindow;
+  currentSchedule: ServiceScheduleWindow;
+  startAt: string;
+  endAt: string;
+  timeWindowLabel: string;
+  technicianId?: string;
+  status: ServiceOrderStatus;
+  adminNote?: string;
+  createdAt: string;
+  updatedAt: string;
+  deletionEligible?: boolean;
+  rescheduleHistory: ScheduleRescheduleEntry[];
+  cancellation?: ScheduleCancellationEntry;
+}
+
+export type AdminUnifiedOrder = AdminProductOrder | AdminServiceOrder;

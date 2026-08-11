@@ -21,7 +21,7 @@ export const adminRevenueVsExpenses = [
 export const adminServiceDistribution = [
   { name: "Installations", value: 28, color: "#1c4f50" },
   { name: "Motor Repair", value: 24, color: "#2e6162" },
-  { name: "Maintenance", value: 20, color: "#22c55e" },
-  { name: "Diagnostics", value: 16, color: "#f59e0b" },
+  { name: "Maintenance", value: 20, color: "#4d8281" },
+  { name: "Diagnostics", value: 16, color: "#9fbfba" },
   { name: "Accessories", value: 12, color: "#0f766e" },
 ];

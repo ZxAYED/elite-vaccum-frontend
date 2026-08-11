@@ -20,15 +20,19 @@ export default function DashboardHeader({
       </button>
 
       <div className={styles.headerRight}>
-        <button className={styles.headerNotification}>
+        <Link
+          href="/admin/notifications"
+          className={styles.headerNotification}
+          aria-label="Open notifications"
+        >
           <Bell size={20} />
           <span className={styles.headerNotificationDot} />
-        </button>
+        </Link>
 
         <Link href="/admin/profile" className={styles.headerProfile}>
           <div className={styles.headerProfileInfo}>
-            <span className={styles.headerProfileName}>Armand</span>
-            <span className={styles.headerProfileRole}>Premium</span>
+            <span className={styles.headerProfileName}>Admin</span>
+            <span className={styles.headerProfileRole}>Control Center</span>
           </div>
           <div className={styles.headerProfileAvatar}>
             <Image

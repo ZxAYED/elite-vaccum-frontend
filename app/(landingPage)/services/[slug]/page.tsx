@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 
 import {
+  activePublicServiceOfferings,
   getPublicServiceBySlug,
-  publicServiceOfferings,
 } from "@/data/mock/public-services";
 
 interface PublicServiceSlugPageProps {
@@ -12,7 +12,7 @@ interface PublicServiceSlugPageProps {
 }
 
 export function generateStaticParams() {
-  return publicServiceOfferings.map((service) => ({
+  return activePublicServiceOfferings.map((service) => ({
     slug: service.slug,
   }));
 }

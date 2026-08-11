@@ -1,261 +1,933 @@
 "use client";
 
-import { useState } from "react";
-import { DollarSign, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Activity,
+  Archive,
+  CheckCircle2,
+  Compass,
+  Edit3,
+  Eye,
+  EyeOff,
+  HomeIcon,
+  MoreHorizontal,
+  Plus,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Trash2,
+  Upload,
+  Wrench,
+  XCircle,
+} from "lucide-react";
+import type { ElementType } from "react";
+import { useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 
-import { Modal } from "@/components/ui/Modal";
-import { mockServices } from "@/data/mock/services";
-import { formatCurrencyUsd } from "@/lib/formatters";
+import { FormField } from "@/components/forms/FormField";
+import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/Dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
+import { Input } from "@/components/ui/Input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { publicServiceOfferings } from "@/data/mock/public-services";
+import { mockServiceRequests } from "@/data/mock/service-requests";
+import { cn } from "@/lib/utils";
+import {
+  serviceCatalogSchema,
+  type ServiceCatalogValues,
+} from "@/lib/validation";
+import type {
+  PublicServiceGroup,
+  PublicServiceIconKey,
+  ServiceCatalogStatus,
+  ServiceOffering,
+} from "@/types/domain";
 
-import styles from "../adminDashboard.module.css";
+type ServiceFilter = "all" | "ACTIVE" | "INACTIVE";
+type ServiceSort =
+  | "newest"
+  | "oldest"
+  | "name-asc"
+  | "name-desc"
+  | "display-order";
 
-interface ServiceFormData {
-  basePrice: string;
-  category: string;
-  commonIssues: string;
-  name: string;
-  status: string;
-}
+const statusFilterOptions: Array<{ label: string; value: ServiceFilter }> = [
+  { label: "All", value: "all" },
+  { label: "Active", value: "ACTIVE" },
+  { label: "Inactive", value: "INACTIVE" },
+];
 
-const emptyForm: ServiceFormData = {
-  basePrice: "0",
-  category: "",
-  commonIssues: "",
-  name: "",
-  status: "Active",
+const sortOptions: Array<{ label: string; value: ServiceSort }> = [
+  { label: "Newest", value: "newest" },
+  { label: "Oldest", value: "oldest" },
+  { label: "Name A-Z", value: "name-asc" },
+  { label: "Name Z-A", value: "name-desc" },
+  { label: "Display Order", value: "display-order" },
+];
+
+const groupOptions: PublicServiceGroup[] = [
+  "Service & Maintenance",
+  "Installation",
+];
+
+const iconOptions: Array<{ label: string; value: PublicServiceIconKey }> = [
+  { label: "Wrench", value: "wrench" },
+  { label: "Activity", value: "activity" },
+  { label: "Shield", value: "shield" },
+  { label: "Sliders", value: "sliders" },
+  { label: "Home Plus", value: "home-plus" },
+  { label: "Upload", value: "upload" },
+  { label: "Compass", value: "compass" },
+  { label: "Sparkles", value: "sparkles" },
+];
+
+const iconByKey: Record<PublicServiceIconKey, ElementType> = {
+  "home-plus": HomeIcon,
+  wrench: Wrench,
+  activity: Activity,
+  shield: ShieldCheck,
+  sparkles: Sparkles,
+  sliders: SlidersHorizontal,
+  upload: Upload,
+  compass: Compass,
 };
 
-export default function ServiceManagementPage() {
-  const [activeModal, setActiveModal] = useState<"add" | "edit" | null>(null);
-  const [formData, setFormData] = useState<ServiceFormData>(emptyForm);
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-{2,}/g, "-");
+}
 
-  const openAdd = () => {
-    setFormData(emptyForm);
-    setActiveModal("add");
-  };
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
+}
 
-  const openEdit = (serviceId: string) => {
-    const service = mockServices.find((item) => item.id === serviceId);
-    if (!service) return;
+function createServiceId(slug: string) {
+  return `svc-${slug}-${Date.now().toString(36).slice(-4)}`;
+}
 
-    setFormData({
-      name: service.name,
-      category: service.category,
-      basePrice: String(service.basePriceUsd),
-      commonIssues: service.commonIssues.join(", "),
-      status: service.status === "active" ? "Active" : "Inactive",
-    });
-    setActiveModal("edit");
-  };
+function StatusPill({ status }: { status: ServiceCatalogStatus }) {
+  const active = status === "ACTIVE";
 
   return (
-    <div>
-      <div className={styles.pageHeaderWithAction}>
-        <div>
-          <h1 className={styles.pageTitle}>Service Management</h1>
-          <p className={styles.pageSubtitle}>
-            Manage service types, pricing, and issue patterns
-          </p>
-        </div>
-        <button className={styles.addServiceBtn} onClick={openAdd} type="button">
-          <Plus size={16} />
-          Add Service
-        </button>
-      </div>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
+        active ? "bg-teal-50 text-teal-800" : "bg-slate-100 text-slate-600",
+      )}
+    >
+      {active ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+      {active ? "Active" : "Inactive"}
+    </span>
+  );
+}
 
-      <div className={styles.searchInputFull}>
-        <Search className={styles.searchIcon} size={16} />
-        <input
-          className={styles.searchInput}
-          placeholder="Search services by name or category…"
-          style={{ width: "100%" }}
-          type="text"
-        />
-      </div>
+function PublicVisibilityPill({ status }: { status: ServiceCatalogStatus }) {
+  const visible = status === "ACTIVE";
 
-      <div className={styles.servicesGrid}>
-        {mockServices.map((service) => (
-          <div className={styles.serviceCard} key={service.id}>
-            <div className={styles.serviceCardHeader}>
-              <div className={styles.serviceCardTitle}>
-                <span className={styles.serviceCardName}>{service.name}</span>
-                <span className={styles.serviceActiveBadge}>{service.status}</span>
-              </div>
-              <div className={styles.serviceCardActions}>
-                <button
-                  aria-label={`Edit ${service.name}`}
-                  className={styles.serviceEditBtn}
-                  onClick={() => openEdit(service.id)}
-                  type="button"
-                >
-                  <Pencil size={16} />
-                </button>
-                <button
-                  aria-label={`Remove ${service.name}`}
-                  className={styles.serviceDeleteBtn}
-                  type="button"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
+        visible ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800",
+      )}
+    >
+      {visible ? <Eye size={13} /> : <EyeOff size={13} />}
+      {visible ? "Visible" : "Hidden"}
+    </span>
+  );
+}
 
-            <span className={styles.serviceCardCategory}>{service.category}</span>
+interface ServiceFormDialogProps {
+  editingService: ServiceOffering | null;
+  onOpenChange: (open: boolean) => void;
+  onSave: (values: ServiceCatalogValues, editingSlug?: string) => void;
+  open: boolean;
+  services: ServiceOffering[];
+}
 
-            <div className={styles.servicePriceBar}>
-              <DollarSign className={styles.servicePriceIcon} size={16} />
-              <span>Base Price: {formatCurrencyUsd(service.basePriceUsd)}</span>
-            </div>
+function ServiceFormDialog({
+  editingService,
+  onOpenChange,
+  onSave,
+  open,
+  services,
+}: ServiceFormDialogProps) {
+  const [slugEdited, setSlugEdited] = useState(Boolean(editingService));
+  const {
+    control,
+    formState: { errors },
+    handleSubmit,
+    register,
+    setError,
+    setValue,
+  } = useForm<ServiceCatalogValues>({
+    resolver: zodResolver(serviceCatalogSchema),
+    defaultValues: {
+      title: editingService?.title ?? "",
+      slug: editingService?.slug ?? "",
+      summary: editingService?.summary ?? "",
+      description: editingService?.description ?? "",
+      group: editingService?.group ?? "Service & Maintenance",
+      iconKey: editingService?.iconKey ?? "wrench",
+      status: editingService?.status ?? "ACTIVE",
+      sortOrder: editingService?.sortOrder ?? services.length + 1,
+    },
+  });
 
-            <div>
-              <span className={styles.serviceIssuesLabel}>Common Issues:</span>
-              <div className={styles.serviceIssuesTags} style={{ marginTop: 6 }}>
-                {service.commonIssues.map((issue) => (
-                  <span className={styles.serviceIssueTag} key={issue}>
-                    {issue}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+  function closeDialog() {
+    setSlugEdited(false);
+    onOpenChange(false);
+  }
 
-      {activeModal ? (
-        <Modal
-          className={styles.serviceModalContent}
-          description="Local service editor preview"
-          onClose={() => setActiveModal(null)}
-          title={activeModal === "edit" ? "Edit service" : "Add service"}
-        >
-          <div className="flex items-center justify-between">
-            <h3 className={styles.serviceModalTitle}>
-              {activeModal === "edit" ? "Edit Service" : "Add New Service"}
-            </h3>
-            <button
-              aria-label="Close service editor"
-              className={styles.detailModalClose}
-              onClick={() => setActiveModal(null)}
-              type="button"
+  function submit(values: ServiceCatalogValues) {
+    const duplicateName = services.some(
+      (service) =>
+        service.slug !== editingService?.slug &&
+        service.title.toLowerCase() === values.title.toLowerCase(),
+    );
+    const duplicateSlug = services.some(
+      (service) =>
+        service.slug !== editingService?.slug &&
+        service.slug.toLowerCase() === values.slug.toLowerCase(),
+    );
+
+    if (duplicateName) {
+      setError("title", {
+        message: "A service with this name already exists.",
+        type: "manual",
+      });
+      return;
+    }
+
+    if (duplicateSlug) {
+      setError("slug", {
+        message: "A service with this slug already exists.",
+        type: "manual",
+      });
+      return;
+    }
+
+    onSave(values, editingService?.slug);
+    closeDialog();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(94vw,44rem)]">
+        <DialogHeader>
+          <DialogTitle>
+            {editingService ? "Edit Service" : "Add Service"}
+          </DialogTitle>
+          <DialogDescription>
+            Services are the catalog entries customers can request from the
+            public services page.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form className="mt-6 space-y-5" onSubmit={handleSubmit(submit)}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              error={errors.title?.message}
+              htmlFor="service-title"
+              label="Service Name"
+              required
             >
-              <X size={18} />
-            </button>
-          </div>
+              <Input
+                id="service-title"
+                placeholder="Vacuum Repair"
+                {...register("title", {
+                  onChange: (event) => {
+                    if (!slugEdited) {
+                      setValue("slug", slugify(event.target.value), {
+                        shouldValidate: true,
+                      });
+                    }
+                  },
+                })}
+              />
+            </FormField>
 
-          <p className={styles.modalNote}>
-            This editor is a frontend-only preview. It prepares the shape of the
-            service form without saving changes yet.
-          </p>
-
-          <div className={styles.formGroup}>
-            <label className={styles.formLabel} htmlFor="serviceName">
-              Service Name
-            </label>
-            <input
-              className={styles.formInput}
-              id="serviceName"
-              onChange={(event) =>
-                setFormData((current) => ({
-                  ...current,
-                  name: event.target.value,
-                }))
-              }
-              placeholder="e.g., Motor Repair…"
-              type="text"
-              value={formData.name}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.formLabel} htmlFor="serviceCategory">
-              Category
-            </label>
-            <input
-              className={styles.formInput}
-              id="serviceCategory"
-              onChange={(event) =>
-                setFormData((current) => ({
-                  ...current,
-                  category: event.target.value,
-                }))
-              }
-              placeholder="e.g., Repair…"
-              type="text"
-              value={formData.category}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.formLabel} htmlFor="basePrice">
-              Base Price ($)
-            </label>
-            <input
-              className={styles.formInput}
-              id="basePrice"
-              onChange={(event) =>
-                setFormData((current) => ({
-                  ...current,
-                  basePrice: event.target.value,
-                }))
-              }
-              placeholder="0"
-              type="number"
-              value={formData.basePrice}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.formLabel} htmlFor="commonIssues">
-              Common Issues (comma-separated)
-            </label>
-            <textarea
-              className={styles.formTextarea}
-              id="commonIssues"
-              onChange={(event) =>
-                setFormData((current) => ({
-                  ...current,
-                  commonIssues: event.target.value,
-                }))
-              }
-              placeholder="e.g., Loss of suction, Motor overheating…"
-              value={formData.commonIssues}
-            />
-          </div>
-
-          <div className={styles.formGroup}>
-            <label className={styles.formLabel} htmlFor="serviceStatus">
-              Status
-            </label>
-            <select
-              className={styles.formSelect}
-              id="serviceStatus"
-              onChange={(event) =>
-                setFormData((current) => ({
-                  ...current,
-                  status: event.target.value,
-                }))
-              }
-              value={formData.status}
+            <FormField
+              error={errors.slug?.message}
+              htmlFor="service-slug"
+              hint="Changing this slug affects the public service request URL."
+              label="Slug"
+              required
             >
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+              <Input
+                id="service-slug"
+                placeholder="vacuum-repair"
+                {...register("slug", {
+                  onChange: () => setSlugEdited(true),
+                })}
+              />
+            </FormField>
           </div>
 
-          <div className={styles.serviceModalActions}>
-            <button
-              className={styles.serviceModalCancelBtn}
-              onClick={() => setActiveModal(null)}
-              type="button"
+          <FormField
+            error={errors.summary?.message}
+            htmlFor="service-summary"
+            label="Short Description"
+            required
+          >
+            <Input
+              id="service-summary"
+              placeholder="Diagnostics and repair for suction loss, motor noise, and inlet issues."
+              {...register("summary")}
+            />
+          </FormField>
+
+          <FormField
+            error={errors.description?.message}
+            htmlFor="service-description"
+            label="Detailed Description"
+          >
+            <Textarea
+              className="min-h-28"
+              id="service-description"
+              placeholder="Describe what this service covers for admins and future public UI."
+              {...register("description")}
+            />
+          </FormField>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              error={errors.group?.message}
+              htmlFor="service-group"
+              label="Service Group"
+              required
             >
+              <Controller
+                control={control}
+                name="group"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="service-group">
+                      <SelectValue placeholder="Choose group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {groupOptions.map((group) => (
+                        <SelectItem key={group} value={group}>
+                          {group}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+
+            <FormField
+              error={errors.iconKey?.message}
+              htmlFor="service-icon"
+              label="Service Icon"
+              required
+            >
+              <Controller
+                control={control}
+                name="iconKey"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="service-icon">
+                      <SelectValue placeholder="Choose icon" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {iconOptions.map((icon) => (
+                        <SelectItem key={icon.value} value={icon.value}>
+                          {icon.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              error={errors.status?.message}
+              htmlFor="service-status"
+              label="Status"
+              required
+            >
+              <Controller
+                control={control}
+                name="status"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <SelectTrigger id="service-status">
+                      <SelectValue placeholder="Choose status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+
+            <FormField
+              error={errors.sortOrder?.message}
+              htmlFor="service-sort-order"
+              label="Display Order"
+              required
+            >
+              <Input
+                id="service-sort-order"
+                inputMode="numeric"
+                min={1}
+                type="number"
+                {...register("sortOrder", { valueAsNumber: true })}
+              />
+            </FormField>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeDialog}>
               Cancel
-            </button>
-            <button className={styles.serviceModalSaveBtn} type="button">
-              Save Local Draft
-            </button>
+            </Button>
+            <Button type="submit">
+              {editingService ? "Save Changes" : "Create Service"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function AdminServicesPage() {
+  const [services, setServices] =
+    useState<ServiceOffering[]>(publicServiceOfferings);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ServiceFilter>("all");
+  const [sort, setSort] = useState<ServiceSort>("display-order");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingService, setEditingService] = useState<ServiceOffering | null>(
+    null,
+  );
+  const [deleteTarget, setDeleteTarget] = useState<ServiceOffering | null>(null);
+  const [blockedDelete, setBlockedDelete] = useState<{
+    count: number;
+    service: ServiceOffering;
+  } | null>(null);
+
+  const requestCounts = useMemo(() => {
+    return mockServiceRequests.reduce<Record<string, number>>(
+      (counts, request) => {
+        counts[request.serviceId] = (counts[request.serviceId] ?? 0) + 1;
+        return counts;
+      },
+      {},
+    );
+  }, []);
+
+  const filteredServices = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return services
+      .filter((service) => {
+        const matchesSearch =
+          normalizedQuery.length === 0 ||
+          service.title.toLowerCase().includes(normalizedQuery) ||
+          service.slug.toLowerCase().includes(normalizedQuery);
+        const matchesStatus =
+          statusFilter === "all" || service.status === statusFilter;
+
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        switch (sort) {
+          case "oldest":
+            return (
+              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
+          case "name-asc":
+            return a.title.localeCompare(b.title);
+          case "name-desc":
+            return b.title.localeCompare(a.title);
+          case "display-order":
+            return (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
+          case "newest":
+          default:
+            return (
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+        }
+      });
+  }, [query, services, sort, statusFilter]);
+
+  const totals = useMemo(() => {
+    return services.reduce(
+      (stats, service) => {
+        stats.total += 1;
+        if (service.status === "ACTIVE") stats.active += 1;
+        if (service.status === "INACTIVE") stats.inactive += 1;
+        if ((requestCounts[service.serviceId] ?? 0) > 0) stats.referenced += 1;
+        return stats;
+      },
+      { active: 0, inactive: 0, referenced: 0, total: 0 },
+    );
+  }, [requestCounts, services]);
+
+  function openCreateDialog() {
+    setEditingService(null);
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(service: ServiceOffering) {
+    setEditingService(service);
+    setDialogOpen(true);
+  }
+
+  function saveService(values: ServiceCatalogValues, editingSlug?: string) {
+    const today = new Date().toISOString().slice(0, 10);
+
+    setServices((current) => {
+      if (editingSlug) {
+        return current.map((service) =>
+          service.slug === editingSlug
+            ? {
+                ...service,
+                ...values,
+                description: values.description ?? "",
+                updatedAt: today,
+              }
+            : service,
+        );
+      }
+
+      return [
+        {
+          serviceId: createServiceId(values.slug),
+          slug: values.slug,
+          title: values.title,
+          summary: values.summary,
+          description: values.description ?? "",
+          group: values.group,
+          iconKey: values.iconKey,
+          status: values.status,
+          sortOrder: values.sortOrder,
+          createdAt: today,
+          updatedAt: today,
+        },
+        ...current,
+      ];
+    });
+  }
+
+  function toggleStatus(service: ServiceOffering) {
+    const nextStatus: ServiceCatalogStatus =
+      service.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const today = new Date().toISOString().slice(0, 10);
+
+    setServices((current) =>
+      current.map((item) =>
+        item.slug === service.slug
+          ? { ...item, status: nextStatus, updatedAt: today }
+          : item,
+      ),
+    );
+  }
+
+  function requestDelete(service: ServiceOffering) {
+    const count = requestCounts[service.serviceId] ?? 0;
+    if (count > 0) {
+      setBlockedDelete({ service, count });
+      return;
+    }
+
+    setDeleteTarget(service);
+  }
+
+  function confirmDelete() {
+    if (!deleteTarget) return;
+
+    setServices((current) =>
+      current.filter((service) => service.slug !== deleteTarget.slug),
+    );
+    setDeleteTarget(null);
+  }
+
+  function clearFilters() {
+    setQuery("");
+    setStatusFilter("all");
+    setSort("display-order");
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f4f7f7] text-slate-950">
+      <section className="space-y-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-teal-100 bg-white p-4 shadow-[0_18px_48px_-42px_rgba(28,79,80,0.32)] lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.32em] text-teal-700">
+              Service Operations
+            </p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-teal-950">
+              Services
+            </h1>
+            <p className="mt-2 max-w-2xl text-base leading-7 text-slate-600">
+              Manage the services customers can request.
+            </p>
           </div>
-        </Modal>
+          <Button className="h-11 rounded-xl px-5" onClick={openCreateDialog}>
+            <Plus size={18} />
+            Add Service
+          </Button>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          {[
+            { label: "Total Services", value: totals.total },
+            { label: "Public Active", value: totals.active },
+            { label: "Inactive", value: totals.inactive },
+            { label: "With Requests", value: totals.referenced },
+          ].map((stat) => (
+            <div
+              className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+              key={stat.label}
+            >
+              <p className="text-sm text-slate-500">{stat.label}</p>
+              <p className="mt-2 text-3xl font-semibold text-teal-950">
+                {stat.value}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_18px_56px_-44px_rgba(28,79,80,0.34)]">
+          <div className="grid gap-3 lg:grid-cols-[1fr_24rem_18rem]">
+            <div className="relative">
+              <Search
+                aria-hidden="true"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                size={18}
+              />
+              <Input
+                aria-label="Search services"
+                className="pl-11"
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by service name or slug..."
+                value={query}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-1">
+              {statusFilterOptions.map((option) => (
+                <button
+                  className={cn(
+                    "h-10 rounded-[1rem] text-sm font-semibold transition",
+                    statusFilter === option.value
+                      ? "bg-primary text-white shadow-[0_14px_30px_-22px_rgba(28,79,80,0.9)]"
+                      : "text-slate-600 hover:bg-white hover:text-teal-800",
+                  )}
+                  key={option.value}
+                  onClick={() => setStatusFilter(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <Select
+              onValueChange={(value) => setSort(value as ServiceSort)}
+              value={sort}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {sortOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {services.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
+              <Archive className="mx-auto text-teal-700" size={34} />
+              <h2 className="mt-4 text-xl font-semibold text-teal-950">
+                No services yet
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Create services customers can request.
+              </p>
+              <Button className="mt-5" onClick={openCreateDialog}>
+                Add Service
+              </Button>
+            </div>
+          ) : filteredServices.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
+              <Archive className="mx-auto text-teal-700" size={34} />
+              <h2 className="mt-4 text-xl font-semibold text-teal-950">
+                No services match your filters.
+              </h2>
+              <p className="mt-2 text-sm text-slate-600">
+                Try a different search term or status.
+              </p>
+              <Button className="mt-5" variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="mt-5 hidden overflow-hidden rounded-xl border border-teal-100 lg:block">
+                <table className="w-full border-collapse text-left">
+                  <thead className="bg-[#f7fbfa] text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                    <tr>
+                      <th className="px-5 py-4">Service</th>
+                      <th className="px-5 py-4">Slug</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Public Visibility</th>
+                      <th className="px-5 py-4">Updated</th>
+                      <th className="px-5 py-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-teal-100">
+                    {filteredServices.map((service) => {
+                      const Icon = iconByKey[service.iconKey];
+
+                      return (
+                        <tr className="bg-white" key={service.slug}>
+                          <td className="px-5 py-5">
+                            <div className="flex items-start gap-4">
+                              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
+                                <Icon size={20} />
+                              </span>
+                              <div>
+                                <p className="font-semibold text-teal-950">
+                                  {service.title}
+                                </p>
+                                <p className="mt-1 max-w-md text-sm text-slate-500">
+                                  {service.summary}
+                                </p>
+                                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+                                  {service.group}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-5">
+                            <code className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
+                              {service.slug}
+                            </code>
+                          </td>
+                          <td className="px-5 py-5">
+                            <StatusPill status={service.status} />
+                          </td>
+                          <td className="px-5 py-5">
+                            <PublicVisibilityPill status={service.status} />
+                          </td>
+                          <td className="px-5 py-5 text-sm text-slate-600">
+                            {formatDate(service.updatedAt)}
+                          </td>
+                          <td className="px-5 py-5 text-right">
+                            <ServiceActions
+                              onDelete={requestDelete}
+                              onEdit={openEditDialog}
+                              onToggleStatus={toggleStatus}
+                              service={service}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:hidden">
+                {filteredServices.map((service) => {
+                  const Icon = iconByKey[service.iconKey];
+
+                  return (
+                    <article
+                      className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+                      key={service.slug}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex gap-3">
+                          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
+                            <Icon size={19} />
+                          </span>
+                          <div>
+                            <StatusPill status={service.status} />
+                            <h2 className="mt-3 text-xl font-semibold text-teal-950">
+                              {service.title}
+                            </h2>
+                            <p className="mt-1 text-sm leading-6 text-slate-500">
+                              {service.summary}
+                            </p>
+                          </div>
+                        </div>
+                        <ServiceActions
+                          onDelete={requestDelete}
+                          onEdit={openEditDialog}
+                          onToggleStatus={toggleStatus}
+                          service={service}
+                        />
+                      </div>
+
+                      <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-slate-500">Slug</p>
+                          <p className="mt-1 break-all font-semibold text-teal-950">
+                            {service.slug}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="text-slate-500">Public Visibility</p>
+                          <div className="mt-2">
+                            <PublicVisibilityPill status={service.status} />
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+
+      {dialogOpen ? (
+        <ServiceFormDialog
+          editingService={editingService}
+          key={editingService?.slug ?? "create-service"}
+          onOpenChange={setDialogOpen}
+          onSave={saveService}
+          open={dialogOpen}
+          services={services}
+        />
       ) : null}
-    </div>
+
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Service?</DialogTitle>
+            <DialogDescription>
+              This permanently removes{" "}
+              <span className="font-semibold text-slate-800">
+                {deleteTarget?.title}
+              </span>
+              . Public request links for this service will no longer resolve.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete}>
+              Delete Service
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(blockedDelete)} onOpenChange={() => setBlockedDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cannot Delete Service</DialogTitle>
+            <DialogDescription>
+              {blockedDelete?.service.title} is referenced by{" "}
+              {blockedDelete?.count} existing service request
+              {blockedDelete?.count === 1 ? "" : "s"}. Deactivate the service
+              instead to keep historical records intact.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setBlockedDelete(null)}>Understood</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </main>
+  );
+}
+
+interface ServiceActionsProps {
+  onDelete: (service: ServiceOffering) => void;
+  onEdit: (service: ServiceOffering) => void;
+  onToggleStatus: (service: ServiceOffering) => void;
+  service: ServiceOffering;
+}
+
+function ServiceActions({
+  onDelete,
+  onEdit,
+  onToggleStatus,
+  service,
+}: ServiceActionsProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          aria-label={`Open actions for ${service.title}`}
+          size="icon"
+          variant="outline"
+        >
+          <MoreHorizontal size={18} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onEdit(service)}>
+          <Edit3 size={16} />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onToggleStatus(service)}>
+          {service.status === "ACTIVE" ? (
+            <XCircle size={16} />
+          ) : (
+            <CheckCircle2 size={16} />
+          )}
+          {service.status === "ACTIVE" ? "Deactivate" : "Activate"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="text-red-700 focus:bg-red-50 focus:text-red-800"
+          onSelect={() => onDelete(service)}
+        >
+          <Trash2 size={16} />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

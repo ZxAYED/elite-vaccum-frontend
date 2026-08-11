@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import {
+  CheckCircle2,
+  ClipboardList,
   DollarSign,
   FileText,
-  TrendingDown,
   TrendingUp,
   Users,
   Wrench,
@@ -107,6 +108,51 @@ export default function AdminDashboardPage() {
   const activeTechnicians = mockTechnicians.filter(
     (technician) => technician.status !== "offline",
   ).length;
+  const scheduledOrders = mockOrders.filter(
+    (order) => order.status === "scheduled",
+  ).length;
+  const confirmedOrders = mockOrders.filter(
+    (order) => order.status === "confirmed",
+  ).length;
+  const pendingOrders = mockOrders.filter((order) => order.status === "pending").length;
+  const statCards = [
+    {
+      label: "Six-Month Revenue",
+      value: formatCurrencyUsd(totalRevenue),
+      trend: `+${(revenueDelta * 100).toFixed(1)}% revenue growth`,
+      icon: DollarSign,
+    },
+    {
+      label: "Tracked Orders",
+      value: String(mockOrders.length),
+      trend: `${scheduledOrders} scheduled visits`,
+      icon: FileText,
+    },
+    {
+      label: "Active Technicians",
+      value: String(activeTechnicians),
+      trend: `${mockTechnicians.length - activeTechnicians} currently offline`,
+      icon: Wrench,
+    },
+    {
+      label: "Active Customers",
+      value: String(mockCustomers.length),
+      trend: "Customer accounts in portal",
+      icon: Users,
+    },
+    {
+      label: "Pending Review",
+      value: String(pendingOrders),
+      trend: "Needs admin attention",
+      icon: ClipboardList,
+    },
+    {
+      label: "Confirmed Work",
+      value: String(confirmedOrders),
+      trend: "Ready for service delivery",
+      icon: CheckCircle2,
+    },
+  ];
 
   const recentRequests = mockOrders.slice(0, 4).map((order) => {
     const customer = mockCustomers.find(
@@ -137,73 +183,25 @@ export default function AdminDashboardPage() {
       </div>
 
       <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <div className={styles.statCardHeader}>
-            <span className={styles.statCardLabel}>Six-Month Revenue</span>
-            <div
-              className={`${styles.statCardIcon} ${styles.statCardIconGreen}`}
-            >
-              <DollarSign size={18} />
-            </div>
-          </div>
-          <div className={styles.statCardValue}>
-            {formatCurrencyUsd(totalRevenue)}
-          </div>
-          <div className={`${styles.statCardTrend} ${styles.statCardTrendUp}`}>
-            <TrendingUp size={14} />
-            <span>{`+${(revenueDelta * 100).toFixed(1)}%`}</span>
-          </div>
-        </div>
+        {statCards.map((card) => {
+          const Icon = card.icon;
 
-        <div className={styles.statCard}>
-          <div className={styles.statCardHeader}>
-            <span className={styles.statCardLabel}>Tracked Orders</span>
-            <div
-              className={`${styles.statCardIcon} ${styles.statCardIconBlue}`}
-            >
-              <FileText size={18} />
+          return (
+            <div className={styles.statCard} key={card.label}>
+              <div className={styles.statCardHeader}>
+                <span className={styles.statCardLabel}>{card.label}</span>
+                <div className={styles.statCardIcon}>
+                  <Icon size={18} />
+                </div>
+              </div>
+              <div className={styles.statCardValue}>{card.value}</div>
+              <div className={styles.statCardTrend}>
+                <TrendingUp size={14} />
+                <span>{card.trend}</span>
+              </div>
             </div>
-          </div>
-          <div className={styles.statCardValue}>{mockOrders.length}</div>
-          <div className={`${styles.statCardTrend} ${styles.statCardTrendUp}`}>
-            <TrendingUp size={14} />
-            <span>+2 this week</span>
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={styles.statCardHeader}>
-            <span className={styles.statCardLabel}>Active Technicians</span>
-            <div
-              className={`${styles.statCardIcon} ${styles.statCardIconPurple}`}
-            >
-              <Wrench size={18} />
-            </div>
-          </div>
-          <div className={styles.statCardValue}>{activeTechnicians}</div>
-          <div className={`${styles.statCardTrend} ${styles.statCardTrendUp}`}>
-            <TrendingUp size={14} />
-            <span>1 returning Monday</span>
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <div className={styles.statCardHeader}>
-            <span className={styles.statCardLabel}>Active Customers</span>
-            <div
-              className={`${styles.statCardIcon} ${styles.statCardIconOrange}`}
-            >
-              <Users size={18} />
-            </div>
-          </div>
-          <div className={styles.statCardValue}>{mockCustomers.length}</div>
-          <div
-            className={`${styles.statCardTrend} ${styles.statCardTrendDown}`}
-          >
-            <TrendingDown size={14} />
-            <span>-1 dormant account</span>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       <div className={styles.chartsGrid}>

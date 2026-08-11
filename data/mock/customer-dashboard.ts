@@ -1,13 +1,12 @@
-import type { Address, PaymentStatus, ServiceRequest } from "@/types/domain";
+import type { Address, PaymentStatus } from "@/types/domain";
 
+import { getSharedAdminServiceOrders } from "@/data/mock/admin-schedule-state";
 import {
   getProductById,
-  getServiceById,
   getServiceDetailByRequestId,
   getServiceRequestById,
   getTechnicianById,
   mockCustomerProductOrders,
-  mockCustomerServiceRequests,
 } from "@/data/mock/customer-portal";
 import { mockCurrentCustomer } from "@/data/mock/user";
 
@@ -25,6 +24,7 @@ export type UnifiedOrderStatus =
   | "on-the-way"
   | "arrived"
   | "in-progress"
+  | "report-submitted"
   | "completed"
   | "cancelled"
   | "refunded";
@@ -145,13 +145,6 @@ export interface DashboardPayment {
   methodLabel: string;
 }
 
-function scheduleLabel(request: ServiceRequest, key: "requestedSchedule" | "currentSchedule") {
-  return (
-    request[key]?.label ??
-    `${request.preferredDate.slice(0, 10)} at ${request.preferredTime}`
-  );
-}
-
 function productOrderStatus(index: number): UnifiedOrderStatus {
   return index === 0 ? "delivered" : "processing";
 }
@@ -209,126 +202,64 @@ export const dashboardProductOrders: DashboardProductOrder[] =
     };
   });
 
-const repairRequest = getServiceRequestById("REQ-1006") ?? mockCustomerServiceRequests[0];
-const completedRequest = getServiceRequestById("REQ-1007") ?? mockCustomerServiceRequests[1];
+export function getDashboardServiceOrders(): DashboardServiceOrder[] {
+  return getSharedAdminServiceOrders().map((order) => {
+    const request = getServiceRequestById(order.serviceRequestId);
+    const detail = request ? getServiceDetailByRequestId(request.id) : undefined;
+    const technician = getTechnicianById(
+      order.technicianId ?? detail?.appointment?.technicianId,
+    );
 
-function createServiceOrder(
-  request: ServiceRequest,
-  overrides: {
-    id: string;
-    status: UnifiedOrderStatus;
-    invoiceId: string;
-    paymentId: string;
-    quotationId: string;
-    totalUsd: number;
-    activeStep: string;
-  },
-): DashboardServiceOrder {
-  const service = getServiceById(request.serviceId);
-  const detail = getServiceDetailByRequestId(request.id);
-  const technician = getTechnicianById(
-    request.assignedTechnicianId ?? detail?.appointment?.technicianId,
-  );
-  const subtotalUsd = Math.max(overrides.totalUsd - 14.08, 0);
-
-  return {
-    id: overrides.id,
-    type: "SERVICE",
-    status: overrides.status,
-    createdAt: request.submittedAt,
-    serviceRequestId: request.id,
-    quotationId: overrides.quotationId,
-    invoiceId: overrides.invoiceId,
-    paymentId: overrides.paymentId,
-    serviceName: service?.name ?? request.title,
-    problemSummary: request.description,
-    location: request.serviceAddress,
-    problemLocation: request.problemLocation,
-    requestedSchedule: scheduleLabel(request, "requestedSchedule"),
-    currentSchedule: scheduleLabel(request, "currentSchedule"),
-    customerNotes: request.additionalNotes ?? "Unit makes a high-pitched noise when starting up.",
-    technicianInstruction:
-      "Please ensure the main central unit is accessible and cleared of any obstruction.",
-    technician: technician
-      ? {
-          name: technician.displayName,
-          phone: technician.phone,
-          role: "Elite technician",
-          avatarSrc: "/nav_profile.jpg",
-        }
-      : undefined,
-    total: {
-      subtotalUsd,
-      taxUsd: overrides.totalUsd - subtotalUsd,
-      totalUsd: overrides.totalUsd,
-    },
-    timeline: [
-      {
-        key: "accepted",
-        label: "Request Accepted",
-        detail: "Your service request was confirmed by our team.",
-        dateLabel: "Apr 19, 2026",
-        complete: true,
-      },
-      {
-        key: "scheduled",
-        label: "Service Scheduled",
-        detail: technician
-          ? `${technician.displayName} has been assigned to your appointment.`
-          : "A technician will be assigned soon.",
-        dateLabel: overrides.activeStep === "scheduled" ? "Current status" : "Confirmed",
-        complete: true,
-        active: overrides.activeStep === "scheduled",
-      },
-      {
-        key: "in-progress",
-        label: "In Progress",
-        detail: "Technician performing vacuum service.",
-        dateLabel: overrides.activeStep === "in-progress" ? "Current status" : "Pending",
-        complete: ["in-progress", "completed"].includes(overrides.activeStep),
-        active: overrides.activeStep === "in-progress",
-      },
-      {
-        key: "completed",
-        label: "Completed",
-        detail: "Service report and final payment capture.",
-        dateLabel: overrides.activeStep === "completed" ? "Current status" : "Pending",
-        complete: overrides.activeStep === "completed",
-        active: overrides.activeStep === "completed",
-      },
-    ],
-  };
+    return {
+      id: order.id,
+      type: "SERVICE",
+      status: order.status,
+      createdAt: order.createdAt,
+      serviceRequestId: order.serviceRequestId,
+      quotationId: order.quotationId,
+      invoiceId: order.invoiceId ?? `INV-${order.id.replace("SO-", "")}`,
+      paymentId: order.paymentId ?? `PAY-${order.id.replace("SO-", "")}`,
+      serviceName: order.serviceName,
+      problemSummary: order.problemSummary,
+      location: order.serviceLocation,
+      problemLocation: order.problemLocation,
+      requestedSchedule: order.requestedSchedule.label ?? order.requestedSchedule.time,
+      currentSchedule: order.currentSchedule.label ?? order.currentSchedule.time,
+      customerNotes:
+        order.customerNotes ?? "Unit makes a high-pitched noise when starting up.",
+      technicianInstruction:
+        order.technicianInstruction ??
+        "Please ensure the main central unit is accessible and cleared of any obstruction.",
+      technician: technician
+        ? {
+            name: technician.displayName,
+            phone: technician.phone,
+            role: "Elite technician",
+            avatarSrc: "/nav_profile.jpg",
+          }
+        : undefined,
+      total: order.total,
+      timeline: order.timeline.map((step) => ({
+        ...step,
+        dateLabel: step.dateLabel ?? "Confirmed",
+      })),
+    };
+  });
 }
 
-export const dashboardServiceOrders: DashboardServiceOrder[] = [
-  createServiceOrder(repairRequest, {
-    id: "SO-2038",
-    status: "scheduled",
-    invoiceId: "INV-2048",
-    paymentId: "PAY-2048",
-    quotationId: "QUO-1006",
-    totalUsd: 176.55,
-    activeStep: "scheduled",
-  }),
-  createServiceOrder(completedRequest, {
-    id: "SO-2037",
-    status: "completed",
-    invoiceId: "INV-2047",
-    paymentId: "PAY-2047",
-    quotationId: "QUO-1007",
-    totalUsd: 95,
-    activeStep: "completed",
-  }),
-];
+export function getDashboardOrders(): DashboardOrder[] {
+  return [...dashboardProductOrders, ...getDashboardServiceOrders()].sort(
+    (left, right) => {
+      const leftDate = left.type === "PRODUCT" ? left.placedAt : left.createdAt;
+      const rightDate = right.type === "PRODUCT" ? right.placedAt : right.createdAt;
+      return new Date(rightDate).getTime() - new Date(leftDate).getTime();
+    },
+  );
+}
 
-export const dashboardOrders: DashboardOrder[] = [
-  ...dashboardProductOrders,
-  ...dashboardServiceOrders,
-].sort((left, right) => {
-  const leftDate = left.type === "PRODUCT" ? left.placedAt : left.createdAt;
-  const rightDate = right.type === "PRODUCT" ? right.placedAt : right.createdAt;
-  return new Date(rightDate).getTime() - new Date(leftDate).getTime();
-});
+export const dashboardOrders: DashboardOrder[] = getDashboardOrders();
+export const dashboardServiceOrders: DashboardServiceOrder[] =
+  getDashboardServiceOrders();
 
 export const dashboardInvoices: DashboardInvoice[] = dashboardOrders.map((order) => {
   const title =
@@ -384,7 +315,7 @@ export const dashboardPayments: DashboardPayment[] = dashboardInvoices.map((invo
 }));
 
 export function getDashboardOrderById(orderId: string) {
-  return dashboardOrders.find((order) => order.id === orderId);
+  return getDashboardOrders().find((order) => order.id === orderId);
 }
 
 export function getDashboardInvoiceById(invoiceId: string) {
@@ -392,11 +323,13 @@ export function getDashboardInvoiceById(invoiceId: string) {
 }
 
 export function getDashboardServiceOrderByRequestId(requestId: string) {
-  return dashboardServiceOrders.find((order) => order.serviceRequestId === requestId);
+  return getDashboardServiceOrders().find(
+    (order) => order.serviceRequestId === requestId,
+  );
 }
 
 export function getDashboardScheduleItems(status: "upcoming" | "completed") {
-  return dashboardServiceOrders.filter((order) =>
+  return getDashboardServiceOrders().filter((order) =>
     status === "completed" ? order.status === "completed" : order.status !== "completed",
   );
 }

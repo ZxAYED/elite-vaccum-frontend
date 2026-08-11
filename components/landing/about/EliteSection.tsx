@@ -1,9 +1,7 @@
 import {
   Code2,
-  CircleUser,
   Rocket,
   ShieldCheck,
-  Star,
   UsersRound,
 } from "lucide-react";
 import Image from "next/image";
@@ -13,11 +11,6 @@ import {
   StaggerGroup,
   StaggerItem,
 } from "@/components/motion/Animated";
-
-const stats = [
-  { value: "4.9/5", label: "Avg. Rating", icon: Star },
-  { value: "8,200", label: "Active Clients", icon: CircleUser },
-];
 
 const team = [
   {
