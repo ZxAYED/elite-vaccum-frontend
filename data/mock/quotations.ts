@@ -1,6 +1,6 @@
+import { mockServices } from "@/data/mock/services";
 import { mockCustomers } from "@/data/mock/customers";
 import { mockServiceRequests } from "@/data/mock/service-requests";
-import { mockServices } from "@/data/mock/services";
 import type {
   AdminQuotation,
   FlexibleQuotationLineItem,
@@ -224,17 +224,15 @@ export const mockAdminQuotations: AdminQuotation[] = [
 ];
 
 export function getQuotationById(quotationId: string) {
-  return mockAdminQuotations.find((quote) => quote.id === quotationId);
+  return mockAdminQuotations.find((quotation) => quotation.id === quotationId);
 }
 
 export function getQuotationForRequest(requestId: string) {
-  return mockAdminQuotations.find((quote) => quote.serviceRequestId === requestId);
+  return mockAdminQuotations.find((quotation) => quotation.serviceRequestId === requestId);
 }
 
 export function getQuotationRequest(quotation: AdminQuotation) {
-  return mockServiceRequests.find(
-    (request) => request.id === quotation.serviceRequestId,
-  );
+  return mockServiceRequests.find((request) => request.id === quotation.serviceRequestId);
 }
 
 export function getQuotationCustomer(quotation: AdminQuotation) {

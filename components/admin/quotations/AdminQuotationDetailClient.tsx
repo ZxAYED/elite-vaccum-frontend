@@ -39,7 +39,12 @@ import {
   getQuotationRequest,
   getQuotationService,
 } from "@/data/mock/quotations";
-import { mockServiceRequests } from "@/data/mock/service-requests";
+import {
+  deleteSharedQuotation,
+  getSharedServiceRequestById,
+  upsertSharedQuotation,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatShortDate, formatShortDateTime } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import type { QuotationBuilderValues } from "@/lib/validation";
@@ -84,9 +89,10 @@ export function AdminQuotationDetailClient({
   requestId,
   mode,
 }: AdminQuotationDetailClientProps) {
+  useSharedBusinessStoreVersion();
   const initialQuotation = useMemo(() => {
     if (quotationId) return getQuotationById(quotationId);
-    const request = mockServiceRequests.find((item) => item.id === requestId);
+    const request = requestId ? getSharedServiceRequestById(requestId) : undefined;
     return request ? buildQuotationFromRequest(request) : undefined;
   }, [quotationId, requestId]);
 
@@ -94,9 +100,14 @@ export function AdminQuotationDetailClient({
     notFound();
   }
 
-  const [quotation, setQuotation] = useState(initialQuotation);
   const [deleted, setDeleted] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const quotation = quotationId
+    ? getQuotationById(quotationId) ?? initialQuotation
+    : initialQuotation;
+  if (!quotation) {
+    notFound();
+  }
   const request = getQuotationRequest(quotation);
   const customer = getQuotationCustomer(quotation);
   const service = getQuotationService(quotation);
@@ -104,33 +115,39 @@ export function AdminQuotationDetailClient({
     !quotationId || mode === "edit" || mode === "revise" || quotation.status === "draft";
 
   function save(values: QuotationBuilderValues) {
-    setQuotation((current) => applyBuilderValues(current, values, "draft"));
+    const next = applyBuilderValues(quotation, values, "draft");
+    upsertSharedQuotation({
+      id: next.id,
+      requestId: next.serviceRequestId,
+      serviceId: next.serviceId,
+      customerId: next.customerId,
+      lineItems: next.lineItems,
+      taxUsd: next.taxUsd,
+      discountUsd: next.discountUsd,
+      notes: next.notes,
+      terms: next.terms,
+      expiresAt: next.expiresAt || undefined,
+      status: next.status,
+    });
   }
 
   function send(values: QuotationBuilderValues) {
-    setQuotation((current) => {
-      const next = applyBuilderValues(current, values, "sent");
-      const shouldRecordRevision = mode === "revise" && current.status !== "draft";
-      return {
-        ...next,
-        version: shouldRecordRevision ? current.version + 1 : current.version,
-        revisionHistory: shouldRecordRevision
-          ? [
-              ...current.revisionHistory,
-              {
-                id: `rev-${current.id}-${current.version}`,
-                version: current.version,
-                status: current.status,
-                subtotalUsd: current.subtotalUsd,
-                discountUsd: current.discountUsd,
-                taxUsd: current.taxUsd,
-                totalUsd: current.totalUsd,
-                createdAt: new Date().toISOString(),
-                reason: "Admin revision before resending.",
-              },
-            ]
-          : current.revisionHistory,
-      };
+    upsertSharedQuotation({
+      id: quotation.id,
+      requestId: quotation.serviceRequestId,
+      serviceId: quotation.serviceId,
+      customerId: quotation.customerId,
+      lineItems: values.lineItems,
+      taxUsd: values.taxUsd,
+      discountUsd: values.discountUsd,
+      notes: values.notes,
+      terms: values.terms,
+      expiresAt: values.expiresAt || undefined,
+      status: "sent",
+      revisionReason:
+        mode === "revise" && quotation.status !== "draft"
+          ? "Admin revision before resending."
+          : undefined,
     });
   }
 
@@ -401,6 +418,9 @@ export function AdminQuotationDetailClient({
               variant="destructive"
               onClick={() => {
                 setDeleteOpen(false);
+                if (quotationId) {
+                  deleteSharedQuotation(quotationId);
+                }
                 setDeleted(true);
               }}
             >

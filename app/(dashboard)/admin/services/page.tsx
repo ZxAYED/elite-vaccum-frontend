@@ -51,8 +51,15 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { publicServiceOfferings } from "@/data/mock/public-services";
-import { mockServiceRequests } from "@/data/mock/service-requests";
+import {
+  createSharedServiceCatalog,
+  deleteSharedServiceCatalog,
+  getSharedPublicServices,
+  getSharedServiceRequests,
+  toggleSharedServiceCatalogStatus,
+  updateSharedServiceCatalog,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { cn } from "@/lib/utils";
 import {
   serviceCatalogSchema,
@@ -61,7 +68,6 @@ import {
 import type {
   PublicServiceGroup,
   PublicServiceIconKey,
-  ServiceCatalogStatus,
   ServiceOffering,
 } from "@/types/domain";
 
@@ -132,11 +138,7 @@ function formatDate(value: string) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
-function createServiceId(slug: string) {
-  return `svc-${slug}-${Date.now().toString(36).slice(-4)}`;
-}
-
-function StatusPill({ status }: { status: ServiceCatalogStatus }) {
+function StatusPill({ status }: { status: ServiceOffering["status"] }) {
   const active = status === "ACTIVE";
 
   return (
@@ -152,7 +154,7 @@ function StatusPill({ status }: { status: ServiceCatalogStatus }) {
   );
 }
 
-function PublicVisibilityPill({ status }: { status: ServiceCatalogStatus }) {
+function PublicVisibilityPill({ status }: { status: ServiceOffering["status"] }) {
   const visible = status === "ACTIVE";
 
   return (
@@ -430,8 +432,7 @@ function ServiceFormDialog({
 }
 
 export default function AdminServicesPage() {
-  const [services, setServices] =
-    useState<ServiceOffering[]>(publicServiceOfferings);
+  useSharedBusinessStoreVersion();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<ServiceFilter>("all");
   const [sort, setSort] = useState<ServiceSort>("display-order");
@@ -445,15 +446,18 @@ export default function AdminServicesPage() {
     service: ServiceOffering;
   } | null>(null);
 
+  const services = getSharedPublicServices();
+  const serviceRequests = getSharedServiceRequests();
+
   const requestCounts = useMemo(() => {
-    return mockServiceRequests.reduce<Record<string, number>>(
+    return serviceRequests.reduce<Record<string, number>>(
       (counts, request) => {
         counts[request.serviceId] = (counts[request.serviceId] ?? 0) + 1;
         return counts;
       },
       {},
     );
-  }, []);
+  }, [serviceRequests]);
 
   const filteredServices = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -514,53 +518,15 @@ export default function AdminServicesPage() {
   }
 
   function saveService(values: ServiceCatalogValues, editingSlug?: string) {
-    const today = new Date().toISOString().slice(0, 10);
-
-    setServices((current) => {
-      if (editingSlug) {
-        return current.map((service) =>
-          service.slug === editingSlug
-            ? {
-                ...service,
-                ...values,
-                description: values.description ?? "",
-                updatedAt: today,
-              }
-            : service,
-        );
-      }
-
-      return [
-        {
-          serviceId: createServiceId(values.slug),
-          slug: values.slug,
-          title: values.title,
-          summary: values.summary,
-          description: values.description ?? "",
-          group: values.group,
-          iconKey: values.iconKey,
-          status: values.status,
-          sortOrder: values.sortOrder,
-          createdAt: today,
-          updatedAt: today,
-        },
-        ...current,
-      ];
-    });
+    if (editingSlug) {
+      updateSharedServiceCatalog(editingSlug, values);
+      return;
+    }
+    createSharedServiceCatalog(values);
   }
 
   function toggleStatus(service: ServiceOffering) {
-    const nextStatus: ServiceCatalogStatus =
-      service.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    const today = new Date().toISOString().slice(0, 10);
-
-    setServices((current) =>
-      current.map((item) =>
-        item.slug === service.slug
-          ? { ...item, status: nextStatus, updatedAt: today }
-          : item,
-      ),
-    );
+    toggleSharedServiceCatalogStatus(service.slug);
   }
 
   function requestDelete(service: ServiceOffering) {
@@ -575,10 +541,7 @@ export default function AdminServicesPage() {
 
   function confirmDelete() {
     if (!deleteTarget) return;
-
-    setServices((current) =>
-      current.filter((service) => service.slug !== deleteTarget.slug),
-    );
+    deleteSharedServiceCatalog(deleteTarget.slug);
     setDeleteTarget(null);
   }
 

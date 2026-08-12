@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useParams, notFound } from "next/navigation";
 import { CalendarDays, FileText, MapPin } from "lucide-react";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
@@ -11,20 +13,17 @@ import {
   getCustomerQuotationByRequestId,
   getServiceById,
 } from "@/data/mock/customer-portal";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import {
   formatCurrencyUsd,
   formatLongDate,
   formatMonthDay,
 } from "@/lib/formatters";
 
-interface QuotationDetailPageProps {
-  params: Promise<{ requestId: string }>;
-}
-
-export default async function QuotationDetailPage({
-  params,
-}: QuotationDetailPageProps) {
-  const { requestId } = await params;
+export default function QuotationDetailPage() {
+  useSharedBusinessStoreVersion();
+  const params = useParams<{ requestId: string }>();
+  const requestId = params.requestId;
   const record = getCustomerQuotationByRequestId(requestId);
 
   if (!record) {
@@ -176,6 +175,8 @@ export default async function QuotationDetailPage({
           </section>
 
           <QuotationDecisionPanel
+            quotationId={quote.id}
+            requestId={request.id}
             initialStatus={quote.status}
             currentScheduleLabel={currentSchedule}
             initialRejectionHistory={quote.rejectionHistory}

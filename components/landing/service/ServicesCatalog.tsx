@@ -31,7 +31,8 @@ import {
   StaggerItem,
 } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
-import { activePublicServiceOfferings } from "@/data/mock/public-services";
+import { getSharedActivePublicServices } from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { cn } from "@/lib/utils";
 import heroVacuum from "@/public/landing/home/vaccum.png";
 import serviceVanImage from "@/public/landing/service/service.png";
@@ -91,12 +92,15 @@ const processSteps = [
 ];
 
 export function ServicesCatalog() {
+  useSharedBusinessStoreVersion();
   const [activeGroup, setActiveGroup] =
     useState<PublicServiceGroup>("Service & Maintenance");
 
   const visibleServices = useMemo(
     () =>
-      activePublicServiceOfferings.filter((service) => service.group === activeGroup),
+      getSharedActivePublicServices().filter(
+        (service) => service.group === activeGroup,
+      ),
     [activeGroup],
   );
 

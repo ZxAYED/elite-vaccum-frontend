@@ -42,13 +42,21 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { mockProductCategories, mockProducts } from "@/data/mock/products";
+import {
+  createSharedCategory,
+  deleteSharedCategory,
+  getSharedCategories,
+  getSharedProducts,
+  toggleSharedCategoryStatus,
+  updateSharedCategory,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { cn } from "@/lib/utils";
 import {
   productCategorySchema,
   type ProductCategoryValues,
 } from "@/lib/validation";
-import type { ProductCategory, ProductCategoryStatus } from "@/types/domain";
+import type { ProductCategory } from "@/types/domain";
 
 type CategoryFilter = "all" | "ACTIVE" | "INACTIVE";
 type CategorySort =
@@ -92,11 +100,7 @@ function formatDate(value: string) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
-function createId(name: string) {
-  return `cat-${slugify(name)}-${Date.now().toString(36).slice(-4)}`;
-}
-
-function StatusPill({ status }: { status: ProductCategoryStatus }) {
+function StatusPill({ status }: { status: ProductCategory["status"] }) {
   const isActive = status === "ACTIVE";
 
   return (
@@ -302,9 +306,7 @@ function CategoryFormDialog({
 }
 
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<ProductCategory[]>(
-    mockProductCategories,
-  );
+  useSharedBusinessStoreVersion();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CategoryFilter>("all");
   const [sort, setSort] = useState<CategorySort>("newest");
@@ -318,13 +320,15 @@ export default function AdminCategoriesPage() {
     category: ProductCategory;
     count: number;
   } | null>(null);
+  const categories = getSharedCategories();
+  const products = getSharedProducts();
 
   const productCounts = useMemo(() => {
-    return mockProducts.reduce<Record<string, number>>((counts, product) => {
+    return products.reduce<Record<string, number>>((counts, product) => {
       counts[product.categoryId] = (counts[product.categoryId] ?? 0) + 1;
       return counts;
     }, {});
-  }, []);
+  }, [products]);
 
   const filteredCategories = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -390,49 +394,16 @@ export default function AdminCategoriesPage() {
   }
 
   function saveCategory(values: ProductCategoryValues, editingId?: string) {
-    const today = new Date().toISOString().slice(0, 10);
+    if (editingId) {
+      updateSharedCategory(editingId, values);
+      return;
+    }
 
-    setCategories((current) => {
-      if (editingId) {
-        return current.map((category) =>
-          category.id === editingId
-            ? {
-                ...category,
-                ...values,
-                description: values.description ?? "",
-                updatedAt: today,
-              }
-            : category,
-        );
-      }
-
-      return [
-        {
-          id: createId(values.name),
-          name: values.name,
-          slug: values.slug,
-          description: values.description ?? "",
-          status: values.status,
-          createdAt: today,
-          updatedAt: today,
-        },
-        ...current,
-      ];
-    });
+    createSharedCategory(values);
   }
 
   function toggleStatus(category: ProductCategory) {
-    const nextStatus: ProductCategoryStatus =
-      category.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    const today = new Date().toISOString().slice(0, 10);
-
-    setCategories((current) =>
-      current.map((item) =>
-        item.id === category.id
-          ? { ...item, status: nextStatus, updatedAt: today }
-          : item,
-      ),
-    );
+    toggleSharedCategoryStatus(category.id);
   }
 
   function requestDelete(category: ProductCategory) {
@@ -447,10 +418,7 @@ export default function AdminCategoriesPage() {
 
   function confirmDelete() {
     if (!deleteTarget) return;
-
-    setCategories((current) =>
-      current.filter((category) => category.id !== deleteTarget.id),
-    );
+    deleteSharedCategory(deleteTarget.id);
     setDeleteTarget(null);
   }
 

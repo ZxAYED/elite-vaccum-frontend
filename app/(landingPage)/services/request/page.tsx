@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { ServiceRequestForm } from "@/components/landing/service/request/ServiceRequestForm";
 import { Button } from "@/components/ui/Button";
-import { getPublicServiceBySlug } from "@/data/mock/public-services";
+import { getSharedPublicServiceBySlug } from "@/data/mock/shared-business-store";
 import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
 
 export const metadata = {
@@ -22,7 +22,9 @@ export default async function ServicesRequestPage({
   const serviceSlug = Array.isArray(params.service)
     ? params.service[0]
     : params.service;
-  const service = serviceSlug ? getPublicServiceBySlug(serviceSlug) : undefined;
+  const service = serviceSlug
+    ? getSharedPublicServiceBySlug(serviceSlug)
+    : undefined;
   const primaryAddress = mockCurrentCustomer.addresses[0];
 
   if (!service) {

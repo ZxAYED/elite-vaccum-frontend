@@ -43,9 +43,22 @@ export type OrderStatus =
   | "in-progress"
   | "completed"
   | "cancelled";
-export type PaymentStatus = "pending" | "paid" | "refunded" | "failed";
+export type PaymentStatus =
+  | "pending"
+  | "authorized"
+  | "paid"
+  | "refunded"
+  | "failed";
 export type NotificationType = "service-update" | "payment" | "account" | "system";
 export type OrderType = "PRODUCT" | "SERVICE";
+export type CustomerPropertyType =
+  | "primary-residence"
+  | "vacation-home"
+  | "townhouse"
+  | "apartment"
+  | "commercial"
+  | "other";
+export type CustomerFeatureType = "VacPan" | "Spot Vacuum" | "Wally Flex";
 export type ProductOrderStatus =
   | "pending"
   | "paid"
@@ -96,11 +109,72 @@ export interface Customer {
   lastName: string;
   email: string;
   phone: string;
+  cellphone?: string;
+  company?: string;
   status: CustomerStatus;
   joinedAt: string;
   totalOrders: number;
   lifetimeValueUsd: number;
   addresses: Address[];
+  primaryAddressId?: string;
+  preferredContactMethod?: "phone" | "email" | "text";
+  bestContactTime?: string;
+  customerPreferences?: string;
+  internalNotes?: CustomerInternalNote[];
+  properties?: CustomerProperty[];
+}
+
+export interface CustomerVacuumUnit {
+  id: string;
+  unitNumber: string;
+  manufacturer: string;
+  model: string;
+  serialNumber?: string;
+  location: string;
+  notes?: string;
+  status: "active" | "archived";
+}
+
+export interface CustomerInletFloor {
+  id: string;
+  label: string;
+  hdh: number;
+  chameleon: number;
+  chameleonElite: number;
+  standard: number;
+  notes?: string;
+}
+
+export interface CustomerFeature {
+  id: string;
+  type: CustomerFeatureType;
+  quantity: number;
+  locations: string[];
+  notes?: string;
+}
+
+export interface CustomerInternalNote {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface CustomerProperty {
+  id: string;
+  label: string;
+  address: Address;
+  propertyType: CustomerPropertyType;
+  floors: number;
+  hasBasement?: boolean;
+  hasSubBasement?: boolean;
+  accessInformation?: string;
+  internalNotes?: string;
+  status: "active" | "archived";
+  vacuumUnits: CustomerVacuumUnit[];
+  inletFloors: CustomerInletFloor[];
+  additionalFeatures: CustomerFeature[];
 }
 
 export interface ProductCategory {
@@ -118,12 +192,17 @@ export interface Product {
   categoryId: string;
   slug: string;
   name: string;
+  sku?: string;
+  model?: string;
   eyebrow?: string;
   summary: string;
   description: string;
   priceUsd: number;
   status: ProductStatus;
   availability?: ProductAvailability;
+  taxable?: boolean;
+  shippingLabel?: string;
+  images?: string[];
   popularityRank?: number;
   addedAt?: string;
   imageAlt: string;

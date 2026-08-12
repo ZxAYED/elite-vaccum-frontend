@@ -55,7 +55,8 @@ import {
   rescheduleSharedAdminSchedule,
 } from "@/data/mock/admin-schedule-state";
 import { getTechnicianAvailabilityOptions } from "@/data/mock/admin-orders";
-import { mockCustomers } from "@/data/mock/customers";
+import { getSharedCustomerById } from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatLongDate, formatTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { AdminScheduleRecord, ServiceOrderStatus } from "@/types/domain";
@@ -219,8 +220,7 @@ function toStatusFilterLabel(status: ScheduleStatusFilter) {
 
 function getCustomerName(customerId: string) {
   return (
-    mockCustomers.find((customer) => customer.id === customerId)?.displayName ??
-    "Unknown customer"
+    getSharedCustomerById(customerId)?.displayName ?? "Unknown customer"
   );
 }
 
@@ -241,10 +241,7 @@ function formatDayKey(date: Date) {
 }
 
 export function AdminScheduleClient() {
-  const [schedules, setSchedules] = useState(() => clone(getSharedAdminScheduleRecords()));
-  const [serviceOrders, setServiceOrders] = useState(() =>
-    clone(getSharedAdminServiceOrders()),
-  );
+  useSharedBusinessStoreVersion();
   const [viewMode, setViewMode] = useState<ScheduleViewMode>("calendar");
   const [rangeMode, setRangeMode] = useState<CalendarRangeMode>("month");
   const [search, setSearch] = useState("");
@@ -261,13 +258,10 @@ export function AdminScheduleClient() {
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const schedules = clone(getSharedAdminScheduleRecords());
+  const serviceOrders = clone(getSharedAdminServiceOrders());
 
   const technicianOptions = getTechnicianAvailabilityOptions();
-
-  function syncFromStore() {
-    setSchedules(clone(getSharedAdminScheduleRecords()));
-    setServiceOrders(clone(getSharedAdminServiceOrders()));
-  }
 
   const scheduleForm = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
@@ -470,8 +464,6 @@ export function AdminScheduleClient() {
         deletionEligible: !values.technicianId && values.status === "scheduled",
       });
     }
-
-    syncFromStore();
     setCreateOpen(false);
   }
 
@@ -504,7 +496,6 @@ export function AdminScheduleClient() {
       reason: values.reason,
       note: values.note,
     });
-    syncFromStore();
     setRescheduleId(null);
   }
 
@@ -515,7 +506,6 @@ export function AdminScheduleClient() {
       reason: values.reason,
       note: values.note,
     });
-    syncFromStore();
     setCancelId(null);
   }
 
@@ -1221,7 +1211,7 @@ export function AdminScheduleClient() {
                   </Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href={`/admin/customers?customerId=${selectedSchedule.customerId}`}>
+                  <Link href={`/admin/customers/${selectedSchedule.customerId}`}>
                     View Customer
                   </Link>
                 </Button>
@@ -1415,7 +1405,6 @@ export function AdminScheduleClient() {
               onClick={() => {
                 if (deleteId) {
                   deleteSharedAdminSchedule(deleteId);
-                  syncFromStore();
                 }
                 setDeleteId(null);
               }}

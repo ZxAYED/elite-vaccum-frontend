@@ -6,6 +6,7 @@ import type {
 } from "@/types/domain";
 
 import { getSharedAdminScheduleRecords, getSharedAdminServiceOrders } from "@/data/mock/admin-schedule-state";
+import { getMockTodayIso } from "@/data/mock/mock-clock";
 
 const seededTechnicians: AdminTechnician[] = [
   {
@@ -204,7 +205,7 @@ function getTechnicianSchedulesInternal(technicianId: string) {
 export function getTechnicianActiveAvailability(technician: AdminTechnician) {
   if (technician.status === "INACTIVE") return "OFF_DUTY" as const;
   if (technician.availability === "OFF_DUTY") return "OFF_DUTY" as const;
-  const today = "2026-08-10";
+  const today = getMockTodayIso();
   const hasActiveScheduleToday = getTechnicianSchedulesInternal(technician.id).some(
     (schedule) =>
       schedule.currentSchedule.date === today && isActiveScheduleStatus(schedule.status),
@@ -217,17 +218,19 @@ export function getTechnicianSchedules(technicianId: string): AdminScheduleRecor
 }
 
 export function getTechnicianTodaySchedules(technicianId: string) {
+  const today = getMockTodayIso();
   return getTechnicianSchedulesInternal(technicianId).filter(
     (schedule) =>
-      schedule.currentSchedule.date === "2026-08-10" &&
+      schedule.currentSchedule.date === today &&
       isActiveScheduleStatus(schedule.status),
   );
 }
 
 export function getTechnicianUpcomingSchedules(technicianId: string) {
+  const today = getMockTodayIso();
   return getTechnicianSchedulesInternal(technicianId).filter(
     (schedule) =>
-      schedule.currentSchedule.date >= "2026-08-10" &&
+      schedule.currentSchedule.date >= today &&
       isActiveScheduleStatus(schedule.status),
   );
 }
@@ -252,7 +255,8 @@ export function canDeleteTechnician(technicianId: string) {
 }
 
 export function hasFutureAssignments(technicianId: string) {
+  const today = getMockTodayIso();
   return getTechnicianUpcomingSchedules(technicianId).filter(
-    (schedule) => schedule.currentSchedule.date > "2026-08-10",
+    (schedule) => schedule.currentSchedule.date > today,
   ).length;
 }

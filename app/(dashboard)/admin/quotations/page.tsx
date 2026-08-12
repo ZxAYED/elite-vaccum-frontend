@@ -40,9 +40,14 @@ import {
   getQuotationCustomer,
   getQuotationRequest,
   getQuotationService,
-  mockAdminQuotations,
   type AdminQuotationFilterStatus,
 } from "@/data/mock/quotations";
+import {
+  deleteSharedQuotation,
+  getSharedQuotations,
+  upsertSharedQuotation,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatShortDate } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import type { AdminQuotation } from "@/types/domain";
@@ -60,11 +65,12 @@ const statusOptions: Array<{ label: string; value: AdminQuotationFilterStatus }>
 type SortValue = "newest" | "oldest" | "amount-high" | "amount-low" | "expiry";
 
 export default function AdminQuotationsPage() {
-  const [quotations, setQuotations] = useState(mockAdminQuotations);
+  useSharedBusinessStoreVersion();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<AdminQuotationFilterStatus>("all");
   const [sort, setSort] = useState<SortValue>("newest");
   const [deleteTarget, setDeleteTarget] = useState<AdminQuotation | null>(null);
+  const quotations = getSharedQuotations();
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -121,27 +127,26 @@ export default function AdminQuotationsPage() {
   };
 
   function markSent(quotationId: string) {
-    const now = new Date().toISOString();
-    setQuotations((current) =>
-      current.map((quote) =>
-        quote.id === quotationId
-          ? {
-              ...quote,
-              status: "sent",
-              issuedAt: now,
-              sentAt: now,
-              updatedAt: now,
-            }
-          : quote,
-      ),
-    );
+    const quote = quotations.find((item) => item.id === quotationId);
+    if (!quote) return;
+    upsertSharedQuotation({
+      requestId: quote.serviceRequestId,
+      serviceId: quote.serviceId,
+      customerId: quote.customerId,
+      lineItems: quote.lineItems,
+      taxUsd: quote.taxUsd,
+      discountUsd: quote.discountUsd,
+      notes: quote.notes,
+      terms: quote.terms,
+      expiresAt: quote.expiresAt || undefined,
+      status: "sent",
+      id: quote.id,
+    });
   }
 
   function deleteQuotation() {
     if (!deleteTarget) return;
-    setQuotations((current) =>
-      current.filter((quote) => quote.id !== deleteTarget.id),
-    );
+    deleteSharedQuotation(deleteTarget.id);
     setDeleteTarget(null);
   }
 

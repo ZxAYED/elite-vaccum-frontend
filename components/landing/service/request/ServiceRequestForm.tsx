@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, CheckCircle2, Info, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
@@ -16,7 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import type { ServiceOffering } from "@/types/domain";
+import type { ServiceOffering, ServiceRequestAttachment } from "@/types/domain";
+import { mockCurrentUser } from "@/data/mock/user";
+import { createSharedServiceRequest } from "@/data/mock/shared-business-store";
 
 import { FormField } from "./FormField";
 import { FormSection } from "./FormSection";
@@ -67,6 +70,21 @@ const symptoms = [
 const fieldGridClassName = "grid gap-5 md:grid-cols-2";
 const inputClassName = "bg-slate-50 shadow-none focus-visible:bg-white";
 
+function toServiceRequestAttachments(
+  media: ServiceRequestFormValues["media"],
+): ServiceRequestAttachment[] {
+  const uploadedAt = new Date().toISOString();
+
+  return media.map((file) => ({
+    id: file.id,
+    fileName: file.name,
+    fileType: file.type,
+    sizeBytes: file.size,
+    uploadedAt,
+    kind: file.type.startsWith("video/") ? "video" : "photo",
+  }));
+}
+
 export function ServiceRequestForm({
   service,
   defaultValues,
@@ -98,13 +116,37 @@ export function ServiceRequestForm({
     handleSubmit,
     register,
   } = form;
+  const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
 
   const watchedValues = useWatch({ control });
   const media = watchedValues.media ?? [];
   const showOtherLocation = watchedValues.problemLocation === "Other";
 
-  async function onSubmit() {
-    await new Promise((resolve) => setTimeout(resolve, 550));
+  async function onSubmit(values: ServiceRequestFormValues) {
+    const request = createSharedServiceRequest({
+      serviceSlug: service.slug,
+      customerId: mockCurrentUser.customerId ?? "cust-1001",
+      fullName: values.fullName,
+      email: values.email,
+      phone: values.phone,
+      address: values.address,
+      city: values.city,
+      state: values.state,
+      zipCode: values.zipCode,
+      requestedDate: values.requestedDate,
+      requestedTime: values.requestedTime,
+      problemDescription: values.problemDescription,
+      problemLocation: values.problemLocation,
+      otherProblemLocation: values.otherProblemLocation,
+      manufacturer: values.manufacturer,
+      modelNumber: values.modelNumber,
+      serialNumber: values.serialNumber,
+      unitLocation: values.unitLocation,
+      additionalNotes: values.additionalNotes,
+      media: toServiceRequestAttachments(values.media),
+    });
+    setSubmittedRequestId(request.id);
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
 
   if (isSubmitSuccessful) {
@@ -118,7 +160,7 @@ export function ServiceRequestForm({
             Service Request Submitted
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] text-primary md:text-5xl">
-            Request #SR-{new Date().getTime().toString().slice(-4)}
+            {submittedRequestId ?? "Service Request Submitted"}
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-600">
             Our team will review your request, confirm the schedule, and prepare

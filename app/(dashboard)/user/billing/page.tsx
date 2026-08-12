@@ -5,7 +5,8 @@ import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
-import { dashboardInvoices, dashboardPayments } from "@/data/mock/customer-dashboard";
+import { getBillingRecordsForCustomer } from "@/data/mock/shared-billing";
+import { mockCurrentCustomer } from "@/data/mock/user";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 interface BillingPageProps {
@@ -21,8 +22,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const params = await searchParams;
   const tab = params.tab === "payments" ? "payments" : "invoices";
   const type = params.type === "PRODUCT" || params.type === "SERVICE" ? params.type : "ALL";
-  const invoices = dashboardInvoices.filter((invoice) => type === "ALL" || invoice.type === type);
-  const payments = dashboardPayments.filter((payment) => type === "ALL" || payment.type === type);
+  const records = getBillingRecordsForCustomer(mockCurrentCustomer.id);
+  const invoices = records.invoices.filter(
+    (invoice) => type === "ALL" || invoice.type === type,
+  );
+  const payments = records.payments.filter(
+    (payment) => type === "ALL" || payment.type === type,
+  );
 
   return (
     <div className="min-h-screen">
@@ -79,10 +85,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                     <p className="text-sm font-semibold text-gray-500">{invoice.id}</p>
                   </div>
                   <h2 className="mt-4 text-xl font-semibold text-primary">
-                    {invoice.title}
+                    {invoice.description}
                   </h2>
                   <p className="mt-2 text-sm text-gray-600">
-                    Related order {invoice.relatedOrderId} · {formatLongDate(invoice.invoiceDate)}
+                    Related order {invoice.relatedOrderId} · {formatLongDate(invoice.createdAt)}
                   </p>
                 </div>
 
@@ -119,8 +125,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                     {payment.title}
                   </h2>
                   <p className="mt-2 text-sm text-gray-600">
-                    Order {payment.relatedOrderId} · Invoice {payment.invoiceId} ·{" "}
-                    {payment.methodLabel}
+                    Order {payment.orderId} · Invoice {payment.invoiceId} · {payment.methodLabel}
                   </p>
                 </div>
 
@@ -134,7 +139,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                     </Link>
                   </Button>
                   <Button asChild>
-                    <Link href={`/user/orders/${payment.relatedOrderId}`}>
+                    <Link href={`/user/orders/${payment.orderId}`}>
                       View Order
                     </Link>
                   </Button>
@@ -147,3 +152,4 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     </div>
   );
 }
+

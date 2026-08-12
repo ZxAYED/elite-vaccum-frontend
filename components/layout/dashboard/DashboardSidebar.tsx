@@ -44,7 +44,7 @@ const navGroups: Array<{
   {
     label: "Catalog",
     items: [
-      { label: "Products", icon: PackageSearch, soon: true },
+      { label: "Products", href: "/admin/products", icon: PackageSearch },
       { label: "Categories", href: "/admin/categories", icon: Tags },
     ],
   },

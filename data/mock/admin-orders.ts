@@ -1,14 +1,17 @@
-import { mockCustomers } from "@/data/mock/customers";
-import {
-  dashboardInvoices,
-  dashboardPayments,
-  dashboardProductOrders,
-} from "@/data/mock/customer-dashboard";
 import {
   getSharedAdminScheduleRecords,
   getSharedAdminServiceOrderById,
   getSharedAdminServiceOrders,
 } from "@/data/mock/admin-schedule-state";
+import { getMockTodayIso } from "@/data/mock/mock-clock";
+import {
+  getBillingInvoiceById,
+  getBillingPaymentById,
+  getBillingProductOrdersSnapshot,
+} from "@/data/mock/shared-billing";
+import {
+  getSharedCustomerById,
+} from "@/data/mock/shared-business-store";
 import { getAdminTechnicians } from "@/data/mock/technicians";
 import type {
   AdminProductOrder,
@@ -28,12 +31,6 @@ export interface TechnicianAvailabilityOption {
   jobsToday: number;
   status: "available" | "busy" | "offline";
   active: boolean;
-}
-
-function productOrderStatus(index: number): ProductOrderStatus {
-  if (index === 0) return "processing";
-  if (index === 1) return "delivered";
-  return "shipped";
 }
 
 function shippingTimeline(status: ProductOrderStatus): OrderTimelineStep[] {
@@ -85,28 +82,27 @@ function shippingTimeline(status: ProductOrderStatus): OrderTimelineStep[] {
   ];
 }
 
-export const adminProductOrders: AdminProductOrder[] = dashboardProductOrders.map(
-  (order, index) => {
-    const status = productOrderStatus(index);
+export const adminProductOrders: AdminProductOrder[] = getBillingProductOrdersSnapshot().map(
+  (order) => {
     return {
       id: order.id,
       type: "PRODUCT",
-      customerId: mockCustomers[index % mockCustomers.length]?.id ?? "cust-1001",
-      status,
+      customerId: order.customerId,
+      status: order.status,
       total: order.total,
-      createdAt: order.placedAt,
+      createdAt: order.createdAt,
       invoiceId: order.invoiceId,
       paymentId: order.paymentId,
       paymentStatus: order.paymentStatus,
       items: order.items,
-      shippingAddress: order.delivery.address,
+      shippingAddress: order.shippingAddress,
       tracking: {
-        carrier: order.delivery.carrier,
-        trackingNumber: order.delivery.trackingNumber,
-        shippingStatus: status,
-        estimatedDelivery: order.delivery.estimatedDelivery,
+        carrier: "UPS",
+        trackingNumber: undefined,
+        shippingStatus: order.status,
+        estimatedDelivery: undefined,
       },
-      shippingTimeline: shippingTimeline(status),
+      shippingTimeline: shippingTimeline(order.status),
     };
   },
 );
@@ -152,19 +148,19 @@ export function getAdminOrderById(orderId: string) {
 }
 
 export function getAdminOrderCustomer(order: AdminUnifiedOrder) {
-  return mockCustomers.find((customer) => customer.id === order.customerId);
+  return getSharedCustomerById(order.customerId);
 }
 
 export function getAdminOrderPayment(order: AdminUnifiedOrder) {
-  return dashboardPayments.find((payment) => payment.id === order.paymentId);
+  return order.paymentId ? getBillingPaymentById(order.paymentId) : undefined;
 }
 
 export function getAdminOrderInvoice(order: AdminUnifiedOrder) {
-  return dashboardInvoices.find((invoice) => invoice.id === order.invoiceId);
+  return order.invoiceId ? getBillingInvoiceById(order.invoiceId) : undefined;
 }
 
 export function getTechnicianAvailabilityOptions() {
-  const today = "2026-08-10";
+  const today = getMockTodayIso();
   const schedules = getSharedAdminScheduleRecords();
 
   return getAdminTechnicians().map((technician) => {

@@ -144,8 +144,8 @@ export const publicServiceOfferings: ServiceOffering[] = [
 ];
 
 export const activePublicServiceOfferings = publicServiceOfferings
-  .filter((service) => service.status === "ACTIVE")
-  .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  .filter((item) => item.status === "ACTIVE")
+  .sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0));
 
 const defaultQuote: ServiceQuotation = {
   slug: "vacuum-repair",
@@ -201,7 +201,7 @@ export const publicServiceQuotations: ServiceQuotation[] =
   });
 
 export function getPublicServiceBySlug(slug: string) {
-  return activePublicServiceOfferings.find((service) => service.slug === slug);
+  return activePublicServiceOfferings.find((item) => item.slug === slug);
 }
 
 export function getPublicQuotationBySlug(slug: string) {

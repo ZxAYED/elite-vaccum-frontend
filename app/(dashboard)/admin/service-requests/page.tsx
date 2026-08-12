@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
@@ -21,9 +21,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import { mockCustomers } from "@/data/mock/customers";
-import { publicServiceOfferings } from "@/data/mock/public-services";
-import { mockServiceRequests } from "@/data/mock/service-requests";
+import {
+  getSharedCustomerById,
+  getSharedPublicServices,
+  getSharedServiceRequests,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatMonthDay, formatShortDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import type { ServiceRequest, ServiceRequestStatus } from "@/types/domain";
@@ -75,12 +78,12 @@ function getStatusLabel(status: AdminRequestStatus) {
 }
 
 function getCustomer(request: ServiceRequest) {
-  return mockCustomers.find((customer) => customer.id === request.customerId);
+  return getSharedCustomerById(request.customerId);
 }
 
 function getServiceName(request: ServiceRequest) {
   return (
-    publicServiceOfferings.find(
+    getSharedPublicServices().find(
       (service) => service.serviceId === request.serviceId,
     )?.title ?? request.title
   );
@@ -94,62 +97,59 @@ function getRequestedSchedule(request: ServiceRequest) {
 }
 
 export default function AdminServiceRequestsPage() {
+  useSharedBusinessStoreVersion();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<AdminRequestStatus>("all");
   const [serviceFilter, setServiceFilter] = useState("all");
+  const serviceRequests = getSharedServiceRequests();
+  const services = getSharedPublicServices();
 
-  const counters = useMemo(() => {
-    return mockServiceRequests.reduce(
-      (stats, request) => {
-        const status = getReviewStatus(request.status);
-        if (status === "submitted") stats.new += 1;
-        if (status === "under-review") stats.underReview += 1;
-        if (status === "accepted") stats.accepted += 1;
-        if (status === "rejected") stats.rejected += 1;
-        return stats;
-      },
-      { accepted: 0, new: 0, rejected: 0, underReview: 0 },
+  const counters = serviceRequests.reduce(
+    (stats, request) => {
+      const status = getReviewStatus(request.status);
+      if (status === "submitted") stats.new += 1;
+      if (status === "under-review") stats.underReview += 1;
+      if (status === "accepted") stats.accepted += 1;
+      if (status === "rejected") stats.rejected += 1;
+      return stats;
+    },
+    { accepted: 0, new: 0, rejected: 0, underReview: 0 },
+  );
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredRequests = serviceRequests
+    .filter((request) => {
+      const customer = getCustomer(request);
+      const serviceName = getServiceName(request);
+      const address = request.serviceAddress;
+      const haystack = [
+        request.id,
+        customer?.displayName,
+        customer?.email,
+        customer?.phone,
+        serviceName,
+        address?.line1,
+        address?.city,
+        address?.state,
+        address?.postalCode,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      const matchesSearch =
+        normalizedQuery.length === 0 || haystack.includes(normalizedQuery);
+      const reviewStatus = getReviewStatus(request.status);
+      const matchesStatus =
+        statusFilter === "all" || reviewStatus === statusFilter;
+      const matchesService =
+        serviceFilter === "all" || request.serviceId === serviceFilter;
+
+      return matchesSearch && matchesStatus && matchesService;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
     );
-  }, []);
-
-  const filteredRequests = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    return mockServiceRequests
-      .filter((request) => {
-        const customer = getCustomer(request);
-        const serviceName = getServiceName(request);
-        const address = request.serviceAddress;
-        const haystack = [
-          request.id,
-          customer?.displayName,
-          customer?.email,
-          customer?.phone,
-          serviceName,
-          address?.line1,
-          address?.city,
-          address?.state,
-          address?.postalCode,
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
-        const matchesSearch =
-          normalizedQuery.length === 0 || haystack.includes(normalizedQuery);
-        const reviewStatus = getReviewStatus(request.status);
-        const matchesStatus =
-          statusFilter === "all" || reviewStatus === statusFilter;
-        const matchesService =
-          serviceFilter === "all" || request.serviceId === serviceFilter;
-
-        return matchesSearch && matchesStatus && matchesService;
-      })
-      .sort(
-        (a, b) =>
-          new Date(b.submittedAt).getTime() -
-          new Date(a.submittedAt).getTime(),
-      );
-  }, [query, serviceFilter, statusFilter]);
 
   function clearFilters() {
     setQuery("");
@@ -232,7 +232,7 @@ export default function AdminServiceRequestsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All services</SelectItem>
-                {publicServiceOfferings.map((service) => (
+                {services.map((service) => (
                   <SelectItem key={service.serviceId} value={service.serviceId}>
                     {service.title}
                   </SelectItem>
@@ -241,7 +241,7 @@ export default function AdminServiceRequestsPage() {
             </Select>
           </div>
 
-          {mockServiceRequests.length === 0 ? (
+          {serviceRequests.length === 0 ? (
             <EmptyState
               action={<Button>Refresh</Button>}
               title="No service requests yet."

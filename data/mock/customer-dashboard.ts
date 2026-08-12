@@ -2,11 +2,16 @@ import type { Address, PaymentStatus } from "@/types/domain";
 
 import { getSharedAdminServiceOrders } from "@/data/mock/admin-schedule-state";
 import {
-  getProductById,
+  type BillingInvoiceRecord,
+  type BillingPaymentRecord,
+  getBillingInvoiceById,
+  getBillingInvoices,
+  getBillingPayments,
+} from "@/data/mock/shared-billing";
+import {
   getServiceDetailByRequestId,
   getServiceRequestById,
   getTechnicianById,
-  mockCustomerProductOrders,
 } from "@/data/mock/customer-portal";
 import { mockCurrentCustomer } from "@/data/mock/user";
 
@@ -128,6 +133,7 @@ export interface DashboardInvoice {
     quantity?: number;
     unitPriceUsd?: number;
     amountUsd: number;
+    sku?: string;
   }>;
   totals: OrderTotal;
   paymentId: string;
@@ -145,106 +151,191 @@ export interface DashboardPayment {
   methodLabel: string;
 }
 
-function productOrderStatus(index: number): UnifiedOrderStatus {
-  return index === 0 ? "delivered" : "processing";
+function buildProductTimeline(status: UnifiedOrderStatus) {
+  const order: UnifiedOrderStatus[] = [
+    "pending",
+    "paid",
+    "processing",
+    "shipped",
+    "delivered",
+  ];
+  const activeIndex = order.indexOf(status);
+
+  return [
+    { key: "placed", label: "Order Placed", detail: "Order received", complete: true },
+    {
+      key: "paid",
+      label: "Payment Confirmed",
+      detail: "Payment captured",
+      complete: activeIndex >= 1,
+    },
+    {
+      key: "processing",
+      label: "Processing",
+      detail: "In progress",
+      complete: activeIndex >= 2,
+      active: status === "processing",
+    },
+    {
+      key: "shipped",
+      label: "Shipped",
+      detail: "Carrier pickup",
+      complete: activeIndex >= 3,
+      active: status === "shipped",
+    },
+    {
+      key: "delivered",
+      label: "Delivered",
+      detail: "Completed",
+      complete: activeIndex >= 4,
+      active: status === "delivered",
+    },
+  ];
 }
 
-export const dashboardProductOrders: DashboardProductOrder[] =
-  mockCustomerProductOrders.map((order, index) => {
-    const subtotalUsd = order.items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPriceUsd,
-      0,
-    );
-    const shippingUsd = index === 0 ? 0 : 18;
-    const taxUsd = Math.round(subtotalUsd * 0.08 * 100) / 100;
-    const id = index === 0 ? "ORD-88410" : "ORD-90422";
+function toDashboardInvoice(invoice: BillingInvoiceRecord): DashboardInvoice {
+  const invoiceStatus: InvoiceStatus =
+    invoice.status === "paid" || invoice.status === "refunded"
+      ? invoice.status
+      : "pending";
 
-    return {
-      id,
-      type: "PRODUCT",
-      status: productOrderStatus(index),
-      placedAt: order.placedAt,
-      paymentStatus: order.paymentStatus,
-      invoiceId: index === 0 ? "INV-1048" : "INV-1049",
-      paymentId: index === 0 ? "PAY-1044" : "PAY-1045",
-      total: {
-        subtotalUsd,
-        shippingUsd,
-        taxUsd,
-        totalUsd: subtotalUsd + shippingUsd + taxUsd,
-      },
-      items: order.items.map((item) => {
-        const product = getProductById(item.productId);
-        return {
-          id: item.id,
-          productId: item.productId,
-          name: product?.name ?? "Central vacuum product",
-          summary: product?.summary ?? "Elite central vacuum accessory",
-          sku: product?.id.toUpperCase() ?? "ECV-SKU",
-          quantity: item.quantity,
-          unitPriceUsd: item.unitPriceUsd,
-          imageSrc: "/product.png",
-        };
-      }),
-      delivery: {
-        address: order.deliveryAddress,
-        trackingNumber: index === 0 ? "1Z999AA1012345678" : order.trackingNumber,
-        carrier: "UPS",
-        estimatedDelivery: index === 0 ? "2026-08-02T18:00:00.000Z" : "2026-08-11T18:00:00.000Z",
-        timeline: [
-          { key: "placed", label: "Order Placed", detail: "Order received", complete: true },
-          { key: "paid", label: "Payment Confirmed", detail: "Payment captured", complete: order.paymentStatus === "paid" || index === 1 },
-          { key: "processing", label: "Processing", detail: "In progress", complete: true, active: index === 1 },
-          { key: "shipped", label: "Shipped", detail: "Carrier pickup", complete: index === 0 },
-          { key: "delivered", label: "Delivered", detail: "Completed", complete: index === 0, active: index === 0 },
-        ],
-      },
-    };
-  });
+  return {
+    id: invoice.id,
+    type: invoice.type,
+    status: invoiceStatus,
+    invoiceDate: invoice.createdAt,
+    relatedOrderId: invoice.relatedOrderId,
+    title: invoice.description,
+    customerName: invoice.customerName,
+    billingAddress: invoice.billingAddress,
+    paymentMethodLabel: "Visa ending in 4242",
+    lineItems: invoice.lineItems.map((item) => ({
+      id: item.id,
+      label: item.label,
+      description: item.description,
+      quantity: item.quantity,
+      unitPriceUsd: item.unitPriceUsd,
+      amountUsd: item.amountUsd,
+      sku: item.sku,
+    })),
+    totals: invoice.totals,
+    paymentId: invoice.paymentId ?? `PAY-${invoice.relatedOrderId.replace(/^[A-Z]+-/, "")}`,
+  };
+}
+
+function toDashboardPayment(payment: BillingPaymentRecord): DashboardPayment {
+  return {
+    id: payment.id,
+    type: payment.type,
+    status: payment.status,
+    processedAt: payment.processedAt,
+    amountUsd: payment.amountUsd,
+    relatedOrderId: payment.orderId,
+    invoiceId: payment.invoiceId,
+    title: payment.title,
+    methodLabel: payment.methodLabel,
+  };
+}
+
+const billingInvoices = getBillingInvoices().filter(
+  (invoice) => invoice.customerId === mockCurrentCustomer.id,
+);
+
+export const dashboardInvoices: DashboardInvoice[] = billingInvoices.map(toDashboardInvoice);
+
+export const dashboardPayments: DashboardPayment[] = getBillingPayments()
+  .filter((payment) => payment.customerId === mockCurrentCustomer.id)
+  .map(toDashboardPayment);
+
+export const dashboardProductOrders: DashboardProductOrder[] = billingInvoices
+  .filter((invoice) => invoice.type === "PRODUCT")
+  .map((invoice) => ({
+    id: invoice.relatedOrderId,
+    type: "PRODUCT",
+    status:
+      invoice.status === "paid"
+        ? "delivered"
+        : invoice.paymentStatus === "refunded"
+          ? "refunded"
+          : "processing",
+    placedAt: invoice.createdAt,
+    total: invoice.totals,
+    paymentStatus: invoice.paymentStatus,
+    invoiceId: invoice.id,
+    paymentId: invoice.paymentId ?? `PAY-${invoice.relatedOrderId.replace(/^[A-Z]+-/, "")}`,
+    items: invoice.lineItems.map((item) => ({
+      id: item.id,
+      productId: item.id,
+      name: item.label,
+      summary: item.description ?? "Elite central vacuum product",
+      sku: item.sku ?? "ECV-SKU",
+      quantity: item.quantity ?? 1,
+      unitPriceUsd: item.unitPriceUsd ?? item.amountUsd,
+      imageSrc: "/product.png",
+    })),
+    delivery: {
+      address: invoice.billingAddress,
+      trackingNumber: invoice.relatedOrderId === "ORD-88410" ? "1Z999AA1012345678" : "ECV-TRK-8052",
+      carrier: "UPS",
+      estimatedDelivery:
+        invoice.relatedOrderId === "ORD-88410"
+          ? "2026-08-02T18:00:00.000Z"
+          : "2026-08-11T18:00:00.000Z",
+      timeline: buildProductTimeline(
+        invoice.status === "paid"
+          ? "delivered"
+          : invoice.paymentStatus === "refunded"
+            ? "refunded"
+            : "processing",
+      ),
+    },
+  }));
 
 export function getDashboardServiceOrders(): DashboardServiceOrder[] {
-  return getSharedAdminServiceOrders().map((order) => {
-    const request = getServiceRequestById(order.serviceRequestId);
-    const detail = request ? getServiceDetailByRequestId(request.id) : undefined;
-    const technician = getTechnicianById(
-      order.technicianId ?? detail?.appointment?.technicianId,
-    );
+  return getSharedAdminServiceOrders()
+    .filter((order) => order.customerId === mockCurrentCustomer.id)
+    .map((order) => {
+      const request = getServiceRequestById(order.serviceRequestId);
+      const detail = request ? getServiceDetailByRequestId(request.id) : undefined;
+      const technician = getTechnicianById(
+        order.technicianId ?? detail?.appointment?.technicianId,
+      );
 
-    return {
-      id: order.id,
-      type: "SERVICE",
-      status: order.status,
-      createdAt: order.createdAt,
-      serviceRequestId: order.serviceRequestId,
-      quotationId: order.quotationId,
-      invoiceId: order.invoiceId ?? `INV-${order.id.replace("SO-", "")}`,
-      paymentId: order.paymentId ?? `PAY-${order.id.replace("SO-", "")}`,
-      serviceName: order.serviceName,
-      problemSummary: order.problemSummary,
-      location: order.serviceLocation,
-      problemLocation: order.problemLocation,
-      requestedSchedule: order.requestedSchedule.label ?? order.requestedSchedule.time,
-      currentSchedule: order.currentSchedule.label ?? order.currentSchedule.time,
-      customerNotes:
-        order.customerNotes ?? "Unit makes a high-pitched noise when starting up.",
-      technicianInstruction:
-        order.technicianInstruction ??
-        "Please ensure the main central unit is accessible and cleared of any obstruction.",
-      technician: technician
-        ? {
-            name: technician.displayName,
-            phone: technician.phone,
-            role: "Elite technician",
-            avatarSrc: "/nav_profile.jpg",
-          }
-        : undefined,
-      total: order.total,
-      timeline: order.timeline.map((step) => ({
-        ...step,
-        dateLabel: step.dateLabel ?? "Confirmed",
-      })),
-    };
-  });
+      return {
+        id: order.id,
+        type: "SERVICE",
+        status: order.status,
+        createdAt: order.createdAt,
+        serviceRequestId: order.serviceRequestId,
+        quotationId: order.quotationId,
+        invoiceId: order.invoiceId ?? `INV-${order.id.replace("SO-", "")}`,
+        paymentId: order.paymentId ?? `PAY-${order.id.replace("SO-", "")}`,
+        serviceName: order.serviceName,
+        problemSummary: order.problemSummary,
+        location: order.serviceLocation,
+        problemLocation: order.problemLocation,
+        requestedSchedule: order.requestedSchedule.label ?? order.requestedSchedule.time,
+        currentSchedule: order.currentSchedule.label ?? order.currentSchedule.time,
+        customerNotes:
+          order.customerNotes ?? "Unit makes a high-pitched noise when starting up.",
+        technicianInstruction:
+          order.technicianInstruction
+          ?? "Please ensure the main central unit is accessible and cleared of any obstruction.",
+        technician: technician
+          ? {
+              name: technician.displayName,
+              phone: technician.phone,
+              role: "Elite technician",
+              avatarSrc: "/nav_profile.jpg",
+            }
+          : undefined,
+        total: order.total,
+        timeline: order.timeline.map((step) => ({
+          ...step,
+          dateLabel: step.dateLabel ?? "Confirmed",
+        })),
+      };
+    });
 }
 
 export function getDashboardOrders(): DashboardOrder[] {
@@ -258,68 +349,17 @@ export function getDashboardOrders(): DashboardOrder[] {
 }
 
 export const dashboardOrders: DashboardOrder[] = getDashboardOrders();
-export const dashboardServiceOrders: DashboardServiceOrder[] =
-  getDashboardServiceOrders();
-
-export const dashboardInvoices: DashboardInvoice[] = dashboardOrders.map((order) => {
-  const title =
-    order.type === "PRODUCT"
-      ? order.items[0]?.name ?? "Product order"
-      : order.serviceName;
-  const lineItems =
-    order.type === "PRODUCT"
-      ? order.items.map((item) => ({
-          id: `inv-${item.id}`,
-          label: item.name,
-          description: item.summary,
-          quantity: item.quantity,
-          unitPriceUsd: item.unitPriceUsd,
-          amountUsd: item.quantity * item.unitPriceUsd,
-        }))
-      : [
-          {
-            id: `${order.invoiceId}-labor`,
-            label: order.serviceName,
-            description: order.problemSummary,
-            amountUsd: order.total.subtotalUsd,
-          },
-        ];
-
-  return {
-    id: order.invoiceId,
-    type: order.type,
-    status: order.status === "cancelled" ? "pending" : "paid",
-    invoiceDate: order.type === "PRODUCT" ? order.placedAt : order.createdAt,
-    relatedOrderId: order.id,
-    title,
-    customerName: mockCurrentCustomer.displayName,
-    billingAddress:
-      order.type === "PRODUCT" ? order.delivery.address : order.location,
-    paymentMethodLabel: "Visa ending in 4242",
-    lineItems,
-    totals: order.total,
-    paymentId: order.paymentId,
-  };
-});
-
-export const dashboardPayments: DashboardPayment[] = dashboardInvoices.map((invoice) => ({
-  id: invoice.paymentId,
-  type: invoice.type,
-  status: invoice.status === "paid" ? "paid" : "pending",
-  processedAt: invoice.invoiceDate,
-  amountUsd: invoice.totals.totalUsd,
-  relatedOrderId: invoice.relatedOrderId,
-  invoiceId: invoice.id,
-  title: invoice.title,
-  methodLabel: invoice.paymentMethodLabel,
-}));
+export const dashboardServiceOrders: DashboardServiceOrder[] = getDashboardServiceOrders();
 
 export function getDashboardOrderById(orderId: string) {
   return getDashboardOrders().find((order) => order.id === orderId);
 }
 
 export function getDashboardInvoiceById(invoiceId: string) {
-  return dashboardInvoices.find((invoice) => invoice.id === invoiceId);
+  const invoice = getBillingInvoiceById(invoiceId);
+  return invoice && invoice.customerId === mockCurrentCustomer.id
+    ? toDashboardInvoice(invoice)
+    : undefined;
 }
 
 export function getDashboardServiceOrderByRequestId(requestId: string) {

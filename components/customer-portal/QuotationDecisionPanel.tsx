@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { CheckCircle2, XCircle } from "lucide-react";
 
@@ -20,9 +21,18 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { createOrSyncSharedServiceOrderFromRequest } from "@/data/mock/admin-schedule-state";
+import {
+  acceptSharedQuotation,
+  getSharedServiceRequestById,
+  rejectSharedQuotation,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import type { QuoteStatus, RejectionHistoryEntry } from "@/types/domain";
 
 interface QuotationDecisionPanelProps {
+  quotationId: string;
+  requestId: string;
   initialStatus: QuoteStatus;
   currentScheduleLabel: string;
   initialRejectionHistory?: RejectionHistoryEntry[];
@@ -37,11 +47,14 @@ const rejectionReasons = [
 ];
 
 export function QuotationDecisionPanel({
+  quotationId,
+  requestId,
   initialStatus,
   currentScheduleLabel,
   initialRejectionHistory = [],
   serviceOrderHref,
 }: QuotationDecisionPanelProps) {
+  useSharedBusinessStoreVersion();
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>(initialStatus);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -50,19 +63,19 @@ export function QuotationDecisionPanel({
 
   function rejectQuotation() {
     if (!reason) return;
-
-    setHistory([
-      ...history,
-      {
-        id: `quote-reject-${history.length + 1}`,
-        reason,
-        comments,
-        actorLabel: "Customer",
-        rejectedAt: new Date().toISOString(),
-      },
-    ]);
-    setQuoteStatus("declined");
+    const quotation = rejectSharedQuotation(quotationId, reason, comments);
+    setHistory(quotation?.rejectionHistory ?? history);
+    setQuoteStatus(quotation?.status ?? "rejected");
     setRejectOpen(false);
+  }
+
+  function acceptQuotation() {
+    const request = getSharedServiceRequestById(requestId);
+    if (!request) return;
+    const order = createOrSyncSharedServiceOrderFromRequest(request);
+    if (!order) return;
+    acceptSharedQuotation(quotationId, order.id);
+    setQuoteStatus("accepted");
   }
 
   return (
@@ -85,12 +98,12 @@ export function QuotationDecisionPanel({
             Current schedule: {currentScheduleLabel}
           </p>
           {serviceOrderHref ? (
-            <a
+            <Link
               className="mt-3 inline-flex font-semibold text-primary underline-offset-4 hover:underline"
               href={serviceOrderHref}
             >
               View Service Order
-            </a>
+            </Link>
           ) : null}
         </div>
       ) : null}
@@ -113,7 +126,7 @@ export function QuotationDecisionPanel({
         <Button
           type="button"
           disabled={quoteStatus === "accepted"}
-          onClick={() => setQuoteStatus("accepted")}
+          onClick={acceptQuotation}
         >
           Accept Quotation
         </Button>

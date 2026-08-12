@@ -10,10 +10,14 @@ import type {
 import { mockNotifications } from "@/data/mock/notifications";
 import { mockOrders } from "@/data/mock/orders";
 import { mockPayments } from "@/data/mock/payments";
-import { mockProducts } from "@/data/mock/products";
-import { mockServiceRequests } from "@/data/mock/service-requests";
 import { mockServices } from "@/data/mock/services";
 import { mockTechnicians } from "@/data/mock/technicians";
+import {
+  getSharedProducts,
+  getSharedQuotationForRequest,
+  getSharedServiceRequestById,
+  getSharedServiceRequests,
+} from "@/data/mock/shared-business-store";
 import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
 
 export interface QuoteLineItem {
@@ -116,7 +120,7 @@ export interface PaymentLedgerEntry {
   href: string;
 }
 
-export const mockCustomerServiceRequests = mockServiceRequests.filter(
+export const mockCustomerServiceRequests = getSharedServiceRequests().filter(
   (request) => request.customerId === mockCurrentUser.customerId,
 );
 
@@ -289,6 +293,106 @@ export const mockCustomerServiceDetailsByRequestId: Record<
   },
 };
 
+function buildFallbackTimeline(requestId: string): ServiceTimelineEvent[] {
+  const request = getSharedServiceRequestById(requestId);
+  if (!request) return [];
+
+  const timeline: ServiceTimelineEvent[] = [
+    {
+      id: `${request.id}-submitted`,
+      label: "Request Submitted",
+      detail: "Your service request was captured and routed into the shared mock workflow.",
+      occurredAt: request.submittedAt,
+    },
+  ];
+
+  if (request.status === "under-review") {
+    timeline.push({
+      id: `${request.id}-review`,
+      label: "Under Review",
+      detail: "Admin is reviewing the issue details, schedule, and uploaded evidence.",
+      occurredAt: request.submittedAt,
+    });
+  }
+
+  if (request.status === "accepted" || request.status === "quoted" || request.status === "scheduled") {
+    timeline.push({
+      id: `${request.id}-accepted`,
+      label: "Request Accepted",
+      detail: "The request was accepted and moved into quotation or scheduling.",
+      occurredAt: request.submittedAt,
+    });
+  }
+
+  const quote = getSharedQuotationForRequest(request.id);
+  if (quote) {
+    timeline.push({
+      id: `${request.id}-quote`,
+      label: "Quote Ready",
+      detail: "The quotation is available in your customer dashboard.",
+      occurredAt: quote.sentAt ?? quote.updatedAt,
+    });
+  }
+
+  if (request.rejectionHistory?.length) {
+    timeline.push(
+      ...request.rejectionHistory.map((entry) => ({
+        id: entry.id,
+        label: "Request Rejected",
+        detail: entry.comments
+          ? `${entry.reason} - ${entry.comments}`
+          : entry.reason,
+        occurredAt: entry.rejectedAt,
+      })),
+    );
+  }
+
+  return timeline.sort(
+    (left, right) =>
+      new Date(left.occurredAt).getTime() - new Date(right.occurredAt).getTime(),
+  );
+}
+
+function buildFallbackDetail(requestId: string): CustomerServiceDetail | undefined {
+  const request = getSharedServiceRequestById(requestId);
+  if (!request || request.customerId !== mockCurrentUser.customerId) return undefined;
+
+  const sharedQuote = getSharedQuotationForRequest(request.id);
+  const quote: CustomerQuote | undefined = sharedQuote
+    ? {
+        id: sharedQuote.id,
+        serviceRequestId: sharedQuote.serviceRequestId,
+        status: sharedQuote.status,
+        subtotalUsd: sharedQuote.subtotalUsd,
+        totalUsd: sharedQuote.totalUsd,
+        issuedAt: sharedQuote.issuedAt,
+        expiresAt: sharedQuote.expiresAt,
+        notes: sharedQuote.notes,
+        lineItems: sharedQuote.lineItems.map((item) => ({
+          id: item.id,
+          label: item.description,
+          description: item.note ?? `Qty ${item.quantity}`,
+          amountUsd: item.quantity * item.unitPriceUsd,
+        })),
+        suggestedSlots: request.currentSchedule
+          ? [
+              {
+                date: request.currentSchedule.date,
+                windows: [request.currentSchedule.time],
+              },
+            ]
+          : [],
+        rejectionHistory: sharedQuote.rejectionHistory,
+      }
+    : undefined;
+
+  return {
+    requestId: request.id,
+    timeline: buildFallbackTimeline(request.id),
+    quote,
+  };
+}
+
 export const mockCustomerProductOrders: StoreOrder[] = [
   {
     id: "SHOP-1001",
@@ -431,18 +535,47 @@ export const mockCustomerNotifications = mockNotifications.filter(
 );
 
 export function getServiceRequestById(requestId: string) {
-  return mockCustomerServiceRequests.find((request) => request.id === requestId);
+  const request = getSharedServiceRequestById(requestId);
+  return request?.customerId === mockCurrentUser.customerId ? request : undefined;
 }
 
 export function getServiceDetailByRequestId(requestId: string) {
-  return mockCustomerServiceDetailsByRequestId[requestId];
+  return (
+    mockCustomerServiceDetailsByRequestId[requestId] ??
+    buildFallbackDetail(requestId)
+  );
 }
 
 export function getCustomerQuotations() {
-  return mockCustomerServiceRequests
+  return getSharedServiceRequests()
+    .filter((request) => request.customerId === mockCurrentUser.customerId)
     .map((request) => {
       const detail = mockCustomerServiceDetailsByRequestId[request.id];
-      return detail?.quote ? { request, detail, quote: detail.quote } : null;
+      const sharedQuote = getSharedQuotationForRequest(request.id);
+      return sharedQuote
+        ? {
+            request,
+            detail,
+            quote: {
+              id: sharedQuote.id,
+              serviceRequestId: sharedQuote.serviceRequestId,
+              status: sharedQuote.status,
+              subtotalUsd: sharedQuote.subtotalUsd,
+              totalUsd: sharedQuote.totalUsd,
+              issuedAt: sharedQuote.issuedAt,
+              expiresAt: sharedQuote.expiresAt,
+              notes: sharedQuote.notes,
+              rejectionHistory: sharedQuote.rejectionHistory,
+              lineItems: sharedQuote.lineItems.map((lineItem) => ({
+                id: lineItem.id,
+                label: lineItem.description,
+                description: lineItem.note ?? `Qty ${lineItem.quantity}`,
+                amountUsd: lineItem.quantity * lineItem.unitPriceUsd,
+              })),
+              suggestedSlots: detail?.quote?.suggestedSlots ?? [],
+            },
+          }
+        : null;
     })
     .filter((item): item is NonNullable<typeof item> => Boolean(item));
 }
@@ -452,11 +585,11 @@ export function getCustomerQuotationByRequestId(requestId: string) {
 }
 
 export function getProductBySlug(slug: string) {
-  return mockProducts.find((product) => product.slug === slug);
+  return getSharedProducts().find((product) => product.slug === slug);
 }
 
 export function getProductById(productId: string) {
-  return mockProducts.find((product) => product.id === productId);
+  return getSharedProducts().find((product) => product.id === productId);
 }
 
 export function getStoreOrderById(orderId: string) {

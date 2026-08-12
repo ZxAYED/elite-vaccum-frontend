@@ -35,10 +35,15 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import { mockCustomers } from "@/data/mock/customers";
-import { publicServiceOfferings } from "@/data/mock/public-services";
-import { getQuotationForRequest } from "@/data/mock/quotations";
-import { mockServiceRequests } from "@/data/mock/service-requests";
+import {
+  acceptSharedServiceRequest,
+  getSharedCustomerById,
+  getSharedPublicServices,
+  getSharedQuotationForRequest,
+  getSharedServiceRequestById,
+  rejectSharedServiceRequest,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatLongDate, formatShortDateTime } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import { cn } from "@/lib/utils";
@@ -75,12 +80,12 @@ function getInitialDecisionStatus(status: ServiceRequestStatus): DecisionStatus 
 }
 
 function getCustomer(request: ServiceRequest) {
-  return mockCustomers.find((customer) => customer.id === request.customerId);
+  return getSharedCustomerById(request.customerId);
 }
 
 function getServiceName(request: ServiceRequest) {
   return (
-    publicServiceOfferings.find(
+    getSharedPublicServices().find(
       (service) => service.serviceId === request.serviceId,
     )?.title ?? request.title
   );
@@ -106,8 +111,9 @@ interface RequestDetailPageProps {
 export default function AdminServiceRequestDetailPage({
   params,
 }: RequestDetailPageProps) {
+  useSharedBusinessStoreVersion();
   const { requestId } = use(params);
-  const request = mockServiceRequests.find((item) => item.id === requestId);
+  const request = getSharedServiceRequestById(requestId);
 
   if (!request) {
     notFound();
@@ -117,9 +123,10 @@ export default function AdminServiceRequestDetailPage({
 }
 
 function RequestReviewExperience({ request }: { request: ServiceRequest }) {
+  useSharedBusinessStoreVersion();
   const customer = getCustomer(request);
   const schedule = getRequestedSchedule(request);
-  const quotation = getQuotationForRequest(request.id);
+  const quotation = getSharedQuotationForRequest(request.id);
   const [decisionStatus, setDecisionStatus] = useState<DecisionStatus>(
     getInitialDecisionStatus(request.status),
   );
@@ -173,6 +180,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
   }, [decisionStatus, localRejections, request.status, request.submittedAt]);
 
   function acceptRequest() {
+    acceptSharedServiceRequest(request.id);
     setDecisionStatus("accepted");
     setAcceptOpen(false);
   }
@@ -183,16 +191,12 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
       return;
     }
 
-    setLocalRejections((current) => [
-      {
-        id: `req-reject-${Date.now().toString(36)}`,
-        reason: rejectReason,
-        comments: rejectNote || undefined,
-        rejectedAt: new Date().toISOString(),
-        actorLabel: "Admin",
-      },
-      ...current,
-    ]);
+    const nextRequest = rejectSharedServiceRequest(
+      request.id,
+      rejectReason,
+      rejectNote || undefined,
+    );
+    setLocalRejections(nextRequest?.rejectionHistory ?? []);
     setDecisionStatus("rejected");
     setRejectError("");
     setRejectOpen(false);
@@ -274,7 +278,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   customer ? (
                     <Link
                       className="text-sm font-semibold text-teal-800 hover:text-teal-950"
-                      href={`/admin/customers?customerId=${customer.id}`}
+                      href={`/admin/customers/${customer.id}`}
                     >
                       Open customer profile
                     </Link>

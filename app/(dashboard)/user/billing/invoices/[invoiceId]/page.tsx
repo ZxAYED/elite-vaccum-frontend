@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Package } from "lucide-react";
+import { Download, Package, Wrench } from "lucide-react";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
-import { getDashboardInvoiceById } from "@/data/mock/customer-dashboard";
+import { getBillingInvoiceById } from "@/data/mock/shared-billing";
+import { mockCurrentCustomer } from "@/data/mock/user";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 interface InvoiceDetailsPageProps {
@@ -15,9 +16,9 @@ interface InvoiceDetailsPageProps {
 
 export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageProps) {
   const { invoiceId } = await params;
-  const invoice = getDashboardInvoiceById(invoiceId);
+  const invoice = getBillingInvoiceById(invoiceId);
 
-  if (!invoice) {
+  if (!invoice || invoice.customerId !== mockCurrentCustomer.id) {
     notFound();
   }
 
@@ -53,7 +54,7 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
                 Invoice Date
               </p>
               <p className="mt-2 font-semibold text-gray-900">
-                {formatLongDate(invoice.invoiceDate)}
+                {formatLongDate(invoice.createdAt)}
               </p>
             </div>
             <div className="rounded-2xl bg-gray-50 p-4">
@@ -67,14 +68,18 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
                 Payment
               </p>
               <p className="mt-2 font-semibold text-gray-900">
-                {invoice.paymentMethodLabel}
+                {invoice.paymentReference ?? invoice.paymentId ?? "Pending"}
               </p>
             </div>
           </div>
 
           <div className="mt-8">
             <div className="flex items-center gap-3">
-              <Package className="text-teal-700" size={22} />
+              {invoice.type === "PRODUCT" ? (
+                <Package className="text-teal-700" size={22} />
+              ) : (
+                <Wrench className="text-teal-700" size={22} />
+              )}
               <h2 className="text-xl font-semibold text-primary">Line Items</h2>
             </div>
             <div className="mt-5 space-y-3">
@@ -142,6 +147,12 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
                 <span>Tax</span>
                 <span>{formatCurrencyUsd(invoice.totals.taxUsd)}</span>
               </div>
+              {invoice.totals.discountUsd ? (
+                <div className="flex justify-between">
+                  <span>Discount</span>
+                  <span>-{formatCurrencyUsd(invoice.totals.discountUsd)}</span>
+                </div>
+              ) : null}
             </div>
             <div className="mt-5 flex justify-between border-t border-white/15 pt-5 text-2xl font-semibold">
               <span>Total</span>
@@ -157,3 +168,4 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
     </div>
   );
 }
+

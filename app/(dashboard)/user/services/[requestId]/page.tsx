@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import {
   CalendarDays,
   CheckCircle2,
@@ -23,6 +25,7 @@ import {
   getServiceRequestById,
   getTechnicianById,
 } from "@/data/mock/customer-portal";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import {
   formatCurrencyUsd,
   formatLongDate,
@@ -30,12 +33,10 @@ import {
   formatShortDateTime,
 } from "@/lib/formatters";
 
-export default async function ServiceRequestDetailPage({
-  params,
-}: {
-  params: Promise<{ requestId: string }>;
-}) {
-  const { requestId } = await params;
+export default function ServiceRequestDetailPage() {
+  useSharedBusinessStoreVersion();
+  const params = useParams<{ requestId: string }>();
+  const requestId = params.requestId;
   const request = getServiceRequestById(requestId);
   const detail = getServiceDetailByRequestId(requestId);
 
@@ -254,6 +255,8 @@ export default async function ServiceRequestDetailPage({
 
               <div className="mt-6">
                 <QuoteActionPanel
+                  quotationId={detail.quote.id}
+                  requestId={request.id}
                   initialStatus={detail.quote.status}
                   slots={detail.quote.suggestedSlots}
                   title={request.title}

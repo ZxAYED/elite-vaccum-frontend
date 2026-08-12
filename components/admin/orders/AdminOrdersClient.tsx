@@ -61,10 +61,9 @@ import {
   isActiveOrderStatus,
   isCancelledOrderStatus,
 } from "@/data/mock/admin-orders";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatShortDate } from "@/lib/formatters";
 import type {
-  AdminProductOrder,
-  AdminServiceOrder,
   AdminUnifiedOrder,
 } from "@/types/domain";
 
@@ -267,7 +266,7 @@ function OrdersRowActions({
 }
 
 export function AdminOrdersClient() {
-  const [orders, setOrders] = useState(() => getAdminOrders());
+  useSharedBusinessStoreVersion();
   const [typeFilter, setTypeFilter] = useState<AdminOrdersTypeFilter>("ALL");
   const [statusFilter, setStatusFilter] =
     useState<AdminOrdersStatusFilter>("all");
@@ -275,6 +274,21 @@ export function AdminOrdersClient() {
   const [sort, setSort] = useState<OrderSortValue>("newest");
   const [cancellationDraft, setCancellationDraft] =
     useState<CancellationDraft | null>(null);
+  const [cancelledOrderIds, setCancelledOrderIds] = useState<string[]>([]);
+  const orders = useMemo(() => {
+    const synced = getAdminOrders();
+    return synced.map((order) => {
+      if (!cancelledOrderIds.includes(order.id)) return order;
+      return {
+        ...order,
+        status: "cancelled",
+        cancellation: order.cancellation ?? {
+          cancelledAt: new Date().toISOString(),
+          reason: "Cancelled in admin preview",
+        },
+      } as AdminUnifiedOrder;
+    });
+  }, [cancelledOrderIds]);
 
   const filteredOrders = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -295,10 +309,9 @@ export function AdminOrdersClient() {
       });
   }, [orders, search, sort, statusFilter, typeFilter]);
 
-  const compactCounts = useMemo(
-    () => {
-      const orderCounts = getAdminOrderCounts();
-      return [
+  const compactCounts = useMemo(() => {
+    const orderCounts = getAdminOrderCounts();
+    return [
       { label: "All", value: orderCounts.all },
       { label: "Product", value: orderCounts.product },
       { label: "Service", value: orderCounts.service },
@@ -315,9 +328,7 @@ export function AdminOrdersClient() {
         ).length,
       },
     ];
-    },
-    [orders],
-  );
+  }, [orders]);
 
   function openCancellation(orderId: string) {
     setCancellationDraft({
@@ -338,33 +349,10 @@ export function AdminOrdersClient() {
       );
       return;
     }
-
-    const cancelledAt = new Date().toISOString();
-
-    setOrders((current) =>
-      current.map((order) =>
-        order.id === cancellationDraft.orderId
-          ? order.type === "PRODUCT"
-            ? ({
-                ...order,
-                status: "cancelled",
-                cancellation: {
-                  cancelledAt,
-                  reason: cancellationDraft.reason,
-                  note: cancellationDraft.note || undefined,
-                },
-              } satisfies AdminProductOrder)
-            : ({
-                ...order,
-                status: "cancelled",
-                cancellation: {
-                  cancelledAt,
-                  reason: cancellationDraft.reason,
-                  note: cancellationDraft.note || undefined,
-                },
-              } satisfies AdminServiceOrder)
-          : order,
-      ),
+    setCancelledOrderIds((current) =>
+      current.includes(cancellationDraft.orderId)
+        ? current
+        : [...current, cancellationDraft.orderId],
     );
     setCancellationDraft(null);
   }

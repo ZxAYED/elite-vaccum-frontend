@@ -488,7 +488,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             </p>
             <Link
               className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-teal-800"
-              href={`/admin/customers?customerId=${order.customerId}`}
+              href={`/admin/customers/${order.customerId}`}
             >
               View Customer
             </Link>

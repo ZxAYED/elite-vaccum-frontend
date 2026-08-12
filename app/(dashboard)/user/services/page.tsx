@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, CalendarDays, MapPin, Wrench } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
@@ -10,6 +13,7 @@ import {
   getServiceDetailByRequestId,
   mockCustomerServiceRequests,
 } from "@/data/mock/customer-portal";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 const filters = [
@@ -22,20 +26,22 @@ const filters = [
 
 function matchesFilter(status: string, filter: string) {
   if (filter === "all") return true;
-  if (filter === "active") return ["submitted", "under-review", "quoted"].includes(status);
-  if (filter === "accepted") return ["accepted", "scheduled", "in-progress"].includes(status);
+  if (filter === "active") {
+    return ["submitted", "under-review", "quoted"].includes(status);
+  }
+  if (filter === "accepted") {
+    return ["accepted", "scheduled", "in-progress"].includes(status);
+  }
   if (filter === "rejected") return ["rejected", "cancelled"].includes(status);
   return ["completed"].includes(status);
 }
 
-interface UserServicesPageProps {
-  searchParams: Promise<{ filter?: string }>;
-}
-
-export default async function UserServicesPage({ searchParams }: UserServicesPageProps) {
-  const params = await searchParams;
-  const selectedFilter = filters.some((filter) => filter.value === params.filter)
-    ? params.filter ?? "all"
+export default function UserServicesPage() {
+  useSharedBusinessStoreVersion();
+  const searchParams = useSearchParams();
+  const activeFilter = searchParams.get("filter") ?? "all";
+  const selectedFilter = filters.some((filter) => filter.value === activeFilter)
+    ? activeFilter
     : "all";
   const requests = mockCustomerServiceRequests.filter((request) =>
     matchesFilter(request.status, selectedFilter),
@@ -81,7 +87,11 @@ export default async function UserServicesPage({ searchParams }: UserServicesPag
             : quote
               ? `/user/services/${request.id}/quotation`
               : `/user/services/${request.id}`;
-          const actionLabel = order ? "View Service Order" : quote ? "Review Quote" : "View Details";
+          const actionLabel = order
+            ? "View Service Order"
+            : quote
+              ? "Review Quote"
+              : "View Details";
 
           return (
             <article

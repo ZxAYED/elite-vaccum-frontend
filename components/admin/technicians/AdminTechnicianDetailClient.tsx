@@ -19,12 +19,12 @@ import {
 } from "@/components/admin/AdminPageShell";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
-import { mockCustomers } from "@/data/mock/customers";
 import {
   getAdminTechnicianById,
   getTechnicianUpcomingSchedules,
   updateAdminTechnician,
 } from "@/data/mock/technicians";
+import { getSharedCustomerById } from "@/data/mock/shared-business-store";
 import { formatLongDate } from "@/lib/formatters";
 import type { TechnicianValues } from "@/lib/validation";
 
@@ -79,8 +79,7 @@ export function AdminTechnicianDetailClient({
 
   function getCustomerName(customerId: string) {
     return (
-      mockCustomers.find((customer) => customer.id === customerId)
-        ?.displayName ?? customerId
+      getSharedCustomerById(customerId)?.displayName ?? customerId
     );
   }
 

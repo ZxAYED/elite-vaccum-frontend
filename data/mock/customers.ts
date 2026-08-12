@@ -1,4 +1,16 @@
-import type { Customer } from "@/types/domain";
+import type {
+  Customer,
+  CustomerFeatureType,
+  CustomerPropertyType,
+} from "@/types/domain";
+
+function propertyType(type: CustomerPropertyType) {
+  return type;
+}
+
+function featureType(type: CustomerFeatureType) {
+  return type;
+}
 
 export const mockCustomers: Customer[] = [
   {
@@ -8,10 +20,16 @@ export const mockCustomers: Customer[] = [
     lastName: "Stone",
     email: "avery.stone@example.com",
     phone: "+1 (203) 555-0148",
+    cellphone: "+1 (203) 555-0198",
+    company: "Stone Residence",
     status: "active",
     joinedAt: "2025-03-15T10:00:00.000Z",
     totalOrders: 8,
     lifetimeValueUsd: 1240,
+    primaryAddressId: "addr-1001-primary",
+    preferredContactMethod: "text",
+    bestContactTime: "Weekdays after 4:00 PM",
+    customerPreferences: "Prefers service confirmations by text before phone call.",
     addresses: [
       {
         id: "addr-1001-primary",
@@ -22,6 +40,174 @@ export const mockCustomers: Customer[] = [
         postalCode: "06830",
         country: "US",
       },
+      {
+        id: "addr-1001-summer",
+        label: "Summer House",
+        line1: "45 Beach Way",
+        city: "Southampton",
+        state: "NY",
+        postalCode: "11968",
+        country: "US",
+      },
+    ],
+    internalNotes: [
+      {
+        id: "cust-note-1001-1",
+        title: "Access preference",
+        body: "Call from the driveway before entering the side gate.",
+        createdAt: "2026-07-21T14:10:00.000Z",
+        createdBy: "Admin",
+      },
+      {
+        id: "cust-note-1001-2",
+        title: "Pricing approvals",
+        body: "Approves repair work under $300 without follow-up once photos are provided.",
+        createdAt: "2026-08-03T09:20:00.000Z",
+        createdBy: "Technician Marcus Reed",
+      },
+    ],
+    properties: [
+      {
+        id: "prop-1001-primary",
+        label: "Primary Residence",
+        address: {
+          id: "addr-1001-primary",
+          label: "Primary Residence",
+          line1: "123 Heritage Lane",
+          city: "Greenwich",
+          state: "CT",
+          postalCode: "06830",
+          country: "US",
+        },
+        propertyType: propertyType("primary-residence"),
+        floors: 3,
+        hasBasement: true,
+        hasSubBasement: false,
+        accessInformation: "Garage keypad entry. Dog remains in fenced backyard.",
+        internalNotes:
+          "Main unit in basement. Kitchen VacPan was replaced in March 2026.",
+        status: "active",
+        vacuumUnits: [
+          {
+            id: "unit-1001-1",
+            unitNumber: "Unit #1",
+            manufacturer: "VacuMaid",
+            model: "SR64",
+            serialNumber: "VM-20442",
+            location: "Basement utility room",
+            notes: "Primary whole-home unit.",
+            status: "active",
+          },
+          {
+            id: "unit-1001-2",
+            unitNumber: "Unit #2",
+            manufacturer: "Hide-A-Hose",
+            model: "Hybrid 495",
+            serialNumber: "HH-88412",
+            location: "Garage wall enclosure",
+            notes: "Secondary garage / mudroom zone.",
+            status: "active",
+          },
+        ],
+        inletFloors: [
+          {
+            id: "floor-1001-basement",
+            label: "Basement",
+            hdh: 1,
+            chameleon: 0,
+            chameleonElite: 0,
+            standard: 2,
+            notes: "Includes utility sink cleanup zone.",
+          },
+          {
+            id: "floor-1001-first",
+            label: "First Floor",
+            hdh: 1,
+            chameleon: 2,
+            chameleonElite: 0,
+            standard: 3,
+          },
+          {
+            id: "floor-1001-second",
+            label: "Second Floor",
+            hdh: 0,
+            chameleon: 1,
+            chameleonElite: 1,
+            standard: 2,
+          },
+        ],
+        additionalFeatures: [
+          {
+            id: "feature-1001-1",
+            type: featureType("VacPan"),
+            quantity: 2,
+            locations: ["Kitchen", "Pantry"],
+            notes: "Kitchen VacPan replaced in 2026.",
+          },
+          {
+            id: "feature-1001-2",
+            type: featureType("Wally Flex"),
+            quantity: 1,
+            locations: ["Mudroom"],
+          },
+        ],
+      },
+      {
+        id: "prop-1001-summer",
+        label: "Summer House",
+        address: {
+          id: "addr-1001-summer",
+          label: "Summer House",
+          line1: "45 Beach Way",
+          city: "Southampton",
+          state: "NY",
+          postalCode: "11968",
+          country: "US",
+        },
+        propertyType: propertyType("vacation-home"),
+        floors: 2,
+        hasBasement: false,
+        accessInformation: "Property manager opens the house on Thursdays.",
+        internalNotes: "Spring opening requires filter inspection every April.",
+        status: "active",
+        vacuumUnits: [
+          {
+            id: "unit-1001-3",
+            unitNumber: "Unit #1",
+            manufacturer: "Beam",
+            model: "Alliance 700",
+            serialNumber: "BM-70193",
+            location: "Laundry closet",
+            status: "active",
+          },
+        ],
+        inletFloors: [
+          {
+            id: "floor-1001-summer-first",
+            label: "First Floor",
+            hdh: 0,
+            chameleon: 0,
+            chameleonElite: 1,
+            standard: 2,
+          },
+          {
+            id: "floor-1001-summer-second",
+            label: "Second Floor",
+            hdh: 0,
+            chameleon: 0,
+            chameleonElite: 0,
+            standard: 2,
+          },
+        ],
+        additionalFeatures: [
+          {
+            id: "feature-1001-3",
+            type: featureType("Spot Vacuum"),
+            quantity: 1,
+            locations: ["Laundry closet"],
+          },
+        ],
+      },
     ],
   },
   {
@@ -31,10 +217,15 @@ export const mockCustomers: Customer[] = [
     lastName: "Mercer",
     email: "jordan.mercer@example.com",
     phone: "+1 (914) 555-0161",
+    cellphone: "+1 (914) 555-0116",
+    company: "Mercer Holdings",
     status: "active",
     joinedAt: "2025-08-08T09:30:00.000Z",
     totalOrders: 6,
     lifetimeValueUsd: 980,
+    primaryAddressId: "addr-1002-primary",
+    preferredContactMethod: "email",
+    bestContactTime: "Weekdays 9:00 AM to 1:00 PM",
     addresses: [
       {
         id: "addr-1002-primary",
@@ -46,6 +237,80 @@ export const mockCustomers: Customer[] = [
         country: "US",
       },
     ],
+    internalNotes: [
+      {
+        id: "cust-note-1002-1",
+        title: "Concierge building",
+        body: "Leave ETA with front desk 30 minutes before arrival.",
+        createdAt: "2026-06-12T12:00:00.000Z",
+        createdBy: "Admin",
+      },
+    ],
+    properties: [
+      {
+        id: "prop-1002-primary",
+        label: "Townhouse",
+        address: {
+          id: "addr-1002-primary",
+          label: "Townhouse",
+          line1: "45 Orchard View",
+          city: "Scarsdale",
+          state: "NY",
+          postalCode: "10583",
+          country: "US",
+        },
+        propertyType: propertyType("townhouse"),
+        floors: 3,
+        hasBasement: true,
+        accessInformation: "Use side entry near garage. Alarm is disabled for scheduled visits.",
+        status: "active",
+        vacuumUnits: [
+          {
+            id: "unit-1002-1",
+            unitNumber: "Unit #1",
+            manufacturer: "Drainvac",
+            model: "DV1R800",
+            serialNumber: "DV-55218",
+            location: "Lower mechanical closet",
+            status: "active",
+          },
+        ],
+        inletFloors: [
+          {
+            id: "floor-1002-first",
+            label: "First Floor",
+            hdh: 0,
+            chameleon: 1,
+            chameleonElite: 0,
+            standard: 2,
+          },
+          {
+            id: "floor-1002-second",
+            label: "Second Floor",
+            hdh: 0,
+            chameleon: 1,
+            chameleonElite: 1,
+            standard: 1,
+          },
+          {
+            id: "floor-1002-third",
+            label: "Third Floor",
+            hdh: 0,
+            chameleon: 0,
+            chameleonElite: 1,
+            standard: 1,
+          },
+        ],
+        additionalFeatures: [
+          {
+            id: "feature-1002-1",
+            type: featureType("VacPan"),
+            quantity: 1,
+            locations: ["Kitchen"],
+          },
+        ],
+      },
+    ],
   },
   {
     id: "cust-1003",
@@ -54,10 +319,14 @@ export const mockCustomers: Customer[] = [
     lastName: "Wells",
     email: "harper.wells@example.com",
     phone: "+1 (475) 555-0190",
+    cellphone: "+1 (475) 555-0120",
     status: "active",
     joinedAt: "2026-01-21T14:30:00.000Z",
     totalOrders: 7,
     lifetimeValueUsd: 1085,
+    primaryAddressId: "addr-1003-primary",
+    preferredContactMethod: "phone",
+    bestContactTime: "Any weekday before 6:00 PM",
     addresses: [
       {
         id: "addr-1003-primary",
@@ -69,6 +338,63 @@ export const mockCustomers: Customer[] = [
         country: "US",
       },
     ],
+    properties: [
+      {
+        id: "prop-1003-primary",
+        label: "Main Property",
+        address: {
+          id: "addr-1003-primary",
+          label: "Main Property",
+          line1: "78 Fieldstone Drive",
+          city: "Westport",
+          state: "CT",
+          postalCode: "06880",
+          country: "US",
+        },
+        propertyType: propertyType("primary-residence"),
+        floors: 2,
+        hasBasement: true,
+        accessInformation: "Owner works from home. Ring bell at the side porch.",
+        status: "active",
+        vacuumUnits: [
+          {
+            id: "unit-1003-1",
+            unitNumber: "Unit #1",
+            manufacturer: "Modern Day",
+            model: "M715H",
+            serialNumber: "MD-71502",
+            location: "Basement utility wall",
+            status: "active",
+          },
+        ],
+        inletFloors: [
+          {
+            id: "floor-1003-first",
+            label: "First Floor",
+            hdh: 1,
+            chameleon: 1,
+            chameleonElite: 0,
+            standard: 2,
+          },
+          {
+            id: "floor-1003-second",
+            label: "Second Floor",
+            hdh: 0,
+            chameleon: 1,
+            chameleonElite: 0,
+            standard: 2,
+          },
+        ],
+        additionalFeatures: [
+          {
+            id: "feature-1003-1",
+            type: featureType("Spot Vacuum"),
+            quantity: 1,
+            locations: ["Mudroom"],
+          },
+        ],
+      },
+    ],
   },
   {
     id: "cust-1004",
@@ -77,10 +403,14 @@ export const mockCustomers: Customer[] = [
     lastName: "Price",
     email: "morgan.price@example.com",
     phone: "+1 (646) 555-0122",
+    cellphone: "+1 (646) 555-0142",
+    company: "Price Studio",
     status: "lead",
     joinedAt: "2026-05-02T11:15:00.000Z",
     totalOrders: 4,
     lifetimeValueUsd: 660,
+    primaryAddressId: "addr-1004-primary",
+    preferredContactMethod: "email",
     addresses: [
       {
         id: "addr-1004-primary",
@@ -92,6 +422,46 @@ export const mockCustomers: Customer[] = [
         country: "US",
       },
     ],
+    properties: [
+      {
+        id: "prop-1004-primary",
+        label: "Apartment",
+        address: {
+          id: "addr-1004-primary",
+          label: "Apartment",
+          line1: "200 Riverside Boulevard",
+          city: "New York",
+          state: "NY",
+          postalCode: "10069",
+          country: "US",
+        },
+        propertyType: propertyType("apartment"),
+        floors: 1,
+        accessInformation: "Doorman building. Freight elevator required for major work.",
+        status: "active",
+        vacuumUnits: [
+          {
+            id: "unit-1004-1",
+            unitNumber: "Unit #1",
+            manufacturer: "Electrolux",
+            model: "Centralux 900",
+            location: "Hall closet",
+            status: "active",
+          },
+        ],
+        inletFloors: [
+          {
+            id: "floor-1004-main",
+            label: "Main Level",
+            hdh: 0,
+            chameleon: 0,
+            chameleonElite: 0,
+            standard: 3,
+          },
+        ],
+        additionalFeatures: [],
+      },
+    ],
   },
   {
     id: "cust-1005",
@@ -100,10 +470,13 @@ export const mockCustomers: Customer[] = [
     lastName: "Brooks",
     email: "casey.brooks@example.com",
     phone: "+1 (212) 555-0103",
+    cellphone: "+1 (212) 555-0183",
     status: "active",
     joinedAt: "2026-06-11T08:45:00.000Z",
     totalOrders: 6,
     lifetimeValueUsd: 880,
+    primaryAddressId: "addr-1005-primary",
+    preferredContactMethod: "phone",
     addresses: [
       {
         id: "addr-1005-primary",
@@ -113,6 +486,62 @@ export const mockCustomers: Customer[] = [
         state: "NY",
         postalCode: "10013",
         country: "US",
+      },
+    ],
+    properties: [
+      {
+        id: "prop-1005-primary",
+        label: "Penthouse",
+        address: {
+          id: "addr-1005-primary",
+          label: "Penthouse",
+          line1: "18 Hudson Point",
+          city: "New York",
+          state: "NY",
+          postalCode: "10013",
+          country: "US",
+        },
+        propertyType: propertyType("primary-residence"),
+        floors: 2,
+        accessInformation: "Roof deck access requires concierge escort.",
+        status: "active",
+        vacuumUnits: [
+          {
+            id: "unit-1005-1",
+            unitNumber: "Unit #1",
+            manufacturer: "Cyclo Vac",
+            model: "H625",
+            serialNumber: "CV-62512",
+            location: "Service closet",
+            status: "active",
+          },
+        ],
+        inletFloors: [
+          {
+            id: "floor-1005-main",
+            label: "Main Level",
+            hdh: 1,
+            chameleon: 0,
+            chameleonElite: 1,
+            standard: 2,
+          },
+          {
+            id: "floor-1005-upper",
+            label: "Upper Level",
+            hdh: 0,
+            chameleon: 1,
+            chameleonElite: 0,
+            standard: 1,
+          },
+        ],
+        additionalFeatures: [
+          {
+            id: "feature-1005-1",
+            type: featureType("Wally Flex"),
+            quantity: 1,
+            locations: ["Laundry room"],
+          },
+        ],
       },
     ],
   },

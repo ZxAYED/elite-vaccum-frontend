@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, FileText } from "lucide-react";
 
@@ -5,9 +7,11 @@ import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { getCustomerQuotations, getServiceById } from "@/data/mock/customer-portal";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatMonthDay } from "@/lib/formatters";
 
 export default function UserQuotationsPage() {
+  useSharedBusinessStoreVersion();
   const quotations = getCustomerQuotations();
 
   return (

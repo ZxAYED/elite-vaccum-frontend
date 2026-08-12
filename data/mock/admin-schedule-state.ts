@@ -1,7 +1,9 @@
-import { mockCustomers } from "@/data/mock/customers";
-import { mockAdminQuotations } from "@/data/mock/quotations";
-import { mockServiceRequests } from "@/data/mock/service-requests";
 import { mockServices } from "@/data/mock/services";
+import {
+  getSharedCustomerById,
+  getSharedQuotationForRequest,
+  getSharedServiceRequestById,
+} from "@/data/mock/shared-business-store";
 import type {
   AdminScheduleRecord,
   AdminServiceOrder,
@@ -19,7 +21,7 @@ function clone<T>(value: T): T {
 }
 
 function findCustomer(customerId: string) {
-  return mockCustomers.find((customer) => customer.id === customerId);
+  return getSharedCustomerById(customerId);
 }
 
 function scheduleWindowToLabel(window: ServiceScheduleWindow) {
@@ -162,7 +164,7 @@ function createAcceptedQuoteSnapshot(lineItems: FlexibleQuotationLineItem[], acc
 
 function createServiceOrderFromRequest(request: ServiceRequest): AdminServiceOrder {
   const service = mockServices.find((item) => item.id === request.serviceId);
-  const quote = mockAdminQuotations.find((item) => item.serviceRequestId === request.id);
+  const quote = getSharedQuotationForRequest(request.id);
   const requestedSchedule =
     request.requestedSchedule ??
     toScheduleWindow(request.preferredDate, request.preferredTime);
@@ -255,13 +257,13 @@ function createServiceOrderFromRequest(request: ServiceRequest): AdminServiceOrd
 
 const seededServiceOrders: AdminServiceOrder[] = [
   createServiceOrderFromRequest(
-    mockServiceRequests.find((request) => request.id === "REQ-1006") ?? mockServiceRequests[0],
+    getSharedServiceRequestById("REQ-1006") ?? getSharedServiceRequestById("REQ-1001")!,
   ),
   createServiceOrderFromRequest(
-    mockServiceRequests.find((request) => request.id === "REQ-1007") ?? mockServiceRequests[1],
+    getSharedServiceRequestById("REQ-1007") ?? getSharedServiceRequestById("REQ-1002")!,
   ),
   createServiceOrderFromRequest(
-    mockServiceRequests.find((request) => request.id === "REQ-1009") ?? mockServiceRequests[2],
+    getSharedServiceRequestById("REQ-1009") ?? getSharedServiceRequestById("REQ-1003")!,
   ),
 ];
 
@@ -361,6 +363,10 @@ export function getSharedAdminServiceOrders() {
 
 export function getSharedAdminServiceOrderById(orderId: string) {
   return serviceOrdersState.find((order) => order.id === orderId);
+}
+
+export function getSharedAdminServiceOrderByRequestId(requestId: string) {
+  return serviceOrdersState.find((order) => order.serviceRequestId === requestId);
 }
 
 export function getSharedAdminScheduleRecords() {
@@ -568,4 +574,32 @@ export function updateSharedServiceOrder(
   const next = getSharedAdminServiceOrderById(orderId);
   if (next) syncSchedulesFromOrder(next);
   return next;
+}
+
+export function createOrSyncSharedServiceOrderFromRequest(request: ServiceRequest) {
+  const existing = getSharedAdminServiceOrderByRequestId(request.id);
+  const nextOrder = createServiceOrderFromRequest(request);
+
+  if (existing) {
+    serviceOrdersState = serviceOrdersState.map((order) =>
+      order.id === existing.id
+        ? {
+            ...order,
+            ...nextOrder,
+            id: existing.id,
+            scheduleId: order.scheduleId,
+          }
+        : order,
+    );
+
+    const synced = getSharedAdminServiceOrderById(existing.id)!;
+    syncSchedulesFromOrder(synced);
+    return synced;
+  }
+
+  serviceOrdersState = [nextOrder, ...serviceOrdersState];
+  if (!getSharedAdminScheduleByOrderId(nextOrder.id)) {
+    schedulesState = [createScheduleFromOrder(nextOrder), ...schedulesState];
+  }
+  return nextOrder;
 }
