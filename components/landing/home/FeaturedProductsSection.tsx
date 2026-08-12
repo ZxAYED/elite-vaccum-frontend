@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
-import { Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { ProductCard } from "@/components/store/ProductCard";
 import { mockProducts } from "@/data/mock/products";
 
@@ -20,24 +19,20 @@ export function FeaturedProductsSection() {
               Featured Performance Units
             </h2>
           </div>
-          <Pressable className="w-fit">
-            <Link
-              className="inline-flex items-center gap-2 text-sm font-semibold text-teal-700 transition hover:text-teal-800"
-              href="/store"
-            >
-              View All Products
-              <ArrowRight size={16} />
-            </Link>
-          </Pressable>
+          <Link
+            className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-teal-700 transition hover:text-teal-800"
+            href="/store"
+          >
+            View All Products
+            <ArrowRight size={16} />
+          </Link>
         </div>
 
-        <StaggerGroup className="mt-10 grid auto-rows-fr gap-6 sm:grid-cols-2 xl:grid-cols-4" delay={0.06}>
+        <div className="mt-10 grid auto-rows-fr gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {featuredProducts.map((product, index) => (
-            <StaggerItem key={product.id}>
-              <ProductCard product={product} priority={index < 4} />
-            </StaggerItem>
+            <ProductCard key={product.id} product={product} priority={index < 4} />
           ))}
-        </StaggerGroup>
+        </div>
       </div>
     </section>
   );

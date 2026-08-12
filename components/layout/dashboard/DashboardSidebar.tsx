@@ -81,7 +81,7 @@ const navGroups: Array<{
   {
     label: "Insights",
     items: [
-      { label: "Reviews", icon: Star, soon: true },
+      { label: "Reviews", href: "/admin/reviews", icon: Star },
       { label: "Reports", icon: BarChart3, soon: true },
     ],
   },

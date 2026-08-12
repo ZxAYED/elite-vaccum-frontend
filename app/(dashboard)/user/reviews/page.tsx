@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { MessageSquareQuote, Star } from "lucide-react";
 
@@ -5,10 +7,16 @@ import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
-import { mockCustomerReviews } from "@/data/mock/customer-portal";
+import {
+  getSharedReviews,
+} from "@/data/mock/shared-business-store";
+import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatLongDate } from "@/lib/formatters";
 
 export default function ReviewsPage() {
+  useSharedBusinessStoreVersion();
+  const reviews = getSharedReviews();
+
   return (
     <div className="min-h-screen">
       <PageHeader
@@ -23,7 +31,7 @@ export default function ReviewsPage() {
       />
 
       <div className="space-y-5">
-        {mockCustomerReviews.map((review) => (
+        {reviews.map((review) => (
           <article
             className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
             key={review.id}
@@ -31,19 +39,28 @@ export default function ReviewsPage() {
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <TypeBadge type={review.kind === "service" ? "SERVICE" : "PRODUCT"} />
-                  <StatusBadge status={review.status} />
+                  <TypeBadge type={review.type} />
+                  <StatusBadge
+                    label={
+                      review.status === "PENDING"
+                        ? "Pending"
+                        : review.status === "PUBLISHED"
+                          ? "Published"
+                          : "Hidden"
+                    }
+                    status={review.status.toLowerCase()}
+                  />
                 </div>
                 <h2 className="mt-4 text-xl font-semibold text-primary">
                   {review.title}
                 </h2>
                 <p className="mt-2 text-sm text-gray-600">
-                  Related to {review.relatedLabel}
+                  Related to {review.relatedOrderId}
                 </p>
 
-                {review.excerpt ? (
+                {review.preview ? (
                   <div className="mt-4 rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-700">
-                    &ldquo;{review.excerpt}&rdquo;
+                    &ldquo;{review.preview}&rdquo;
                   </div>
                 ) : null}
 
@@ -68,8 +85,14 @@ export default function ReviewsPage() {
                 )}
 
                 <Button asChild className="mt-5 w-full">
-                  <Link href={review.href}>
-                    {review.status === "submitted" ? "View related item" : "Leave review"}
+                  <Link
+                    href={
+                      review.type === "SERVICE"
+                        ? `/user/services/${review.relatedEntityId}`
+                        : `/user/orders/${review.relatedOrderId}`
+                    }
+                  >
+                    View related item
                   </Link>
                 </Button>
               </div>

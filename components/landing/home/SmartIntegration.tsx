@@ -1,6 +1,4 @@
 import Image from "next/image";
-
-import { FadeIn, Pressable } from "@/components/motion/Animated";
 import appStoreImage from "@/public/common/App Store.png";
 import playStoreImage from "@/public/common/Play Store.png";
 import mobileImage from "@/public/landing/home/mobileImage.png";
@@ -10,7 +8,7 @@ export default function SmartIntegration() {
     <section className="overflow-hidden bg-white py-16 md:py-20">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-100 bg-[linear-gradient(180deg,#ffffff_0%,#f6fbfa_100%)] px-6 py-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)] lg:px-10 lg:py-10">
-          <FadeIn className="space-y-8">
+          <div className="space-y-8">
             <div className="inline-flex rounded-full bg-teal-50 px-5 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
               Smart Integration
             </div>
@@ -31,42 +29,38 @@ export default function SmartIntegration() {
               </h3>
 
               <div className="flex flex-wrap gap-4">
-                <Pressable>
-                  <a
-                    href="https://play.google.com/store/apps/details?id=com.elitecentralvacuum.app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Image
-                      src={playStoreImage}
-                      alt="Get it on Google Play"
-                      width={140}
-                      height={50}
-                      className="h-10 w-auto"
-                    />
-                  </a>
-                </Pressable>
+                <a
+                  href="https://play.google.com/store/apps/details?id=com.elitecentralvacuum.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Image
+                    src={playStoreImage}
+                    alt="Get it on Google Play"
+                    width={140}
+                    height={50}
+                    className="h-10 w-auto"
+                  />
+                </a>
 
-                <Pressable>
-                  <a
-                    href="https://apps.apple.com/app/elit-central-vacuum"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Image
-                      src={appStoreImage}
-                      alt="Download on the App Store"
-                      width={140}
-                      height={50}
-                      className="h-10 w-auto"
-                    />
-                  </a>
-                </Pressable>
+                <a
+                  href="https://apps.apple.com/app/elit-central-vacuum"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Image
+                    src={appStoreImage}
+                    alt="Download on the App Store"
+                    width={140}
+                    height={50}
+                    className="h-10 w-auto"
+                  />
+                </a>
               </div>
             </div>
-          </FadeIn>
+          </div>
 
-          <FadeIn className="relative mx-auto w-full max-w-sm" delay={0.12}>
+          <div className="relative mx-auto w-full max-w-sm">
             <div className="absolute inset-0 rounded-[calc(var(--radius-card)+0.5rem)] bg-teal-100/70 blur-3xl" />
             <Image
               src={mobileImage}
@@ -76,7 +70,7 @@ export default function SmartIntegration() {
               sizes="(max-width: 1024px) 80vw, 28vw"
               className="relative h-auto w-full object-contain"
             />
-          </FadeIn>
+          </div>
         </div>
       </div>
     </section>

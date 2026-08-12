@@ -51,6 +51,8 @@ export type PaymentStatus =
   | "failed";
 export type NotificationType = "service-update" | "payment" | "account" | "system";
 export type OrderType = "PRODUCT" | "SERVICE";
+export type ReviewType = "PRODUCT" | "SERVICE";
+export type ReviewStatus = "PENDING" | "PUBLISHED" | "HIDDEN";
 export type CustomerPropertyType =
   | "primary-residence"
   | "vacation-home"
@@ -481,6 +483,34 @@ export interface Notification {
   createdAt: string;
   isRead: boolean;
   ctaLabel?: string;
+}
+
+export interface ReviewModerationHistoryEntry {
+  id: string;
+  action: "created" | "published" | "hidden" | "deleted";
+  reason?: string;
+  note?: string;
+  actorLabel: string;
+  createdAt: string;
+}
+
+export interface CustomerReview {
+  id: string;
+  type: ReviewType;
+  customerId: string;
+  customerName: string;
+  status: ReviewStatus;
+  relatedOrderId: string;
+  relatedEntityId: string;
+  relatedName: string;
+  title: string;
+  body: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  submittedAt: string;
+  publishedAt?: string;
+  hiddenAt?: string;
+  preview?: string;
+  moderationHistory: ReviewModerationHistoryEntry[];
 }
 
 export interface OrderTimelineStep {

@@ -66,8 +66,6 @@ export interface CustomerServiceDetail {
 }
 
 export type StoreOrderStatus = "processing" | "shipped" | "delivered";
-export type ReviewStatus = "pending" | "submitted";
-
 export interface StoreOrderItem {
   id: string;
   productId: string;
@@ -95,18 +93,6 @@ export interface CartItem {
 
 export interface CartProduct extends CartItem {
   product: Product;
-}
-
-export interface CustomerReviewRecord {
-  id: string;
-  kind: "service" | "product";
-  status: ReviewStatus;
-  title: string;
-  relatedLabel: string;
-  href: string;
-  rating?: number;
-  submittedAt?: string;
-  excerpt?: string;
 }
 
 export interface PaymentLedgerEntry {
@@ -455,29 +441,6 @@ export const mockCustomerProductOrders: StoreOrder[] = [
 export const mockCartItems: CartItem[] = [
   { productId: "prd-hand-tool", quantity: 1 },
   { productId: "prd-bag", quantity: 2 },
-];
-
-export const mockCustomerReviews: CustomerReviewRecord[] = [
-  {
-    id: "review-service-1007",
-    kind: "service",
-    status: "submitted",
-    title: "Accessory fit service review",
-    relatedLabel: "REQ-1007",
-    href: "/user/services/REQ-1007",
-    rating: 5,
-    submittedAt: "2026-07-13T09:00:00.000Z",
-    excerpt:
-      "Quick diagnosis, clean install, and everything now seals better than the original setup.",
-  },
-  {
-    id: "review-product-1001",
-    kind: "product",
-    status: "pending",
-    title: "Deluxe Hand Tool review",
-    relatedLabel: "SHOP-1001",
-    href: "/user/orders/SHOP-1001",
-  },
 ];
 
 export const mockCustomerPaymentMethods = [

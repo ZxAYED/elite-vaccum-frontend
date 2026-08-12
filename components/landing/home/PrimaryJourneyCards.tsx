@@ -2,7 +2,6 @@ import { ArrowRight, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import shopIcon from "@/public/landing/home/shopicon.png";
 
 const cards = [
@@ -34,7 +33,7 @@ const cards = [
 export function PrimaryJourneyCards() {
   return (
     <section className="py-8 md:py-20 bg-white">
-      <StaggerGroup className="mx-auto grid auto-rows-fr max-w-360 gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+      <div className="mx-auto grid auto-rows-fr max-w-360 gap-6 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
         {cards.map(
           ({
             title,
@@ -46,45 +45,42 @@ export function PrimaryJourneyCards() {
             accent,
             ctaClass,
           }) => (
-            <StaggerItem key={title}>
-              <article
-                className={`relative flex h-full flex-col overflow-hidden p-7 md:p-8 ${surface}`}
+            <article
+              key={title}
+              className={`relative flex h-full flex-col overflow-hidden p-7 md:p-8 ${surface}`}
+            >
+              <div className="absolute right-0 top-0 size-28 rounded-full border border-current/10 opacity-30" />
+              <div
+                className={`landing-icon-tile flex size-12 items-center justify-center ${accent}`}
               >
-                <div className="absolute right-0 top-0 size-28 rounded-full border border-current/10 opacity-30" />
-                <div
-                  className={`landing-icon-tile flex size-12 items-center justify-center ${accent}`}
-                >
-                  {iconType === "image" ? (
-                    <Image
-                      src={shopIcon}
-                      alt=""
-                      aria-hidden="true"
-                      className="size-10"
-                    />
-                  ) : (
-                    <Wrench size={20} />
-                  )}
-                </div>
-                <h2 className="mt-8 min-h-[3.5rem] text-2xl font-semibold">
-                  {title}
-                </h2>
-                <p className="mt-3 flex-1 max-w-md text-sm leading-7 text-inherit/80">
-                  {description}
-                </p>
-                <Pressable className="mt-8 w-fit">
-                  <Link
-                    className={`inline-flex items-center gap-2 text-sm font-semibold transition-colors ${ctaClass}`}
-                    href={href}
-                  >
-                    {cta}
-                    <ArrowRight size={16} />
-                  </Link>
-                </Pressable>
-              </article>
-            </StaggerItem>
+                {iconType === "image" ? (
+                  <Image
+                    src={shopIcon}
+                    alt=""
+                    aria-hidden="true"
+                    className="size-10"
+                  />
+                ) : (
+                  <Wrench size={20} />
+                )}
+              </div>
+              <h2 className="mt-8 min-h-[3.5rem] text-2xl font-semibold">
+                {title}
+              </h2>
+              <p className="mt-3 flex-1 max-w-md text-sm leading-7 text-inherit/80">
+                {description}
+              </p>
+              <Link
+                className={`mt-8 inline-flex w-fit items-center gap-2 text-sm font-semibold transition-colors ${ctaClass}`}
+                href={href}
+              >
+                {cta}
+                <ArrowRight size={16} />
+              </Link>
+            </article>
           ),
         )}
-      </StaggerGroup>
+      </div>
     </section>
   );
 }

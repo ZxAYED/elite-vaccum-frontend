@@ -1,5 +1,6 @@
 import type {
   AdminQuotation,
+  CustomerReview,
   Customer,
   CustomerFeature,
   CustomerInletFloor,
@@ -13,6 +14,8 @@ import type {
   PublicServiceGroup,
   QuoteStatus,
   RejectionHistoryEntry,
+  ReviewModerationHistoryEntry,
+  ReviewStatus,
   Service,
   ServiceOffering,
   ServiceRequest,
@@ -25,6 +28,7 @@ import { mockCustomers } from "@/data/mock/customers";
 import { calculateQuotationTotals, mockAdminQuotations } from "@/data/mock/quotations";
 import { mockProductCategories, mockProducts } from "@/data/mock/products";
 import { publicServiceOfferings } from "@/data/mock/public-services";
+import { mockCustomerReviews } from "@/data/mock/reviews";
 import { mockServiceRequests } from "@/data/mock/service-requests";
 import { mockServices } from "@/data/mock/services";
 
@@ -36,6 +40,7 @@ type SharedState = {
   services: Service[];
   serviceRequests: ServiceRequest[];
   quotations: AdminQuotation[];
+  reviews: CustomerReview[];
 };
 
 type ServiceRequestInput = {
@@ -117,6 +122,7 @@ function createInitialState(): SharedState {
     services: clone(mockServices),
     serviceRequests: clone(mockServiceRequests),
     quotations: clone(mockAdminQuotations),
+    reviews: clone(mockCustomerReviews),
   };
 }
 
@@ -238,12 +244,106 @@ export function getSharedQuotations() {
   return state.quotations;
 }
 
+export function getSharedReviews() {
+  hydrate();
+  return state.reviews;
+}
+
+export function getSharedReviewById(reviewId: string) {
+  return getSharedReviews().find((review) => review.id === reviewId);
+}
+
 export function getSharedQuotationById(quotationId: string) {
   return getSharedQuotations().find((item) => item.id === quotationId);
 }
 
 export function getSharedQuotationForRequest(requestId: string) {
   return getSharedQuotations().find((item) => item.serviceRequestId === requestId);
+}
+
+function appendReviewHistory(
+  review: CustomerReview,
+  entry: Omit<ReviewModerationHistoryEntry, "id" | "createdAt">,
+): CustomerReview {
+  return {
+    ...review,
+    moderationHistory: [
+      ...review.moderationHistory,
+      {
+        ...entry,
+        id: `${review.id}-${Date.now().toString(36)}`,
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  };
+}
+
+export function updateSharedReviewStatus(
+  reviewId: string,
+  status: ReviewStatus,
+  options?: {
+    actorLabel?: string;
+    reason?: string;
+    note?: string;
+  },
+) {
+  hydrate();
+  const actorLabel = options?.actorLabel ?? "Admin";
+  state = {
+    ...state,
+    reviews: state.reviews.map((review) => {
+      if (review.id !== reviewId) return review;
+
+      const action =
+        status === "PUBLISHED" ? "published" : status === "HIDDEN" ? "hidden" : "created";
+      const next = appendReviewHistory(
+        {
+          ...review,
+          status,
+          publishedAt: status === "PUBLISHED" ? new Date().toISOString() : review.publishedAt,
+          hiddenAt: status === "HIDDEN" ? new Date().toISOString() : undefined,
+        },
+        {
+          action,
+          actorLabel,
+          reason: options?.reason,
+          note: options?.note,
+        },
+      );
+
+      return next;
+    }),
+  };
+  emit();
+  return getSharedReviewById(reviewId);
+}
+
+export function deleteSharedReview(
+  reviewId: string,
+  options?: {
+    actorLabel?: string;
+    reason?: string;
+    note?: string;
+  },
+) {
+  hydrate();
+  const review = getSharedReviewById(reviewId);
+  if (!review) return false;
+
+  const actorLabel = options?.actorLabel ?? "Admin";
+  const archivedReview = appendReviewHistory(review, {
+    action: "deleted",
+    actorLabel,
+    reason: options?.reason,
+    note: options?.note,
+  });
+
+  state = {
+    ...state,
+    reviews: state.reviews.filter((item) => item.id !== reviewId),
+  };
+  emit();
+  return archivedReview;
 }
 
 export function createSharedServiceRequest(input: ServiceRequestInput) {

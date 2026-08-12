@@ -12,6 +12,8 @@ const toneByStatus: Record<string, string> = {
   cancelled: "bg-rose-100 text-rose-700",
   rejected: "bg-rose-100 text-rose-700",
   pending: "bg-amber-100 text-amber-800",
+  published: "bg-emerald-100 text-emerald-800",
+  hidden: "bg-slate-200 text-slate-700",
   paid: "bg-emerald-100 text-emerald-800",
   refunded: "bg-slate-200 text-slate-700",
   failed: "bg-rose-100 text-rose-700",
