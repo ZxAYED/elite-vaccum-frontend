@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
 import { getDashboardOrderById } from "@/data/mock/customer-dashboard";
+import { hasSharedReviewForOrder } from "@/data/mock/shared-business-store";
 import { formatCurrencyUsd, formatLongDate, formatShortDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
@@ -76,6 +77,15 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     notFound();
   }
 
+  const canWriteReview =
+    !hasSharedReviewForOrder(order.id) &&
+    ((order.type === "PRODUCT" && order.status === "delivered") ||
+      (order.type === "SERVICE" && order.status === "completed"));
+  const reviewHref =
+    order.type === "PRODUCT"
+      ? `/user/reviews?compose=product&orderId=${order.id}`
+      : `/user/reviews?compose=service&orderId=${order.id}`;
+
   return (
     <div className="min-h-screen">
       <PageHeader
@@ -84,6 +94,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <Button asChild variant="outline">
               <Link href="/user/orders">Back to orders</Link>
             </Button>
+            {canWriteReview ? (
+              <Button asChild variant="outline">
+                <Link href={reviewHref}>Write Review</Link>
+              </Button>
+            ) : null}
             <Button asChild>
               <Link href={`/user/billing/invoices/${order.invoiceId}`}>
                 <FileText size={16} />
@@ -323,10 +338,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
                 <span className="font-semibold text-primary">Customer Notes:</span>{" "}
                 {order.customerNotes}
-              </div>
-              <div className="mt-4 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
-                <span className="font-semibold">Technician Instruction:</span>{" "}
-                {order.technicianInstruction}
               </div>
             </section>
 

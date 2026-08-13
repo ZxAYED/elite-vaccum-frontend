@@ -46,3 +46,5 @@ temp_auto_push.bat
 temp_interactive_push.bat
 branch_structure.json
 frotned.zip
+*.code-profile
+.codex-temp/

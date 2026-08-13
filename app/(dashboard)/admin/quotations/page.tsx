@@ -166,7 +166,7 @@ export default function AdminQuotationsPage() {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard label="Total Quotes" value={stats.total} />
         <AdminStatCard label="Drafts" value={stats.draft} tone="soft" />
         <AdminStatCard label="Awaiting Customer" value={stats.awaiting} />
@@ -174,7 +174,7 @@ export default function AdminQuotationsPage() {
       </div>
 
       <AdminSurface className="space-y-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_12rem_12rem]">
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <Input
@@ -230,6 +230,7 @@ export default function AdminQuotationsPage() {
                 const customer = getQuotationCustomer(quote);
                 const service = getQuotationService(quote);
                 const request = getQuotationRequest(quote);
+
                 return (
                   <article
                     key={quote.id}
@@ -243,7 +244,7 @@ export default function AdminQuotationsPage() {
                         {quote.id}
                       </Link>
                       <p className="text-sm text-slate-500">
-                        {request?.id ?? quote.serviceRequestId} · v{quote.version}
+                        {`${request?.id ?? quote.serviceRequestId} · v${quote.version}`}
                       </p>
                     </div>
                     <div>
@@ -254,10 +255,12 @@ export default function AdminQuotationsPage() {
                         {service?.name ?? "Unknown service"}
                       </p>
                     </div>
-                    <StatusBadge
-                      status={quote.status}
-                      label={formatStatusLabel(quote.status)}
-                    />
+                    <div className="flex">
+                      <StatusBadge
+                        status={quote.status}
+                        label={formatStatusLabel(quote.status)}
+                      />
+                    </div>
                     <strong className="text-primary">
                       {formatCurrencyUsd(quote.totalUsd)}
                     </strong>

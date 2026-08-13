@@ -5,6 +5,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+
 const benefits = [
   {
     title: "Expert Technicians",
@@ -32,23 +34,25 @@ export function TrustSection() {
   return (
     <section className="py-16 md:py-20">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-100 bg-[#F3F7F6] px-5 py-6 md:px-8 md:py-8 lg:px-10 lg:py-10">
+        <FadeIn className="overflow-hidden rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-100 bg-[#F3F7F6] px-5 py-6 md:px-8 md:py-8 lg:px-10 lg:py-10" y={24} duration={0.65}>
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-center">
-            <div className="grid auto-rows-fr gap-4 sm:grid-cols-2">
+            <StaggerGroup className="grid auto-rows-fr gap-4 sm:grid-cols-2" delay={0.05} once>
               {benefits.map(({ title, description, icon: Icon }) => (
-                <article key={title} className="landing-card flex h-full flex-col p-5 shadow-none">
-                  <div className="landing-icon-tile flex size-11 items-center justify-center bg-teal-50 text-teal-700">
-                    <Icon size={20} />
-                  </div>
-                  <h3 className="mt-4 min-h-[3rem] text-lg font-semibold text-slate-900">
-                    {title}
-                  </h3>
-                  <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{description}</p>
-                </article>
+                <StaggerItem key={title}>
+                  <article className="landing-card flex h-full flex-col p-5 shadow-none">
+                    <div className="landing-icon-tile flex size-11 items-center justify-center bg-teal-50 text-teal-700">
+                      <Icon size={20} />
+                    </div>
+                    <h3 className="mt-4 min-h-[3rem] text-lg font-semibold text-slate-900">
+                      {title}
+                    </h3>
+                    <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{description}</p>
+                  </article>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerGroup>
 
-            <div className="max-w-xl lg:pl-4">
+            <FadeIn className="max-w-xl lg:pl-4" x={24} y={0} duration={0.65}>
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
                 Why Elite
               </p>
@@ -70,9 +74,9 @@ export function TrustSection() {
                   Licensed and insured professionals
                 </li>
               </ul>
-            </div>
+            </FadeIn>
           </div>
-        </div>
+        </FadeIn>
       </div>
     </section>
   );

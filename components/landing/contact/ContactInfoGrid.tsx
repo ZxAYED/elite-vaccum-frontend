@@ -32,7 +32,7 @@ export default function ContactInfoGrid() {
   return (
     <section className="py-12 md:py-16">
       <div className="mx-auto max-w-7xl px-4">
-        <StaggerGroup className="grid gap-5 md:grid-cols-3" delay={0.08}>
+        <StaggerGroup className="grid gap-5 md:grid-cols-3" delay={0.05} once>
           {contactInfo.map((item) => (
             <StaggerItem key={item.title}>
               <ContactInfoCard {...item} />

@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { ProductCard } from "@/components/store/ProductCard";
 import { mockProducts } from "@/data/mock/products";
 
@@ -10,7 +11,7 @@ export function FeaturedProductsSection() {
   return (
     <section className="py-12 md:py-16">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <FadeIn className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between" y={24} duration={0.65}>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
               The Collection
@@ -26,13 +27,15 @@ export function FeaturedProductsSection() {
             View All Products
             <ArrowRight size={16} />
           </Link>
-        </div>
+        </FadeIn>
 
-        <div className="mt-10 grid auto-rows-fr gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <StaggerGroup className="mt-10 grid auto-rows-fr gap-6 sm:grid-cols-2 xl:grid-cols-4" delay={0.05} once>
           {featuredProducts.map((product, index) => (
-            <ProductCard key={product.id} product={product} priority={index < 4} />
+            <StaggerItem key={product.id}>
+              <ProductCard product={product} priority={index < 4} />
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
     </section>
   );

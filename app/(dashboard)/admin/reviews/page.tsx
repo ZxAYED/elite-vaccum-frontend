@@ -4,6 +4,7 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  MessageSquareText,
   Search,
   ShieldCheck,
   Star,
@@ -84,8 +85,12 @@ function ratingStars(rating: number) {
   return Array.from({ length: 5 }, (_, index) => (
     <Star
       key={`${rating}-${index}`}
-      size={14}
-      className={index < rating ? "fill-current text-amber-500" : "text-slate-300"}
+      size={16}
+      className={
+        index < rating
+          ? "fill-current text-amber-500"
+          : "fill-current text-slate-200"
+      }
     />
   ));
 }
@@ -267,7 +272,7 @@ export default function AdminReviewsPage() {
         ) : filteredReviews.length ? (
           <>
             <div className="hidden overflow-hidden rounded-xl border border-teal-100 lg:block">
-              <div className="grid grid-cols-[1fr_0.8fr_1fr_0.9fr_0.65fr_1.3fr_0.8fr_0.9fr] bg-teal-50/60 px-4 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+              <div className="grid grid-cols-[1fr_0.8fr_1fr_0.9fr_0.7fr_1.3fr_0.8fr_0.9fr] bg-teal-50/60 px-4 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                 <span>Review ID</span>
                 <span>Type</span>
                 <span>Customer</span>
@@ -281,7 +286,7 @@ export default function AdminReviewsPage() {
                 {filteredReviews.map((review) => (
                   <div
                     key={review.id}
-                    className="grid grid-cols-[1fr_0.8fr_1fr_0.9fr_0.65fr_1.3fr_0.8fr_0.9fr] items-start gap-4 px-4 py-4 text-sm text-slate-700"
+                    className="grid grid-cols-[1fr_0.8fr_1fr_0.9fr_0.7fr_1.3fr_0.8fr_0.9fr] items-start gap-4 px-4 py-4 text-sm text-slate-700"
                   >
                     <div className="space-y-2">
                       <p className="font-semibold text-primary">{review.id}</p>
@@ -290,60 +295,82 @@ export default function AdminReviewsPage() {
                         label={statusLabelMap[review.status]}
                       />
                     </div>
+
                     <div className="pt-0.5">
                       <TypeBadge type={review.type} />
                     </div>
+
                     <div>
                       <p className="font-medium text-slate-900">{review.customerName}</p>
                       <p className="text-xs text-slate-500">
                         {getSharedCustomerById(review.customerId)?.email}
                       </p>
                     </div>
+
                     <div>
                       <p className="font-medium text-slate-900">{review.relatedName}</p>
                       <p className="text-xs text-slate-500">{review.relatedOrderId}</p>
                     </div>
+
                     <div className="space-y-2">
-                      <div className="flex items-center gap-1">{ratingStars(review.rating)}</div>
-                      <p className="text-xs text-slate-500">{review.rating}/5</p>
-                    </div>
-                    <p className="line-clamp-3 text-sm text-slate-600">{getReviewPreview(review)}</p>
-                    <p className="text-sm text-slate-600">{formatLongDate(review.submittedAt)}</p>
-                    <div className="space-y-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full"
+                      <button
+                        type="button"
                         onClick={() => setSelectedReview(review)}
+                        className="flex w-fit items-center gap-1 rounded-lg transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                        aria-label={`Open review ${review.id} rated ${review.rating} out of 5`}
                       >
-                        View
+                        {ratingStars(review.rating)}
+                      </button>
+                      <p className="text-xs font-medium text-slate-500">{review.rating}/5</p>
+                    </div>
+
+                    <p className="line-clamp-3 text-sm text-slate-600">{getReviewPreview(review)}</p>
+
+                    <p className="text-sm text-slate-600">{formatLongDate(review.submittedAt)}</p>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="size-9 rounded-xl"
+                        onClick={() => setSelectedReview(review)}
+                        aria-label={`View review ${review.id}`}
+                        title="View review"
+                      >
+                        <MessageSquareText size={16} />
                       </Button>
                       {review.status !== "PUBLISHED" ? (
                         <Button
-                          size="sm"
-                          className="w-full"
+                          size="icon"
+                          className="size-9 rounded-xl"
                           onClick={() => moderate(review.id, "PUBLISHED")}
+                          aria-label={`Publish review ${review.id}`}
+                          title="Publish review"
                         >
-                          Publish
+                          <ShieldCheck size={16} />
                         </Button>
                       ) : null}
                       {review.status !== "HIDDEN" ? (
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
-                          className="w-full"
+                          className="size-9 rounded-xl"
                           onClick={() => moderate(review.id, "HIDDEN")}
+                          aria-label={`Hide review ${review.id}`}
+                          title="Hide review"
                         >
-                          Hide
+                          <EyeOff size={16} />
                         </Button>
                       ) : null}
                       <Button
-                        size="sm"
+                        size="icon"
                         variant="destructive"
-                        className="w-full"
+                        className="size-9 rounded-xl"
                         onClick={() => setDeleteTarget(review)}
+                        aria-label={`Delete review ${review.id}`}
+                        title="Delete review"
                       >
-                        Delete
+                        <Trash2 size={16} />
                       </Button>
                     </div>
                   </div>
@@ -373,7 +400,14 @@ export default function AdminReviewsPage() {
                     <p className="text-sm text-slate-600">
                       {review.customerName} · {review.relatedName}
                     </p>
-                    <div className="flex items-center gap-1">{ratingStars(review.rating)}</div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReview(review)}
+                      className="flex w-fit items-center gap-1 rounded-lg transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                      aria-label={`Open review ${review.id} rated ${review.rating} out of 5`}
+                    >
+                      {ratingStars(review.rating)}
+                    </button>
                     <p className="text-sm leading-6 text-slate-600">{getReviewPreview(review)}</p>
                     <p className="text-xs text-slate-500">
                       Submitted {formatLongDate(review.submittedAt)}
@@ -410,7 +444,7 @@ export default function AdminReviewsPage() {
       </AdminSurface>
 
       <Dialog open={Boolean(selectedReview)} onOpenChange={(open) => !open && setSelectedReview(null)}>
-        <DialogContent className="w-[min(94vw,56rem)] max-h-[88vh] overflow-y-auto">
+        <DialogContent className="max-h-[88vh] w-[min(94vw,56rem)] overflow-y-auto">
           {selectedReview ? (
             <>
               <DialogHeader>

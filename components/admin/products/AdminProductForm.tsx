@@ -1,9 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { ImagePlus, Trash2 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { Controller, useForm, useWatch } from "react-hook-form";
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
@@ -48,6 +50,7 @@ export function AdminProductForm({
   onCancelHref,
   onSubmit,
 }: AdminProductFormProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const activeCategories = useMemo(
     () =>
       categories.filter(
@@ -57,6 +60,9 @@ export function AdminProductForm({
       ),
     [categories, initialProduct?.categoryId],
   );
+  const [imagePreviews, setImagePreviews] = useState<string[]>(
+    initialProduct?.images?.length ? initialProduct.images : [],
+  );
 
   const {
     control,
@@ -64,6 +70,7 @@ export function AdminProductForm({
     handleSubmit,
     register,
     setError,
+    clearErrors,
     setValue,
   } = useForm<ProductValues>({
     resolver: zodResolver(productSchema),
@@ -80,8 +87,7 @@ export function AdminProductForm({
       status: initialProduct?.status ?? "active",
       taxable: initialProduct?.taxable ?? false,
       shippingLabel: initialProduct?.shippingLabel ?? "",
-      imageAlt: initialProduct?.imageAlt ?? "",
-      images: initialProduct?.images?.join("\n") ?? "/product.png",
+      images: initialProduct?.images?.join("\n") ?? "",
     },
   });
 
@@ -89,6 +95,59 @@ export function AdminProductForm({
     control,
     name: "categoryId",
   });
+
+  function syncImages(nextImages: string[]) {
+    setImagePreviews(nextImages);
+    setValue("images", nextImages.join("\n"), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    if (nextImages.length) {
+      clearErrors("images");
+    }
+  }
+
+  function handleFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const pickedFiles = Array.from(files);
+    const validFiles = pickedFiles.filter((file) =>
+      /image\/(png|jpeg|jpg|webp)/.test(file.type),
+    );
+
+    if (validFiles.length !== pickedFiles.length) {
+      setError("images", {
+        type: "manual",
+        message: "Only PNG, JPG, JPEG, or WEBP images are supported.",
+      });
+      return;
+    }
+
+    Promise.all(
+      validFiles.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result ?? ""));
+            reader.onerror = () =>
+              reject(new Error(`Unable to read ${file.name}.`));
+            reader.readAsDataURL(file);
+          }),
+      ),
+    )
+      .then((results) => {
+        syncImages([...imagePreviews, ...results]);
+      })
+      .catch(() => {
+        setError("images", {
+          type: "manual",
+          message: "We could not read the selected image files.",
+        });
+      });
+  }
+
+  function removeImage(index: number) {
+    syncImages(imagePreviews.filter((_, currentIndex) => currentIndex !== index));
+  }
 
   function submit(values: ProductValues) {
     const duplicateName = existingProducts.some(
@@ -129,6 +188,14 @@ export function AdminProductForm({
       setError("sku", {
         type: "manual",
         message: "A product with this SKU already exists.",
+      });
+      return;
+    }
+
+    if (!imagePreviews.length) {
+      setError("images", {
+        type: "manual",
+        message: "Upload at least 1 product image.",
       });
       return;
     }
@@ -226,20 +293,12 @@ export function AdminProductForm({
         />
       </FormField>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-1">
         <FormField error={errors.shippingLabel?.message} htmlFor="product-shipping" label="Shipping Information">
           <Input
             id="product-shipping"
             placeholder="Ships in 2 business days"
             {...register("shippingLabel")}
-          />
-        </FormField>
-
-        <FormField error={errors.imageAlt?.message} htmlFor="product-alt" label="Image Alt Text">
-          <Input
-            id="product-alt"
-            placeholder="Elite 500 Performance central vacuum unit"
-            {...register("imageAlt")}
           />
         </FormField>
       </div>
@@ -297,18 +356,79 @@ export function AdminProductForm({
         </div>
       </div>
 
+      <input type="hidden" {...register("images")} />
+
       <FormField
         error={errors.images?.message}
         htmlFor="product-images"
-        hint="One image path per line. Use /product.png for the shared mock asset."
-        label="Images"
+        hint="Upload at least 1 image. PNG, JPG, JPEG, and WEBP are supported."
+        label="Product Images"
+        required
       >
-        <Textarea
-          id="product-images"
-          className="min-h-24"
-          placeholder="/product.png"
-          {...register("images")}
-        />
+        <div className="space-y-4">
+          <button
+            id="product-images"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex min-h-36 w-full flex-col items-center justify-center rounded-[1.25rem] border border-dashed border-teal-200 bg-teal-50/40 px-6 py-8 text-center transition hover:border-teal-300 hover:bg-teal-50"
+          >
+            <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-teal-800 shadow-sm">
+              <ImagePlus size={22} />
+            </span>
+            <span className="mt-4 text-base font-semibold text-slate-900">
+              Upload product images
+            </span>
+            <span className="mt-1 text-sm text-slate-500">
+              Click to browse files from your device.
+            </span>
+          </button>
+          <input
+            ref={fileInputRef}
+            className="hidden"
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            multiple
+            onChange={(event) => {
+              handleFiles(event.target.files);
+              event.currentTarget.value = "";
+            }}
+          />
+
+          {imagePreviews.length ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {imagePreviews.map((image, index) => (
+                <div
+                  key={`${image.slice(0, 20)}-${index}`}
+                  className="overflow-hidden rounded-[1.25rem] border border-teal-100 bg-white"
+                >
+                  <div className="relative aspect-[4/3] bg-slate-50">
+                    <Image
+                      src={image}
+                      alt={`Product upload ${index + 1}`}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3 px-4 py-3">
+                    <p className="truncate text-sm font-medium text-slate-700">
+                      Image {index + 1}
+                    </p>
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => removeImage(index)}
+                      aria-label={`Remove image ${index + 1}`}
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </FormField>
 
       <div className={cn("rounded-xl border border-teal-100 bg-teal-50/50 p-4 text-sm text-slate-600")}>

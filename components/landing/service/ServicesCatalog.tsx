@@ -31,6 +31,7 @@ import {
   StaggerItem,
 } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
+import { publicServiceOfferings } from "@/data/mock/public-services";
 import { getSharedActivePublicServices } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { cn } from "@/lib/utils";
@@ -57,6 +58,23 @@ const benefits = [
   { title: "Transparent Quotation", icon: FileCheck2 },
   { title: "Reliable Service", icon: CheckCircle2 },
 ];
+
+const serviceOrderByGroup: Record<PublicServiceGroup, string[]> = {
+  "Service & Maintenance": [
+    "vacuum-repair",
+    "maintenance",
+    "low-suction-fix",
+    "broken-inlet-repair",
+    "general-service",
+    "system-inspection",
+  ],
+  Installation: [
+    "new-system",
+    "custom-fit",
+    "system-upgrade",
+    "architectural",
+  ],
+};
 
 const processSteps = [
   {
@@ -97,10 +115,24 @@ export function ServicesCatalog() {
     useState<PublicServiceGroup>("Service & Maintenance");
 
   const visibleServices = useMemo(
-    () =>
-      getSharedActivePublicServices().filter(
+    () => {
+      const sharedServices = getSharedActivePublicServices().filter(
         (service) => service.group === activeGroup,
-      ),
+      );
+      const order = serviceOrderByGroup[activeGroup];
+      const fallbackBySlug = new Map(
+        publicServiceOfferings
+          .filter((service) => service.group === activeGroup)
+          .map((service) => [service.slug, service]),
+      );
+      const sharedBySlug = new Map(
+        sharedServices.map((service) => [service.slug, service]),
+      );
+
+      return order
+        .map((slug) => sharedBySlug.get(slug) ?? fallbackBySlug.get(slug))
+        .filter((service): service is NonNullable<typeof service> => Boolean(service));
+    },
     [activeGroup],
   );
 
@@ -192,27 +224,34 @@ export function ServicesCatalog() {
         <StaggerGroup
           key={activeGroup}
           className={cn(
-            "mt-10 grid overflow-hidden rounded-[1.25rem] bg-[linear-gradient(180deg,#ffffff_0%,#f4fbfa_100%)] ring-1 ring-teal-100",
+            "mt-10 overflow-hidden rounded-[0.2rem] border border-teal-100 bg-[linear-gradient(180deg,#ffffff_0%,#f4fbfa_100%)]",
             activeGroup === "Installation"
-              ? "sm:grid-cols-2 xl:grid-cols-4"
-              : "sm:grid-cols-2 lg:grid-cols-3",
+              ? "grid sm:grid-cols-2 xl:grid-cols-4"
+              : "grid sm:grid-cols-2 lg:grid-cols-3",
           )}
           delay={0.04}
         >
-          {visibleServices.map((service, index) => {
+          {visibleServices.map((service) => {
             const Icon = iconByKey[service.iconKey];
 
             return (
-              <StaggerItem key={service.slug}>
+              <StaggerItem
+                key={service.slug}
+                className={cn(
+                  "border-b border-r border-teal-100",
+                  activeGroup === "Service & Maintenance" &&
+                    "sm:nth-[2n]:border-r-0 lg:nth-[2n]:border-r lg:nth-[3n]:border-r-0 lg:nth-last-[1]:border-b-0 lg:nth-last-[2]:border-b-0 lg:nth-last-[3]:border-b-0",
+                  activeGroup === "Installation" &&
+                    "sm:nth-[2n]:border-r-0 xl:nth-[2n]:border-r xl:nth-[4n]:border-r-0 xl:nth-last-[1]:border-b-0 xl:nth-last-[2]:border-b-0 xl:nth-last-[3]:border-b-0 xl:nth-last-[4]:border-b-0",
+                  activeGroup === "Installation" &&
+                    visibleServices.length <= 2 &&
+                    "sm:nth-last-[1]:border-b-0 sm:nth-last-[2]:border-b-0",
+                )}
+              >
                 <article
                   className={cn(
-                    "flex min-h-60 h-full flex-col p-8",
-                    index !== visibleServices.length - 1 &&
-                      "border-b border-teal-100 sm:border-r",
-                    activeGroup === "Service & Maintenance" &&
-                      "lg:[&:nth-child(3n)]:border-r-0 lg:[&:nth-child(n+4)]:border-b-0",
-                    activeGroup === "Installation" &&
-                      "xl:border-b-0 xl:[&:nth-child(4n)]:border-r-0",
+                    "flex min-h-56 h-full flex-col bg-transparent p-6 lg:p-7",
+                    activeGroup === "Service & Maintenance" && "lg:min-h-60",
                   )}
                 >
                   <Icon aria-hidden="true" className="text-primary" size={22} />

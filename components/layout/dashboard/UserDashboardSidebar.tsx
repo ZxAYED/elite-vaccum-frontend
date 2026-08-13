@@ -10,6 +10,7 @@ import {
   ReceiptText,
   Settings,
   Shield,
+  Star,
   SquareCheckBig,
   StretchHorizontal,
   UserRound,
@@ -25,7 +26,7 @@ const navItems = [
   },
   { label: "Orders", href: "/user/orders", icon: Package },
   { label: "Billing", href: "/user/billing", icon: ReceiptText },
-  { label: "Reviews", href: "/user/reviews", icon: ReceiptText },
+  { label: "Reviews", href: "/user/reviews", icon: Star },
   { label: "Notifications", href: "/user/notifications", icon: Bell },
   { label: "Profile", href: "/user/profile", icon: UserRound },
   { label: "Settings", href: "/user/settings", icon: Settings },
@@ -64,7 +65,7 @@ export default function UserDashboardSidebar({
             />
           </Link>
 
-          <button onClick={onClose} className="lg:hidden">
+          <button onClick={onClose} aria-label="Close sidebar" className="lg:hidden">
             <X size={20} />
           </button>
         </div>
@@ -73,7 +74,7 @@ export default function UserDashboardSidebar({
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
-              (item.href !== "/user" && pathname?.startsWith(item.href));
+              (item.href !== "/user" && pathname?.startsWith(`${item.href}/`));
             const Icon = item.icon;
 
             return (
@@ -110,7 +111,12 @@ export default function UserDashboardSidebar({
             <Shield className="text-teal-700" size={18} />
           </div>
 
-          <button className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
+          <button
+            type="button"
+            aria-disabled="true"
+            title="Frontend-only demo. Backend sign-out is not connected yet."
+            className="mt-3 flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 opacity-70"
+          >
             <LogOut size={18} />
             Logout
           </button>

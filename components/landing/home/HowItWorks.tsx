@@ -5,6 +5,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+
 const steps = [
   {
     number: "01",
@@ -40,7 +42,7 @@ export default function HowItWorks() {
   return (
     <section className="bg-white py-16 md:py-20 lg:py-24">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
-        <div className="text-center">
+        <FadeIn className="text-center" y={24} duration={0.65}>
           <div className="inline-flex rounded-full bg-teal-50 px-5 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
             Simple Process
           </div>
@@ -50,26 +52,28 @@ export default function HowItWorks() {
           <p className="mx-auto mt-4 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">
             Professional central vacuum service in four simple steps.
           </p>
-        </div>
+        </FadeIn>
 
-        <div className="mt-12 grid auto-rows-fr gap-6 lg:grid-cols-4">
+        <StaggerGroup className="mt-12 grid auto-rows-fr gap-6 lg:grid-cols-4" delay={0.05} once>
           {steps.map((step) => (
-            <article key={step.number} className="landing-card flex h-full flex-col px-6 py-8 text-center">
-              <div className="landing-icon-tile relative mx-auto flex size-16 items-center justify-center border border-teal-100 bg-teal-50 text-teal-700">
-                <div className="absolute left-1/2 top-1 flex h-7 w-7 -translate-x-[-1.35rem] items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
-                  {step.number}
+            <StaggerItem key={step.number}>
+              <article className="landing-card flex h-full flex-col px-6 py-8 text-center">
+                <div className="landing-icon-tile relative mx-auto flex size-16 items-center justify-center border border-teal-100 bg-teal-50 text-teal-700">
+                  <div className="absolute left-1/2 top-1 flex h-7 w-7 -translate-x-[-1.35rem] items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
+                    {step.number}
+                  </div>
+                  {step.icon}
                 </div>
-                {step.icon}
-              </div>
-              <h3 className="mt-6 min-h-[3.5rem] text-2xl font-semibold text-slate-900">
-                {step.title}
-              </h3>
-              <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
-                {step.description}
-              </p>
-            </article>
+                <h3 className="mt-6 min-h-[3.5rem] text-2xl font-semibold text-slate-900">
+                  {step.title}
+                </h3>
+                <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
+                  {step.description}
+                </p>
+              </article>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
       </div>
     </section>
   );

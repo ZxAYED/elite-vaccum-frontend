@@ -337,9 +337,6 @@ export default function ServiceRequestDetailPage() {
               <p className="mt-4 text-sm leading-6 text-gray-600">
                 {detail.appointment.arrivalWindowLabel}
               </p>
-              <div className="mt-5 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                {detail.appointment.technicianNote}
-              </div>
 
               <div className="mt-5 space-y-3">
                 {detail.appointment.preparationChecklist.map((item) => (

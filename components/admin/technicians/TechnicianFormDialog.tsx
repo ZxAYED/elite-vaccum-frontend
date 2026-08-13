@@ -41,6 +41,7 @@ function defaultValuesFromTechnician(
     status: technician?.status ?? "ACTIVE",
     availability: technician?.availability ?? "AVAILABLE",
     notes: technician?.notes ?? "",
+    password: "",
   };
 }
 
@@ -112,6 +113,39 @@ export function TechnicianFormDialog({
                   </p>
                 ) : null}
               </div>
+              {!technician ? (
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-sm font-medium text-slate-900">Password *</label>
+                  <Input
+                    type="password"
+                    {...form.register("password", {
+                      validate: (value) => {
+                        if (technician) return true;
+                        if (!value?.trim()) return "Password is required.";
+                        if (value.trim().length < 8) {
+                          return "Password must be at least 8 characters.";
+                        }
+                        if (!/[A-Za-z]/.test(value)) {
+                          return "Password must include at least 1 letter.";
+                        }
+                        if (!/\d/.test(value)) {
+                          return "Password must include at least 1 number.";
+                        }
+                        return true;
+                      },
+                    })}
+                    placeholder="Temporary login password"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Admin sets the initial password when creating a technician account.
+                  </p>
+                  {form.formState.errors.password ? (
+                    <p className="text-sm text-rose-700">
+                      {form.formState.errors.password.message}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 

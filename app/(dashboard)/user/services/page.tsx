@@ -1,8 +1,5 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRight, CalendarDays, MapPin, Wrench } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
@@ -11,9 +8,8 @@ import { getDashboardServiceOrderByRequestId } from "@/data/mock/customer-dashbo
 import {
   getServiceById,
   getServiceDetailByRequestId,
-  mockCustomerServiceRequests,
+  getCustomerServiceRequests,
 } from "@/data/mock/customer-portal";
-import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 const filters = [
@@ -36,14 +32,19 @@ function matchesFilter(status: string, filter: string) {
   return ["completed"].includes(status);
 }
 
-export default function UserServicesPage() {
-  useSharedBusinessStoreVersion();
-  const searchParams = useSearchParams();
-  const activeFilter = searchParams.get("filter") ?? "all";
+interface UserServicesPageProps {
+  searchParams?: Promise<{ filter?: string }>;
+}
+
+export default async function UserServicesPage({
+  searchParams,
+}: UserServicesPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const activeFilter = resolvedSearchParams?.filter ?? "all";
   const selectedFilter = filters.some((filter) => filter.value === activeFilter)
     ? activeFilter
     : "all";
-  const requests = mockCustomerServiceRequests.filter((request) =>
+  const requests = getCustomerServiceRequests().filter((request) =>
     matchesFilter(request.status, selectedFilter),
   );
 

@@ -135,17 +135,10 @@ export const productSchema = z.object({
     .max(120, "Shipping information must be 120 characters or fewer.")
     .optional()
     .or(z.literal("")),
-  imageAlt: z
-    .string()
-    .trim()
-    .max(120, "Image alt text must be 120 characters or fewer.")
-    .optional()
-    .or(z.literal("")),
   images: z
     .string()
     .trim()
-    .optional()
-    .or(z.literal("")),
+    .min(1, "Upload at least 1 product image."),
 });
 
 export const serviceCatalogSchema = z.object({
@@ -211,6 +204,10 @@ export const technicianSchema = z.object({
     .string()
     .trim()
     .max(400, "Notes must be 400 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  password: z
+    .string()
     .optional()
     .or(z.literal("")),
 });

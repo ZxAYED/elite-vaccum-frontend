@@ -1,11 +1,6 @@
-"use client";
-
 import type { PropsWithChildren } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
-
-const easing = [0.22, 1, 0.36, 1] as const;
 
 interface FadeInProps extends PropsWithChildren {
   className?: string;
@@ -13,6 +8,8 @@ interface FadeInProps extends PropsWithChildren {
   duration?: number;
   amount?: number;
   once?: boolean;
+  animateOnLoad?: boolean;
+  x?: number;
   y?: number;
 }
 
@@ -23,122 +20,48 @@ interface PressableProps extends PropsWithChildren {
 export function FadeIn({
   children,
   className,
-  delay = 0,
-  duration = 0.82,
-  amount = 0.18,
-  once = true,
-  y = 42,
+  delay: _delay = 0,
+  duration: _duration = 0.65,
+  amount: _amount = 0.2,
+  animateOnLoad: _animateOnLoad = false,
+  once: _once = true,
+  x: _x = 0,
+  y: _y = 24,
 }: FadeInProps) {
-  const reduceMotion = useReducedMotion();
-
-  if (reduceMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y, filter: "blur(10px)" }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      viewport={{ once, amount }}
-      transition={{
-        duration,
-        delay,
-        ease: easing,
-      }}
-    >
-      {children}
-    </motion.div>
-  );
+  void _delay;
+  void _duration;
+  void _amount;
+  void _animateOnLoad;
+  void _once;
+  void _x;
+  void _y;
+  return <div className={className}>{children}</div>;
 }
 
 export function StaggerGroup({
   children,
   className,
-  delay = 0,
-  amount = 0.18,
-  once = true,
+  delay: _delay = 0,
+  amount: _amount = 0.2,
+  once: _once = true,
 }: FadeInProps) {
-  const reduceMotion = useReducedMotion();
-
-  if (reduceMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      className={className}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once, amount }}
-      variants={{
-        hidden: {},
-        visible: {
-          transition: {
-            delayChildren: delay,
-            staggerChildren: 0.16,
-          },
-        },
-      }}
-    >
-      {children}
-    </motion.div>
-  );
+  void _delay;
+  void _amount;
+  void _once;
+  return <div className={className}>{children}</div>;
 }
 
 export function StaggerItem({
   children,
   className,
-  duration = 0.76,
-  y = 34,
+  duration: _duration = 0.6,
+  y: _y = 24,
 }: FadeInProps) {
-  const reduceMotion = useReducedMotion();
-
-  if (reduceMotion) {
-    return <div className={className}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      className={className}
-      variants={{
-        hidden: { opacity: 0, y, filter: "blur(8px)" },
-        visible: {
-          opacity: 1,
-          y: 0,
-          filter: "blur(0px)",
-          transition: {
-            duration,
-            ease: easing,
-          },
-        },
-      }}
-    >
-      {children}
-    </motion.div>
-  );
+  void _duration;
+  void _y;
+  return <div className={className}>{children}</div>;
 }
 
 export function Pressable({ children, className }: PressableProps) {
-  const reduceMotion = useReducedMotion();
-
-  if (reduceMotion) {
-    return <div className={cn("inline-flex", className)}>{children}</div>;
-  }
-
-  return (
-    <motion.div
-      className={cn("inline-flex", className)}
-      whileHover={{ scale: 1.03 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{
-        type: "spring",
-        stiffness: 380,
-        damping: 24,
-        mass: 0.8,
-      }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={cn("inline-flex", className)}>{children}</div>;
 }

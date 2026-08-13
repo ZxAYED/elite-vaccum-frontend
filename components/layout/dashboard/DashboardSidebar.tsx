@@ -82,7 +82,7 @@ const navGroups: Array<{
     label: "Insights",
     items: [
       { label: "Reviews", href: "/admin/reviews", icon: Star },
-      { label: "Reports", icon: BarChart3, soon: true },
+      { label: "Reports", href: "/admin/reports", icon: BarChart3 },
     ],
   },
   {
@@ -121,7 +121,12 @@ export default function DashboardSidebar({
               className={styles.logoImage}
             />
           </Link>
-          <button className={styles.sidebarCloseBtn} onClick={onToggle}>
+          <button
+            aria-label="Close sidebar"
+            className={styles.sidebarCloseBtn}
+            onClick={onToggle}
+            type="button"
+          >
             <X size={20} />
           </button>
         </div>
@@ -142,7 +147,7 @@ export default function DashboardSidebar({
                   item.href &&
                   (pathname === item.href ||
                     (item.href !== "/admin" &&
-                      pathname?.startsWith(item.href)));
+                      pathname?.startsWith(`${item.href}/`)));
                 const IconComponent = item.icon;
                 const content = (
                   <>
@@ -187,7 +192,12 @@ export default function DashboardSidebar({
 
         {/* Logout */}
         <div className={styles.sidebarLogout}>
-          <button className={styles.sidebarLogoutBtn}>
+          <button
+            aria-disabled="true"
+            className={styles.sidebarLogoutBtn}
+            title="Frontend-only demo. Backend sign-out is not connected yet."
+            type="button"
+          >
             <LogOut size={18} />
             <span>Logout</span>
           </button>

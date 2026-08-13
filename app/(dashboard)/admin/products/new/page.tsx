@@ -17,14 +17,11 @@ export default function AdminNewProductPage() {
       ...values,
       sku: values.sku || undefined,
       model: values.model || undefined,
-      imageAlt: values.imageAlt || undefined,
       shippingLabel: values.shippingLabel || undefined,
       images: values.images
-        ? values.images
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean)
-        : ["/product.png"],
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
     });
     window.location.href = "/admin/products";
   }

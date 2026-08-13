@@ -11,6 +11,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import {
+  AdminPageHeader,
+  AdminPageShell,
+  AdminStatCard,
+  AdminSurface,
+} from "@/components/admin/AdminPageShell";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -46,6 +52,13 @@ const statusOptions: Array<{ label: string; value: AdminRequestStatus }> = [
   { label: "Accepted", value: "accepted" },
   { label: "Rejected", value: "rejected" },
   { label: "Cancelled", value: "cancelled" },
+];
+
+const quickStatusOptions: Array<{ label: string; value: AdminRequestStatus }> = [
+  { label: "All", value: "all" },
+  { label: "New", value: "submitted" },
+  { label: "Under Review", value: "under-review" },
+  { label: "Accepted", value: "accepted" },
 ];
 
 const acceptedLikeStatuses: ServiceRequestStatus[] = [
@@ -102,7 +115,14 @@ export default function AdminServiceRequestsPage() {
   const [statusFilter, setStatusFilter] = useState<AdminRequestStatus>("all");
   const [serviceFilter, setServiceFilter] = useState("all");
   const serviceRequests = getSharedServiceRequests();
-  const services = getSharedPublicServices();
+  const services = Array.from(
+    new Map(
+      getSharedPublicServices().map((service) => [
+        service.serviceId,
+        { serviceId: service.serviceId, title: service.title },
+      ]),
+    ).values(),
+  );
 
   const counters = serviceRequests.reduce(
     (stats, request) => {
@@ -158,41 +178,23 @@ export default function AdminServiceRequestsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7f7] text-slate-950">
+    <AdminPageShell>
       <section className="space-y-4">
-        <div className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_18px_48px_-42px_rgba(28,79,80,0.32)]">
-          <p className="text-xs font-bold uppercase tracking-[0.32em] text-teal-700">
-            Service Operations
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-teal-950">
-            Service Requests
-          </h1>
-          <p className="mt-2 max-w-2xl text-base leading-7 text-slate-600">
-            Review customer service requests and decide the next action.
-          </p>
+        <AdminPageHeader
+          eyebrow="Service Operations"
+          title="Service Requests"
+          description="Review customer service requests and decide the next action."
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <AdminStatCard label="New" value={counters.new} />
+          <AdminStatCard label="Under Review" value={counters.underReview} />
+          <AdminStatCard label="Accepted" value={counters.accepted} tone="success" />
+          <AdminStatCard label="Rejected" value={counters.rejected} tone="warning" />
         </div>
 
-        <div className="grid gap-3 md:grid-cols-4">
-          {[
-            { label: "New", value: counters.new },
-            { label: "Under Review", value: counters.underReview },
-            { label: "Accepted", value: counters.accepted },
-            { label: "Rejected", value: counters.rejected },
-          ].map((stat) => (
-            <div
-              className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
-              key={stat.label}
-            >
-              <p className="text-sm text-slate-500">{stat.label}</p>
-              <p className="mt-2 text-3xl font-semibold text-teal-950">
-                {stat.value}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        <div className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_18px_56px_-44px_rgba(28,79,80,0.34)]">
-          <div className="grid gap-3 xl:grid-cols-[1fr_34rem_18rem]">
+        <AdminSurface className="space-y-5">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_24rem_13rem_16rem]">
             <div className="relative">
               <Search
                 aria-hidden="true"
@@ -208,11 +210,11 @@ export default function AdminServiceRequestsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-1 sm:grid-cols-6">
-              {statusOptions.map((option) => (
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-1 sm:grid-cols-4">
+              {quickStatusOptions.map((option) => (
                 <button
                   className={cn(
-                    "min-h-10 rounded-[1rem] px-2 text-xs font-semibold transition sm:text-sm",
+                    "min-h-10 rounded-xl px-3 text-center text-xs font-semibold transition sm:text-sm",
                     statusFilter === option.value
                       ? "bg-primary text-white shadow-[0_14px_30px_-22px_rgba(28,79,80,0.9)]"
                       : "text-slate-600 hover:bg-white hover:text-teal-800",
@@ -225,6 +227,22 @@ export default function AdminServiceRequestsPage() {
                 </button>
               ))}
             </div>
+
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as AdminRequestStatus)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             <Select value={serviceFilter} onValueChange={setServiceFilter}>
               <SelectTrigger>
@@ -259,7 +277,7 @@ export default function AdminServiceRequestsPage() {
             />
           ) : (
             <>
-              <div className="mt-5 hidden overflow-hidden rounded-xl border border-teal-100 lg:block">
+              <div className="hidden overflow-hidden rounded-xl border border-teal-100 lg:block">
                 <table className="w-full border-collapse text-left">
                   <thead className="bg-[#f7fbfa] text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
                     <tr>
@@ -323,10 +341,12 @@ export default function AdminServiceRequestsPage() {
                             {formatMonthDay(request.submittedAt)}
                           </td>
                           <td className="px-5 py-5">
-                            <StatusBadge
-                              label={getStatusLabel(reviewStatus)}
-                              status={reviewStatus}
-                            />
+                            <div className="flex">
+                              <StatusBadge
+                                label={getStatusLabel(reviewStatus)}
+                                status={reviewStatus}
+                              />
+                            </div>
                           </td>
                           <td className="px-5 py-5 text-right">
                             <RequestAction request={request} />
@@ -338,7 +358,7 @@ export default function AdminServiceRequestsPage() {
                 </table>
               </div>
 
-              <div className="mt-5 grid gap-4 lg:hidden">
+              <div className="grid gap-4 lg:hidden">
                 {filteredRequests.map((request) => {
                   const customer = getCustomer(request);
                   const schedule = getRequestedSchedule(request);
@@ -351,10 +371,12 @@ export default function AdminServiceRequestsPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <StatusBadge
-                            label={getStatusLabel(reviewStatus)}
-                            status={reviewStatus}
-                          />
+                          <div className="flex">
+                            <StatusBadge
+                              label={getStatusLabel(reviewStatus)}
+                              status={reviewStatus}
+                            />
+                          </div>
                           <h2 className="mt-3 text-xl font-semibold text-teal-950">
                             {request.id}
                           </h2>
@@ -388,9 +410,9 @@ export default function AdminServiceRequestsPage() {
               </div>
             </>
           )}
-        </div>
+        </AdminSurface>
       </section>
-    </main>
+    </AdminPageShell>
   );
 }
 
@@ -436,7 +458,7 @@ function EmptyState({
   title: string;
 }) {
   return (
-    <div className="mt-5 rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
+    <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
       <ClipboardCheck className="mx-auto text-teal-700" size={34} />
       <h2 className="mt-4 text-xl font-semibold text-teal-950">{title}</h2>
       <p className="mt-2 text-sm text-slate-600">{text}</p>

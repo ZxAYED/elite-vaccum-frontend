@@ -23,7 +23,6 @@ export type QuoteStatus =
   | "sent"
   | "viewed"
   | "accepted"
-  | "declined"
   | "rejected"
   | "expired";
 export type AppointmentStatus =
@@ -277,6 +276,8 @@ export interface ServiceRequestAttachment {
   sizeBytes: number;
   uploadedAt: string;
   kind: "photo" | "video" | "document";
+  category?: string;
+  note?: string;
 }
 
 export interface ServiceScheduleWindow {
@@ -290,6 +291,59 @@ export interface ServiceRequestEquipment {
   modelNumber?: string;
   serialNumber?: string;
   unitLocation?: string;
+}
+
+export type TechnicianEvidenceStage =
+  | "before-service"
+  | "during-service"
+  | "after-service";
+
+export type TechnicianEvidenceCategory =
+  | "machine"
+  | "model-serial-label"
+  | "damaged-area"
+  | "inlet-hose-accessory"
+  | "other";
+
+export interface TechnicianEta {
+  minutes: number;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+export interface TechnicianPartUsage {
+  id: string;
+  name: string;
+  quantity: number;
+  sku?: string;
+  note?: string;
+}
+
+export interface TechnicianEvidenceAttachment extends ServiceRequestAttachment {
+  stage: TechnicianEvidenceStage;
+  category: TechnicianEvidenceCategory;
+}
+
+export interface TechnicianStatusTransitionEntry {
+  id: string;
+  fromStatus: ServiceOrderStatus;
+  toStatus: ServiceOrderStatus;
+  changedAt: string;
+  actorLabel: string;
+  note?: string;
+}
+
+export interface TechnicianServiceReport {
+  id: string;
+  submittedAt?: string;
+  lockedAt?: string;
+  diagnosisFindings: string;
+  workPerformed: string;
+  technicianNotes: string;
+  recommendations: string;
+  partsUsed: TechnicianPartUsage[];
+  evidence: TechnicianEvidenceAttachment[];
+  statusHistory: TechnicianStatusTransitionEntry[];
 }
 
 export interface RejectionHistoryEntry {
@@ -598,10 +652,12 @@ export interface AdminServiceOrder extends UnifiedOrderBase {
   attachments: ServiceRequestAttachment[];
   customerNotes?: string;
   technicianInstruction?: string;
+  technicianEta?: TechnicianEta;
   scheduleId?: string;
   scheduleAdminNote?: string;
   rescheduleHistory?: ScheduleRescheduleEntry[];
   scheduleCancellation?: ScheduleCancellationEntry;
+  technicianReport: TechnicianServiceReport;
   acceptedQuoteSnapshot: {
     quotationTotalUsd: number;
     lineItems: FlexibleQuotationLineItem[];

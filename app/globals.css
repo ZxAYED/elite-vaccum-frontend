@@ -194,7 +194,6 @@ select {
   border-radius: calc(var(--radius-card) - 0.125rem);
 }
 
-
 .card {
   position: relative;
   background: linear-gradient(to bottom right, #2c5f5f, #3c8c8c);
@@ -212,7 +211,7 @@ select {
   right: 0;
   width: 100px;
   height: 100%;
-  background: linear-gradient(to bottom left, rgba(0,0,0,0.2), transparent);
+  background: linear-gradient(to bottom left, rgba(0, 0, 0, 0.2), transparent);
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 

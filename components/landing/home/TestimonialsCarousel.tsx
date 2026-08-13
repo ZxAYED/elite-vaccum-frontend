@@ -6,6 +6,7 @@ import avatarOne from "@/public/landing/testimonials/Avatar.png";
 import avatarTwo from "@/public/landing/testimonials/Avatar2.png";
 import avatarThree from "@/public/landing/testimonials/Avatar3.png";
 
+import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { TestimonialCard } from "./TestimonialCard";
 
 const testimonials = [
@@ -113,7 +114,7 @@ export function TestimonialsCarousel() {
   return (
     <section className="bg-white py-20 md:py-24">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <FadeIn className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between" y={24} duration={0.65}>
           <div className="max-w-3xl">
             <div className="inline-flex rounded-full bg-teal-50 px-5 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
               Service Stories
@@ -144,16 +145,25 @@ export function TestimonialsCarousel() {
               <ChevronRight aria-hidden="true" size={20} />
             </button>
           </div>
-        </div>
+        </FadeIn>
 
-        <div
-          className="mt-10 flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-4"
-          ref={scrollContainerRef}
+        <StaggerGroup
+          className="mt-10"
+          delay={0.05}
+          once
+          amount={0.15}
         >
-          {testimonials.map((testimonial, index) => (
-            <TestimonialCard key={index} {...testimonial} />
-          ))}
-        </div>
+          <div
+            className="flex snap-x snap-mandatory gap-6 overflow-x-auto scroll-smooth pb-4"
+            ref={scrollContainerRef}
+          >
+            {testimonials.map((testimonial, index) => (
+              <StaggerItem key={index}>
+                <TestimonialCard {...testimonial} />
+              </StaggerItem>
+            ))}
+          </div>
+        </StaggerGroup>
       </div>
     </section>
   );

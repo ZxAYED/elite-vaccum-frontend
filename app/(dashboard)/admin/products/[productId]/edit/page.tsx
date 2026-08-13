@@ -29,14 +29,12 @@ export default function AdminEditProductPage() {
       ...values,
       sku: values.sku || undefined,
       model: values.model || undefined,
-      imageAlt: values.imageAlt || undefined,
+      imageAlt: `${values.name} product image`,
       shippingLabel: values.shippingLabel || undefined,
       images: values.images
-        ? values.images
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean)
-        : ["/product.png"],
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
     });
     window.location.href = "/admin/products";
   }

@@ -97,10 +97,14 @@ export function RegisterForm() {
           />
           <span>
             I agree to the{" "}
-            <Link className="font-semibold text-primary" href="/contact">
+            <Link className="font-semibold text-primary" href="/terms">
               service terms
             </Link>{" "}
-            and future privacy policy details.
+            and{" "}
+            <Link className="font-semibold text-primary" href="/privacy">
+              privacy policy
+            </Link>
+            .
           </span>
         </label>
         {form.errors.termsAccepted ? (

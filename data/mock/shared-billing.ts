@@ -8,6 +8,7 @@ import type {
 import { getSharedAdminServiceOrders } from "@/data/mock/admin-schedule-state";
 import { mockCustomers } from "@/data/mock/customers";
 import { mockProducts } from "@/data/mock/products";
+import { sharedProductOrderSeed } from "@/data/mock/shared-product-order-seed";
 import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
 
 type BillingRecordType = OrderType;
@@ -142,29 +143,7 @@ function createProductOrdersSeed(): BillingProductOrderState[] {
   const products = mockProducts;
   const primaryAddress = customer.addresses[0];
 
-  const source = [
-    {
-      id: "SHOP-1001",
-      createdAt: "2026-07-30T14:10:00.000Z",
-      paymentStatus: "paid" as PaymentStatus,
-      items: [
-        { id: "shop-item-1001", productId: "prd-hand-tool", quantity: 1, unitPriceUsd: 48 },
-        { id: "shop-item-1002", productId: "prd-bag", quantity: 2, unitPriceUsd: 24 },
-      ],
-    },
-    {
-      id: "SHOP-1002",
-      createdAt: "2026-08-05T10:30:00.000Z",
-      paymentStatus: "pending" as PaymentStatus,
-      items: [
-        { id: "shop-item-1003", productId: "prd-brush-head", quantity: 1, unitPriceUsd: 64 },
-        { id: "shop-item-1004", productId: "prd-adapter", quantity: 1, unitPriceUsd: 18 },
-        { id: "shop-item-1005", productId: "prd-roller", quantity: 1, unitPriceUsd: 85 },
-      ],
-    },
-  ];
-
-  return source.map((order, index) => {
+  return sharedProductOrderSeed.map((order, index) => {
     const subtotalUsd = order.items.reduce(
       (sum, item) => sum + item.quantity * item.unitPriceUsd,
       0,

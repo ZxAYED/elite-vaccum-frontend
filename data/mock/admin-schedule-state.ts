@@ -14,6 +14,13 @@ import type {
   ServiceOrderStatus,
   ServiceRequest,
   ServiceScheduleWindow,
+  TechnicianEvidenceAttachment,
+  TechnicianEta,
+  TechnicianEvidenceCategory,
+  TechnicianEvidenceStage,
+  TechnicianPartUsage,
+  TechnicianServiceReport,
+  TechnicianStatusTransitionEntry,
 } from "@/types/domain";
 
 function clone<T>(value: T): T {
@@ -83,6 +90,7 @@ function buildServiceTimeline(
   status: ServiceOrderStatus,
   currentSchedule: ServiceScheduleWindow,
   technicianId?: string,
+  eta?: TechnicianEta,
 ): OrderTimelineStep[] {
   const order: ServiceOrderStatus[] = [
     "scheduled",
@@ -116,7 +124,9 @@ function buildServiceTimeline(
     {
       key: "on-the-way",
       label: "On the Way",
-      detail: "Technician is traveling to the property.",
+      detail: eta
+        ? `Technician is traveling to the property. ETA ${eta.minutes} minutes.`
+        : "Technician is traveling to the property.",
       complete: activeIndex >= 2,
       active: status === "on-the-way",
     },
@@ -149,6 +159,63 @@ function buildServiceTimeline(
       active: status === "completed",
     },
   ];
+}
+
+function createEmptyTechnicianReport(): TechnicianServiceReport {
+  return {
+    id: `report-${crypto.randomUUID().slice(0, 8)}`,
+    diagnosisFindings: "",
+    workPerformed: "",
+    technicianNotes: "",
+    recommendations: "",
+    partsUsed: [],
+    evidence: [],
+    statusHistory: [],
+  };
+}
+
+function createStatusTransitionEntry(input: {
+  fromStatus: ServiceOrderStatus;
+  toStatus: ServiceOrderStatus;
+  actorLabel?: string;
+  note?: string;
+}): TechnicianStatusTransitionEntry {
+  return {
+    id: `transition-${crypto.randomUUID().slice(0, 8)}`,
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    changedAt: new Date().toISOString(),
+    actorLabel: input.actorLabel ?? "Technician",
+    note: input.note,
+  };
+}
+
+const technicianStatusOrder: ServiceOrderStatus[] = [
+  "scheduled",
+  "rescheduled",
+  "technician-assigned",
+  "on-the-way",
+  "arrived",
+  "in-progress",
+  "report-submitted",
+  "completed",
+];
+
+function isTechnicianStatusTransitionAllowed(
+  fromStatus: ServiceOrderStatus,
+  toStatus: ServiceOrderStatus,
+) {
+  if (fromStatus === toStatus) return true;
+  if (fromStatus === "completed" || fromStatus === "cancelled") return false;
+  if (toStatus === "completed" || toStatus === "cancelled") return false;
+
+  const fromIndex = technicianStatusOrder.indexOf(fromStatus);
+  const toIndex = technicianStatusOrder.indexOf(toStatus);
+
+  if (fromIndex === -1 || toIndex === -1) return false;
+  if (toIndex < fromIndex) return false;
+
+  return true;
 }
 
 function createAcceptedQuoteSnapshot(lineItems: FlexibleQuotationLineItem[], acceptedAt?: string) {
@@ -231,6 +298,7 @@ function createServiceOrderFromRequest(request: ServiceRequest): AdminServiceOrd
     customerNotes: request.additionalNotes,
     technicianInstruction:
       "Please confirm access to the main unit and all affected inlet locations before arrival.",
+    technicianEta: undefined,
     scheduleAdminNote:
       request.status === "accepted"
         ? "Pending admin appointment confirmation."
@@ -250,8 +318,14 @@ function createServiceOrderFromRequest(request: ServiceRequest): AdminServiceOrd
             },
           ]
         : [],
+    technicianReport: createEmptyTechnicianReport(),
     acceptedQuoteSnapshot: createAcceptedQuoteSnapshot(lineItems, quote?.acceptedAt),
-    timeline: buildServiceTimeline(status, currentSchedule, request.assignedTechnicianId),
+    timeline: buildServiceTimeline(
+      status,
+      currentSchedule,
+      request.assignedTechnicianId,
+      undefined,
+    ),
   };
 }
 
@@ -312,6 +386,16 @@ const seededSchedules: AdminScheduleRecord[] = [
 
 let serviceOrdersState = clone(seededServiceOrders);
 let schedulesState = clone(seededSchedules);
+const listeners = new Set<() => void>();
+
+function emit() {
+  listeners.forEach((listener) => listener());
+}
+
+export function subscribeSharedAdminScheduleState(listener: () => void) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
 
 function syncOrderFromSchedule(schedule: AdminScheduleRecord) {
   serviceOrdersState = serviceOrdersState.map((order) =>
@@ -325,10 +409,17 @@ function syncOrderFromSchedule(schedule: AdminScheduleRecord) {
           scheduleAdminNote: schedule.adminNote,
           rescheduleHistory: clone(schedule.rescheduleHistory),
           scheduleCancellation: schedule.cancellation,
+          technicianEta:
+            schedule.status === "on-the-way"
+              ? order.technicianEta
+              : schedule.status === "arrived" || schedule.status === "in-progress"
+                ? undefined
+                : order.technicianEta,
           timeline: buildServiceTimeline(
             schedule.status,
             schedule.currentSchedule,
             schedule.technicianId,
+            order.technicianEta,
           ),
         }
       : order,
@@ -391,6 +482,7 @@ export function replaceSharedAdminSchedule(schedule: AdminScheduleRecord) {
     schedulesState = [...schedulesState, schedule];
   }
   syncOrderFromSchedule(schedule);
+  emit();
 }
 
 export function createSharedAdminSchedule(input: {
@@ -532,6 +624,7 @@ export function deleteSharedAdminSchedule(scheduleId: string) {
         }
       : order,
   );
+  emit();
   return true;
 }
 
@@ -566,6 +659,7 @@ export function updateSharedServiceOrder(
             (updates.status ?? order.status) as ServiceOrderStatus,
             (updates.currentSchedule ?? order.currentSchedule) as ServiceScheduleWindow,
             updates.technicianId ?? order.technicianId,
+            updates.technicianEta ?? order.technicianEta,
           ),
         }
       : order,
@@ -573,10 +667,15 @@ export function updateSharedServiceOrder(
 
   const next = getSharedAdminServiceOrderById(orderId);
   if (next) syncSchedulesFromOrder(next);
+  emit();
   return next;
 }
 
 export function createOrSyncSharedServiceOrderFromRequest(request: ServiceRequest) {
+  const quote = getSharedQuotationForRequest(request.id);
+  if (!quote || quote.status !== "accepted") {
+    return null;
+  }
   const existing = getSharedAdminServiceOrderByRequestId(request.id);
   const nextOrder = createServiceOrderFromRequest(request);
 
@@ -601,5 +700,229 @@ export function createOrSyncSharedServiceOrderFromRequest(request: ServiceReques
   if (!getSharedAdminScheduleByOrderId(nextOrder.id)) {
     schedulesState = [createScheduleFromOrder(nextOrder), ...schedulesState];
   }
+  emit();
   return nextOrder;
+}
+
+export function getTechnicianAssignedOrders(technicianId: string) {
+  return serviceOrdersState
+    .filter((order) => order.technicianId === technicianId)
+    .sort(
+      (left, right) =>
+        new Date(left.currentSchedule.date).getTime() -
+        new Date(right.currentSchedule.date).getTime(),
+    );
+}
+
+export function updateTechnicianEta(
+  orderId: string,
+  input: {
+    minutes: number;
+    updatedBy?: string;
+  },
+) {
+  const order = getSharedAdminServiceOrderById(orderId);
+  if (!order) return null;
+  if (!["scheduled", "rescheduled", "technician-assigned", "on-the-way"].includes(order.status)) {
+    return null;
+  }
+
+  return updateSharedServiceOrder(orderId, {
+    technicianEta: {
+      minutes: input.minutes,
+      updatedAt: new Date().toISOString(),
+      updatedBy: input.updatedBy ?? "Technician",
+    },
+  });
+}
+
+export function updateTechnicianOperationalStatus(input: {
+  orderId: string;
+  toStatus:
+    | "scheduled"
+    | "rescheduled"
+    | "technician-assigned"
+    | "on-the-way"
+    | "arrived"
+    | "in-progress"
+    | "report-submitted";
+  actorLabel?: string;
+  note?: string;
+}) {
+  const order = getSharedAdminServiceOrderById(input.orderId);
+  if (!order) return { error: "Order not found." as const, order: null };
+
+  if (!isTechnicianStatusTransitionAllowed(order.status, input.toStatus)) {
+    return { error: "Transition not allowed." as const, order: null };
+  }
+
+  const nextHistory = [
+    ...(order.technicianReport.statusHistory ?? []),
+    createStatusTransitionEntry({
+      fromStatus: order.status,
+      toStatus: input.toStatus,
+      actorLabel: input.actorLabel,
+      note: input.note,
+    }),
+  ];
+
+  return {
+    error: null,
+    order: updateSharedServiceOrder(input.orderId, {
+      status: input.toStatus,
+      technicianEta:
+        input.toStatus === "arrived" ||
+        input.toStatus === "in-progress" ||
+        input.toStatus === "report-submitted"
+          ? undefined
+          : order.technicianEta,
+      technicianReport: {
+        ...order.technicianReport,
+        statusHistory: nextHistory,
+      },
+    }),
+  };
+}
+
+export function updateTechnicianPropertyProfile(
+  orderId: string,
+  updates: Pick<AdminServiceOrder, "equipment" | "problemLocation">,
+) {
+  const order = getSharedAdminServiceOrderById(orderId);
+  if (!order) return null;
+
+  return updateSharedServiceOrder(orderId, {
+    equipment: updates.equipment ?? order.equipment,
+    problemLocation: updates.problemLocation ?? order.problemLocation,
+  });
+}
+
+export function upsertTechnicianReportContent(
+  orderId: string,
+  updates: Partial<
+    Pick<
+      TechnicianServiceReport,
+      | "diagnosisFindings"
+      | "workPerformed"
+      | "technicianNotes"
+      | "recommendations"
+      | "partsUsed"
+    >
+  >,
+) {
+  const order = getSharedAdminServiceOrderById(orderId);
+  if (!order) return null;
+
+  return updateSharedServiceOrder(orderId, {
+    technicianReport: {
+      ...order.technicianReport,
+      ...updates,
+    },
+  });
+}
+
+export function addTechnicianEvidence(
+  orderId: string,
+  input: {
+    fileName: string;
+    fileType: string;
+    sizeBytes: number;
+    kind: "photo" | "video" | "document";
+    stage: TechnicianEvidenceStage;
+    category: TechnicianEvidenceCategory;
+    note?: string;
+  },
+) {
+  const order = getSharedAdminServiceOrderById(orderId);
+  if (!order) return null;
+
+  const evidenceItem: TechnicianEvidenceAttachment = {
+    id: `tech-media-${crypto.randomUUID().slice(0, 8)}`,
+    uploadedAt: new Date().toISOString(),
+    fileName: input.fileName,
+    fileType: input.fileType,
+    sizeBytes: input.sizeBytes,
+    kind: input.kind,
+    stage: input.stage,
+    category: input.category,
+    note: input.note,
+  };
+
+  return updateSharedServiceOrder(orderId, {
+    technicianReport: {
+      ...order.technicianReport,
+      evidence: [...order.technicianReport.evidence, evidenceItem],
+    },
+  });
+}
+
+export function removeTechnicianEvidence(orderId: string, evidenceId: string) {
+  const order = getSharedAdminServiceOrderById(orderId);
+  if (!order) return null;
+
+  return updateSharedServiceOrder(orderId, {
+    technicianReport: {
+      ...order.technicianReport,
+      evidence: order.technicianReport.evidence.filter(
+        (item) => item.id !== evidenceId,
+      ),
+    },
+  });
+}
+
+export function replaceTechnicianPartsUsage(
+  orderId: string,
+  partsUsed: TechnicianPartUsage[],
+) {
+  const order = getSharedAdminServiceOrderById(orderId);
+  if (!order) return null;
+
+  return updateSharedServiceOrder(orderId, {
+    technicianReport: {
+      ...order.technicianReport,
+      partsUsed,
+    },
+  });
+}
+
+export function submitTechnicianServiceReport(orderId: string, actorLabel?: string) {
+  const order = getSharedAdminServiceOrderById(orderId);
+  if (!order) return { error: "Order not found." as const, order: null };
+
+  if (order.status === "completed" || order.status === "cancelled") {
+    return { error: "Order is locked." as const, order: null };
+  }
+
+  const report = order.technicianReport;
+  if (
+    !report.diagnosisFindings.trim() ||
+    !report.workPerformed.trim() ||
+    !report.technicianNotes.trim()
+  ) {
+    return { error: "Report is incomplete." as const, order: null };
+  }
+
+  const nextHistory = [
+    ...(report.statusHistory ?? []),
+    createStatusTransitionEntry({
+      fromStatus: order.status,
+      toStatus: "report-submitted",
+      actorLabel,
+      note: "Technician submitted service report.",
+    }),
+  ];
+
+  return {
+    error: null,
+    order: updateSharedServiceOrder(orderId, {
+      status: "report-submitted",
+      technicianEta: undefined,
+      technicianReport: {
+        ...report,
+        submittedAt: new Date().toISOString(),
+        lockedAt: new Date().toISOString(),
+        statusHistory: nextHistory,
+      },
+    }),
+  };
 }

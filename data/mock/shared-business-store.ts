@@ -31,6 +31,7 @@ import { publicServiceOfferings } from "@/data/mock/public-services";
 import { mockCustomerReviews } from "@/data/mock/reviews";
 import { mockServiceRequests } from "@/data/mock/service-requests";
 import { mockServices } from "@/data/mock/services";
+import { sharedProductOrderSeed } from "@/data/mock/shared-product-order-seed";
 
 type SharedState = {
   customers: Customer[];
@@ -107,10 +108,18 @@ function toScheduleWindow(date: string, time: string): ServiceScheduleWindow {
 
 function normalizeServiceRequestStatus(status: QuoteStatus): ServiceRequestStatus {
   if (status === "accepted") return "accepted";
-  if (status === "rejected" || status === "declined") return "accepted";
+  if (status === "rejected") return "quoted";
   if (status === "draft") return "accepted";
   if (status === "sent" || status === "viewed" || status === "expired") return "quoted";
   return "accepted";
+}
+
+function isCustomerVisibleQuotationStatus(status: QuoteStatus) {
+  return status !== "draft";
+}
+
+function isCustomerActionableQuotationStatus(status: QuoteStatus) {
+  return status === "sent" || status === "viewed";
 }
 
 function createInitialState(): SharedState {
@@ -124,6 +133,35 @@ function createInitialState(): SharedState {
     quotations: clone(mockAdminQuotations),
     reviews: clone(mockCustomerReviews),
   };
+}
+
+function reconcilePublicServices(services: ServiceOffering[]) {
+  const bySlug = new Map(services.map((service) => [service.slug, service]));
+
+  for (const canonicalService of publicServiceOfferings) {
+    const existing = bySlug.get(canonicalService.slug);
+    if (!existing) {
+      bySlug.set(canonicalService.slug, clone(canonicalService));
+      continue;
+    }
+
+    bySlug.set(canonicalService.slug, {
+      ...clone(canonicalService),
+      ...existing,
+      slug: canonicalService.slug,
+      serviceId: canonicalService.serviceId,
+      group: canonicalService.group,
+      title: canonicalService.title,
+      summary: canonicalService.summary,
+      description: canonicalService.description,
+      iconKey: canonicalService.iconKey,
+      sortOrder: canonicalService.sortOrder,
+    });
+  }
+
+  return Array.from(bySlug.values()).sort(
+    (left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0),
+  );
 }
 
 let state = createInitialState();
@@ -152,6 +190,10 @@ function hydrate() {
       window.localStorage.removeItem(STORAGE_KEY);
     }
   }
+  state = {
+    ...state,
+    publicServices: reconcilePublicServices(state.publicServices),
+  };
   hydrated = true;
 }
 
@@ -331,19 +373,28 @@ export function deleteSharedReview(
   if (!review) return false;
 
   const actorLabel = options?.actorLabel ?? "Admin";
-  const archivedReview = appendReviewHistory(review, {
-    action: "deleted",
-    actorLabel,
-    reason: options?.reason,
-    note: options?.note,
-  });
-
   state = {
     ...state,
-    reviews: state.reviews.filter((item) => item.id !== reviewId),
+    reviews: state.reviews.map((item) =>
+      item.id === reviewId
+        ? appendReviewHistory(
+            {
+              ...item,
+              status: "HIDDEN",
+              hiddenAt: new Date().toISOString(),
+            },
+            {
+              action: "deleted",
+              actorLabel,
+              reason: options?.reason,
+              note: options?.note,
+            },
+          )
+        : item,
+    ),
   };
   emit();
-  return archivedReview;
+  return getSharedReviewById(reviewId);
 }
 
 export function createSharedServiceRequest(input: ServiceRequestInput) {
@@ -749,6 +800,10 @@ export function rejectSharedQuotation(
   comments?: string,
 ) {
   hydrate();
+  const quotation = getSharedQuotationById(quotationId);
+  if (!quotation || !isCustomerActionableQuotationStatus(quotation.status)) {
+    return quotation;
+  }
   const rejectedAt = new Date().toISOString();
   state = {
     ...state,
@@ -777,10 +832,16 @@ export function rejectSharedQuotation(
   return getSharedQuotationById(quotationId);
 }
 
-export function acceptSharedQuotation(quotationId: string, serviceOrderId: string) {
+export function acceptSharedQuotation(quotationId: string) {
   hydrate();
   const quotation = getSharedQuotationById(quotationId);
+  if (!quotation || !isCustomerActionableQuotationStatus(quotation.status)) {
+    return quotation;
+  }
   const acceptedAt = new Date().toISOString();
+  const serviceOrderId =
+    quotation.serviceOrderId ??
+    `SO-${quotation.serviceRequestId.replace("REQ-", "")}`;
   state = {
     ...state,
     quotations: state.quotations.map((quotation) =>
@@ -806,11 +867,16 @@ export function acceptSharedQuotation(quotationId: string, serviceOrderId: strin
 
 export function deleteSharedQuotation(quotationId: string) {
   hydrate();
+  const quotation = getSharedQuotationById(quotationId);
+  if (!quotation || quotation.status === "accepted" || quotation.serviceOrderId) {
+    return false;
+  }
   state = {
     ...state,
     quotations: state.quotations.filter((quotation) => quotation.id !== quotationId),
   };
   emit();
+  return true;
 }
 
 export function createSharedServiceCatalog(values: {
@@ -1061,11 +1127,22 @@ export function updateSharedProduct(productId: string, values: ProductMutationVa
 
 export function deleteSharedProduct(productId: string) {
   hydrate();
+  const isReferencedByReview =
+    state.reviews.some(
+      (review) => review.type === "PRODUCT" && review.relatedEntityId === productId,
+    );
+  const isReferencedByHistoricalOrder = sharedProductOrderSeed.some((order) =>
+    order.items.some((item) => item.productId === productId),
+  );
+  if (isReferencedByReview || isReferencedByHistoricalOrder) {
+    return false;
+  }
   state = {
     ...state,
     products: state.products.filter((product) => product.id !== productId),
   };
   emit();
+  return true;
 }
 
 export function toggleSharedProductStatus(productId: string) {
@@ -1082,4 +1159,61 @@ export function toggleSharedProductStatus(productId: string) {
     ),
   };
   emit();
+}
+
+export function createSharedReview(input: {
+  type: "PRODUCT" | "SERVICE";
+  customerId: string;
+  customerName: string;
+  relatedOrderId: string;
+  relatedEntityId: string;
+  relatedName: string;
+  title: string;
+  body: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+}) {
+  hydrate();
+  const submittedAt = new Date().toISOString();
+  const review: CustomerReview = {
+    id: `review-${Date.now().toString(36)}`,
+    type: input.type,
+    customerId: input.customerId,
+    customerName: input.customerName,
+    status: "PENDING",
+    relatedOrderId: input.relatedOrderId,
+    relatedEntityId: input.relatedEntityId,
+    relatedName: input.relatedName,
+    title: input.title,
+    body: input.body,
+    rating: input.rating,
+    submittedAt,
+    preview: input.body.slice(0, 120),
+    moderationHistory: [
+      {
+        id: `review-history-${Date.now().toString(36)}`,
+        action: "created",
+        actorLabel: "Customer",
+        createdAt: submittedAt,
+      },
+    ],
+  };
+
+  state = {
+    ...state,
+    reviews: [review, ...state.reviews],
+  };
+  emit();
+  return review;
+}
+
+export function hasSharedReviewForOrder(orderId: string) {
+  hydrate();
+  return state.reviews.some((review) => review.relatedOrderId === orderId);
+}
+
+export function getCustomerVisibleQuotations() {
+  hydrate();
+  return state.quotations.filter((quotation) =>
+    isCustomerVisibleQuotationStatus(quotation.status),
+  );
 }

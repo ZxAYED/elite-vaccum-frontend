@@ -13,6 +13,7 @@ import { mockPayments } from "@/data/mock/payments";
 import { mockServices } from "@/data/mock/services";
 import { mockTechnicians } from "@/data/mock/technicians";
 import {
+  getCustomerVisibleQuotations,
   getSharedProducts,
   getSharedQuotationForRequest,
   getSharedServiceRequestById,
@@ -40,7 +41,6 @@ export interface CustomerQuote extends Quote {
 
 export interface CustomerAppointment extends Appointment {
   arrivalWindowLabel: string;
-  technicianNote: string;
   preparationChecklist: string[];
 }
 
@@ -109,6 +109,12 @@ export interface PaymentLedgerEntry {
 export const mockCustomerServiceRequests = getSharedServiceRequests().filter(
   (request) => request.customerId === mockCurrentUser.customerId,
 );
+
+export function getCustomerServiceRequests() {
+  return getSharedServiceRequests().filter(
+    (request) => request.customerId === mockCurrentUser.customerId,
+  );
+}
 
 const customerPrimaryAddress =
   mockCurrentCustomer.addresses[0] ?? mockCustomerServiceRequests[0]?.serviceAddress;
@@ -206,8 +212,6 @@ export const mockCustomerServiceDetailsByRequestId: Record<
       address: customerPrimaryAddress,
       technicianId: "tech-002",
       arrivalWindowLabel: "Friday, August 14, 2026 between 11:00 AM and 1:00 PM",
-      technicianNote:
-        "Please keep the utility area clear so the power unit and inlet connections are easy to access.",
       preparationChecklist: [
         "Confirm parking or gate instructions for the technician.",
         "Have your current hose and attachments available for fit checks.",
@@ -510,11 +514,18 @@ export function getServiceDetailByRequestId(requestId: string) {
 }
 
 export function getCustomerQuotations() {
+  const visibleQuotationIds = new Set(
+    getCustomerVisibleQuotations().map((quotation) => quotation.id),
+  );
+
   return getSharedServiceRequests()
     .filter((request) => request.customerId === mockCurrentUser.customerId)
     .map((request) => {
       const detail = mockCustomerServiceDetailsByRequestId[request.id];
       const sharedQuote = getSharedQuotationForRequest(request.id);
+      if (!sharedQuote || !visibleQuotationIds.has(sharedQuote.id)) {
+        return null;
+      }
       return sharedQuote
         ? {
             request,

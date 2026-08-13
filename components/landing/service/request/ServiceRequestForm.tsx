@@ -27,6 +27,7 @@ import { MediaUploader } from "./MediaUploader";
 import { RequestSummary } from "./RequestSummary";
 import {
   serviceRequestSchema,
+  mediaConstraints,
   type ServiceRequestFormValues,
 } from "./service-request-schema";
 
@@ -317,7 +318,10 @@ export function ServiceRequestForm({
                     />
                   </FormField>
                   {showOtherLocation ? (
-                    <FormField label="Describe Location">
+                    <FormField
+                      label="Describe Location"
+                      error={errors.otherProblemLocation?.message}
+                    >
                       <Input
                         className={inputClassName}
                         placeholder="Example: closet behind garage"
@@ -342,6 +346,7 @@ export function ServiceRequestForm({
                     <Input
                       type="date"
                       className={inputClassName}
+                      min={mediaConstraints.minimumRequestedDate}
                       {...register("requestedDate")}
                     />
                   </FormField>

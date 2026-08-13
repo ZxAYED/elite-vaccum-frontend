@@ -1,7 +1,7 @@
 "use client";
 
 import { ImageIcon, Trash2, UploadCloud, Video } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -31,28 +31,45 @@ export function MediaUploader({ value, onChange }: MediaUploaderProps) {
   const [error, setError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
+  useEffect(() => {
+    return () => {
+      value.forEach((file) => {
+        URL.revokeObjectURL(file.previewUrl);
+      });
+    };
+  }, [value]);
+
   function addFiles(fileList: FileList | File[]) {
     const incoming = Array.from(fileList);
     const nextFiles: MediaFile[] = [];
+    const nextErrors: string[] = [];
+    const existingIds = new Set(value.map((file) => file.id));
 
     for (const file of incoming) {
+      const fileId = `${file.name}-${file.lastModified}-${file.size}`;
+
+      if (existingIds.has(fileId) || nextFiles.some((entry) => entry.id === fileId)) {
+        nextErrors.push(`${file.name} is already added.`);
+        continue;
+      }
+
       if (!acceptedTypes.has(file.type)) {
-        setError("Upload JPG, PNG, WebP, MP4, or MOV files only.");
+        nextErrors.push("Upload JPG, PNG, WebP, MP4, or MOV files only.");
         continue;
       }
 
       if (file.size > mediaConstraints.maxFileSizeBytes) {
-        setError("Each file must be 50MB or smaller.");
+        nextErrors.push("Each file must be 50MB or smaller.");
         continue;
       }
 
       if (value.length + nextFiles.length >= mediaConstraints.maxFiles) {
-        setError(`Upload up to ${mediaConstraints.maxFiles} files.`);
+        nextErrors.push(`Upload up to ${mediaConstraints.maxFiles} files.`);
         break;
       }
 
       nextFiles.push({
-        id: `${file.name}-${file.lastModified}-${file.size}`,
+        id: fileId,
         name: file.name,
         size: file.size,
         type: file.type as MediaFile["type"],
@@ -60,8 +77,9 @@ export function MediaUploader({ value, onChange }: MediaUploaderProps) {
       });
     }
 
+    setError(nextErrors[0] ?? null);
+
     if (nextFiles.length) {
-      setError(null);
       onChange([...value, ...nextFiles]);
     }
   }

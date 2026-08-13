@@ -101,7 +101,6 @@ export interface DashboardServiceOrder {
     avatarSrc: string;
   };
   customerNotes: string;
-  technicianInstruction: string;
   timeline: Array<{
     key: string;
     label: string;
@@ -318,9 +317,6 @@ export function getDashboardServiceOrders(): DashboardServiceOrder[] {
         currentSchedule: order.currentSchedule.label ?? order.currentSchedule.time,
         customerNotes:
           order.customerNotes ?? "Unit makes a high-pitched noise when starting up.",
-        technicianInstruction:
-          order.technicianInstruction
-          ?? "Please ensure the main central unit is accessible and cleared of any obstruction.",
         technician: technician
           ? {
               name: technician.displayName,

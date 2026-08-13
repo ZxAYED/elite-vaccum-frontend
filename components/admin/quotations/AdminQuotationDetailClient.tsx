@@ -105,9 +105,11 @@ export function AdminQuotationDetailClient({
   const quotation = quotationId
     ? getQuotationById(quotationId) ?? initialQuotation
     : initialQuotation;
+
   if (!quotation) {
     notFound();
   }
+
   const request = getQuotationRequest(quotation);
   const customer = getQuotationCustomer(quotation);
   const service = getQuotationService(quotation);
@@ -186,10 +188,12 @@ export function AdminQuotationDetailClient({
         description={`${service?.name ?? "Service quote"} for ${customer?.displayName ?? "customer"} · Request ${quotation.serviceRequestId}`}
         action={
           <div className="flex flex-wrap gap-2">
-            <StatusBadge
-              status={quotation.status}
-              label={formatStatusLabel(quotation.status)}
-            />
+            <div className="flex">
+              <StatusBadge
+                status={quotation.status}
+                label={formatStatusLabel(quotation.status)}
+              />
+            </div>
             {quotation.status !== "draft" && quotation.status !== "accepted" ? (
               <Button asChild variant="soft">
                 <Link href={`/admin/quotations/${quotation.id}?mode=revise`}>
@@ -210,7 +214,7 @@ export function AdminQuotationDetailClient({
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_24rem]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-5">
           {editingMode ? (
             <QuotationBuilder
@@ -275,9 +279,9 @@ export function AdminQuotationDetailClient({
               {quotation.lineItems.map((item) => (
                 <div
                   key={item.id}
-                  className="grid gap-3 py-4 md:grid-cols-[1fr_6rem_8rem_8rem]"
+                  className="grid gap-3 py-4 md:grid-cols-[minmax(0,1fr)_6rem_8rem_8rem]"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-semibold text-slate-900">{item.description}</p>
                     {item.note ? (
                       <p className="mt-1 text-sm text-slate-500">{item.note}</p>
@@ -386,7 +390,7 @@ export function AdminQuotationDetailClient({
                     key={attachment.id}
                     className="flex items-center justify-between gap-3 rounded-xl bg-teal-50/60 p-3 text-sm"
                   >
-                    <span>{attachment.fileName}</span>
+                    <span className="truncate">{attachment.fileName}</span>
                     <Button variant="ghost" size="icon-sm" aria-label="Copy filename">
                       <Copy size={15} />
                     </Button>
@@ -435,11 +439,11 @@ export function AdminQuotationDetailClient({
 
 function InfoBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-teal-50/50 p-4">
+    <div className="min-w-0 rounded-xl bg-teal-50/50 p-4">
       <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
         {label}
       </p>
-      <p className="mt-2 text-sm font-semibold text-slate-800">{value}</p>
+      <p className="mt-2 break-words text-sm font-semibold text-slate-800">{value}</p>
     </div>
   );
 }

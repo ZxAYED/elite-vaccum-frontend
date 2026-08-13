@@ -28,14 +28,14 @@ import {
   rejectSharedQuotation,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
-import type { QuoteStatus, RejectionHistoryEntry } from "@/types/domain";
+import type { QuoteStatus, QuotationRejectionEntry } from "@/types/domain";
 
 interface QuotationDecisionPanelProps {
   quotationId: string;
   requestId: string;
   initialStatus: QuoteStatus;
   currentScheduleLabel: string;
-  initialRejectionHistory?: RejectionHistoryEntry[];
+  initialRejectionHistory?: QuotationRejectionEntry[];
   serviceOrderHref?: string;
 }
 
@@ -60,6 +60,8 @@ export function QuotationDecisionPanel({
   const [reason, setReason] = useState("");
   const [comments, setComments] = useState("");
   const [history, setHistory] = useState(initialRejectionHistory);
+  const latestHistoryEntry = history[0];
+  const canDecide = quoteStatus === "sent" || quoteStatus === "viewed";
 
   function rejectQuotation() {
     if (!reason) return;
@@ -72,10 +74,11 @@ export function QuotationDecisionPanel({
   function acceptQuotation() {
     const request = getSharedServiceRequestById(requestId);
     if (!request) return;
+    const acceptedQuotation = acceptSharedQuotation(quotationId);
+    if (!acceptedQuotation) return;
     const order = createOrSyncSharedServiceOrderFromRequest(request);
     if (!order) return;
-    acceptSharedQuotation(quotationId, order.id);
-    setQuoteStatus("accepted");
+    setQuoteStatus(acceptedQuotation.status);
   }
 
   return (
@@ -108,15 +111,15 @@ export function QuotationDecisionPanel({
         </div>
       ) : null}
 
-      {quoteStatus === "declined" ? (
+      {quoteStatus === "rejected" ? (
         <div className="mt-5 rounded-[1rem] bg-white p-4 text-sm text-red-700">
           <div className="flex items-center gap-2 font-semibold">
             <XCircle size={18} />
             Quotation Rejected
           </div>
-          {history.length ? (
+          {latestHistoryEntry ? (
             <p className="mt-2 text-slate-600">
-              Latest reason: {history[history.length - 1]?.reason}
+              Latest reason: {latestHistoryEntry.reason}
             </p>
           ) : null}
         </div>
@@ -125,7 +128,7 @@ export function QuotationDecisionPanel({
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
         <Button
           type="button"
-          disabled={quoteStatus === "accepted"}
+          disabled={!canDecide}
           onClick={acceptQuotation}
         >
           Accept Quotation
@@ -133,7 +136,7 @@ export function QuotationDecisionPanel({
         <Button
           type="button"
           variant="outline"
-          disabled={quoteStatus === "declined"}
+          disabled={!canDecide}
           onClick={() => setRejectOpen(true)}
         >
           Reject Quotation
