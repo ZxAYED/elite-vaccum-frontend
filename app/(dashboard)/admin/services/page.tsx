@@ -12,7 +12,6 @@ import {
   HomeIcon,
   MoreHorizontal,
   Plus,
-  Search,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
@@ -25,6 +24,7 @@ import type { ElementType } from "react";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
 import {
@@ -554,7 +554,7 @@ export default function AdminServicesPage() {
   return (
     <main className="min-h-screen bg-[#f4f7f7] text-slate-950">
       <section className="space-y-4">
-        <div className="flex flex-col gap-3 rounded-xl border border-teal-100 bg-white p-4 shadow-[0_18px_48px_-42px_rgba(28,79,80,0.32)] lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-teal-100 bg-white p-4 shadow-[0_18px_48px_-42px_rgba(28,79,80,0.32)] lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.32em] text-teal-700">
               Service Operations
@@ -566,7 +566,7 @@ export default function AdminServicesPage() {
               Manage the services customers can request.
             </p>
           </div>
-          <Button className="h-11 rounded-xl px-5" onClick={openCreateDialog}>
+          <Button className="h-11 px-5" onClick={openCreateDialog}>
             <Plus size={18} />
             Add Service
           </Button>
@@ -580,7 +580,7 @@ export default function AdminServicesPage() {
             { label: "With Requests", value: totals.referenced },
           ].map((stat) => (
             <div
-              className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+              className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
               key={stat.label}
             >
               <p className="text-sm text-slate-500">{stat.label}</p>
@@ -591,28 +591,20 @@ export default function AdminServicesPage() {
           ))}
         </div>
 
-        <div className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_18px_56px_-44px_rgba(28,79,80,0.34)]">
+        <div className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_18px_56px_-44px_rgba(28,79,80,0.34)]">
           <div className="grid gap-3 lg:grid-cols-[1fr_24rem_18rem]">
-            <div className="relative">
-              <Search
-                aria-hidden="true"
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                size={18}
-              />
-              <Input
-                aria-label="Search services"
-                className="pl-11"
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search by service name or slug..."
-                value={query}
-              />
-            </div>
+            <AdminSearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Search by service name or slug..."
+              ariaLabel="Search services"
+            />
 
-            <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-1">
+            <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-1">
               {statusFilterOptions.map((option) => (
                 <button
                   className={cn(
-                    "h-10 rounded-[1rem] text-sm font-semibold transition",
+                    "h-10 rounded-lg text-sm font-semibold transition",
                     statusFilter === option.value
                       ? "bg-primary text-white shadow-[0_14px_30px_-22px_rgba(28,79,80,0.9)]"
                       : "text-slate-600 hover:bg-white hover:text-teal-800",
@@ -644,7 +636,7 @@ export default function AdminServicesPage() {
           </div>
 
           {services.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
+            <div className="mt-5 rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
               <Archive className="mx-auto text-teal-700" size={34} />
               <h2 className="mt-4 text-xl font-semibold text-teal-950">
                 No services yet
@@ -657,7 +649,7 @@ export default function AdminServicesPage() {
               </Button>
             </div>
           ) : filteredServices.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
+            <div className="mt-5 rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
               <Archive className="mx-auto text-teal-700" size={34} />
               <h2 className="mt-4 text-xl font-semibold text-teal-950">
                 No services match your filters.
@@ -671,7 +663,7 @@ export default function AdminServicesPage() {
             </div>
           ) : (
             <>
-              <div className="mt-5 hidden overflow-hidden rounded-xl border border-teal-100 lg:block">
+              <div className="mt-5 hidden overflow-hidden rounded-lg border border-teal-100 lg:block">
                 <table className="w-full border-collapse text-left">
                   <thead className="bg-[#f7fbfa] text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
                     <tr>
@@ -708,7 +700,7 @@ export default function AdminServicesPage() {
                             </div>
                           </td>
                           <td className="px-5 py-5">
-                            <code className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
+                            <code className="rounded-lg bg-slate-100 px-3 py-1 text-sm text-slate-600">
                               {service.slug}
                             </code>
                           </td>
@@ -742,12 +734,12 @@ export default function AdminServicesPage() {
 
                   return (
                     <article
-                      className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+                      className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
                       key={service.slug}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex gap-3">
-                          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
+                          <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
                             <Icon size={19} />
                           </span>
                           <div>
@@ -769,13 +761,13 @@ export default function AdminServicesPage() {
                       </div>
 
                       <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-                        <div className="rounded-xl bg-slate-50 p-3">
+                        <div className="rounded-lg bg-slate-50 p-3">
                           <p className="text-slate-500">Slug</p>
                           <p className="mt-1 break-all font-semibold text-teal-950">
                             {service.slug}
                           </p>
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3">
+                        <div className="rounded-lg bg-slate-50 p-3">
                           <p className="text-slate-500">Public Visibility</p>
                           <div className="mt-2">
                             <PublicVisibilityPill status={service.status} />

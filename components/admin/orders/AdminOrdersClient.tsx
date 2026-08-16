@@ -8,7 +8,6 @@ import {
   FileText,
   MoreHorizontal,
   Package,
-  Search,
   Settings2,
   Truck,
   Wrench,
@@ -24,6 +23,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
@@ -43,7 +43,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
-import { Input } from "@/components/ui/Input";
 import {
   Select,
   SelectContent,
@@ -373,18 +372,12 @@ export function AdminOrdersClient() {
 
       <AdminSurface className="space-y-4">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_220px_220px_220px]">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
-            <Input
-              className="pl-11"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by order ID, customer, email, phone, service, or product..."
-              value={search}
-            />
-          </div>
+          <AdminSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by order ID, customer, email, phone, service, or product..."
+            ariaLabel="Search orders"
+          />
 
           <Select
             onValueChange={(value) =>
@@ -435,7 +428,7 @@ export function AdminOrdersClient() {
           </Select>
         </div>
 
-        <div className="hidden overflow-hidden rounded-xl border border-teal-100 xl:block">
+        <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">
           <div className="grid grid-cols-[160px_120px_1.1fr_1.4fr_140px_140px_120px_96px] bg-teal-50/60 px-5 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
             <span>Order</span>
             <span>Type</span>
@@ -508,7 +501,7 @@ export function AdminOrdersClient() {
 
             return (
               <div
-                className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_16px_42px_-34px_rgba(28,79,80,0.22)]"
+                className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_16px_42px_-34px_rgba(28,79,80,0.22)]"
                 key={order.id}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -542,7 +535,7 @@ export function AdminOrdersClient() {
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-4 py-3">
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3">
                   <span className="text-sm text-slate-500">
                     {getOrderActionLabel(order)}
                   </span>
@@ -565,7 +558,7 @@ export function AdminOrdersClient() {
         </div>
 
         {filteredOrders.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center text-sm text-slate-600">
+          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center text-sm text-slate-600">
             No orders matched the current filters.
           </div>
         ) : null}

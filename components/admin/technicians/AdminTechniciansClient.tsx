@@ -3,7 +3,6 @@
 import {
   MoreHorizontal,
   Plus,
-  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -14,6 +13,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import {
@@ -31,7 +31,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
-import { Input } from "@/components/ui/Input";
 import {
   Select,
   SelectContent,
@@ -236,18 +235,12 @@ export function AdminTechniciansClient() {
 
       <AdminSurface className="space-y-4">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_220px_220px]">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
-            <Input
-              className="pl-11"
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by name, email, or phone..."
-              value={search}
-            />
-          </div>
+          <AdminSearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by name, email, or phone..."
+            ariaLabel="Search technicians"
+          />
 
           <Select onValueChange={(value) => setFilter(value as TechnicianAvailabilityFilter)} value={filter}>
             <SelectTrigger>
@@ -278,7 +271,7 @@ export function AdminTechniciansClient() {
         </div>
 
         {filteredTechnicians.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
+          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
             <p className="text-sm text-slate-600">No technicians match your filters.</p>
             <Button
               className="mt-4"
@@ -294,7 +287,7 @@ export function AdminTechniciansClient() {
           </div>
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-xl border border-teal-100 xl:block">
+            <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">
               <div className="grid grid-cols-[1.3fr_1fr_180px_140px_150px_120px_76px] bg-teal-50/70 px-5 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                 <span>Technician</span>
                 <span>Contact</span>
@@ -316,7 +309,7 @@ export function AdminTechniciansClient() {
                       key={technician.id}
                     >
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-lg font-semibold text-primary">
+                        <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-lg font-semibold text-primary">
                           {technician.displayName.charAt(0)}
                         </div>
                         <div className="min-w-0">
@@ -351,7 +344,7 @@ export function AdminTechniciansClient() {
                           <DropdownMenuTrigger asChild>
                             <button
                               aria-label={`Open actions for ${technician.displayName}`}
-                              className="inline-flex size-10 items-center justify-center rounded-xl border border-teal-100 bg-white text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-primary"
+                              className="inline-flex size-10 items-center justify-center rounded-lg border border-teal-100 bg-white text-slate-600 transition hover:border-teal-200 hover:bg-teal-50 hover:text-primary"
                               type="button"
                             >
                               <MoreHorizontal size={18} />
@@ -391,7 +384,7 @@ export function AdminTechniciansClient() {
                 const availabilityMeta = getTechnicianAvailabilityMeta(technician);
 
                 return (
-                  <div className="rounded-xl border border-teal-100 bg-white p-4" key={technician.id}>
+                  <div className="rounded-lg border border-teal-100 bg-white p-4" key={technician.id}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h2 className="truncate text-lg font-semibold text-slate-950">
@@ -407,11 +400,11 @@ export function AdminTechniciansClient() {
                     </div>
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                      <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
                         <span className="font-medium text-slate-900">Today:</span>{" "}
                         {getTechnicianTodaySchedules(technician.id).length} jobs
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                      <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600">
                         <span className="font-medium text-slate-900">Upcoming:</span>{" "}
                         {getTechnicianUpcomingSchedules(technician.id).length} jobs
                       </div>

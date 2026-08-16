@@ -5,7 +5,6 @@ import {
   Edit3,
   FileText,
   Plus,
-  Search,
   Send,
   Trash2,
 } from "lucide-react";
@@ -18,6 +17,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import {
@@ -28,7 +28,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import { Input } from "@/components/ui/Input";
 import {
   Select,
   SelectContent,
@@ -175,15 +174,12 @@ export default function AdminQuotationsPage() {
 
       <AdminSurface className="space-y-4">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_12rem_12rem]">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search quote, request, customer, or service..."
-              className="pl-11"
-            />
-          </div>
+          <AdminSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search quote, request, customer, or service..."
+            ariaLabel="Search quotations"
+          />
           <Select
             value={status}
             onValueChange={(value) =>
@@ -216,7 +212,7 @@ export default function AdminQuotationsPage() {
         </div>
 
         {filtered.length ? (
-          <div className="overflow-hidden rounded-xl border border-teal-100">
+          <div className="overflow-hidden rounded-lg border border-teal-100">
             <div className="hidden grid-cols-[1.1fr_1.2fr_1fr_0.8fr_0.8fr_1.2fr] bg-teal-50/60 px-4 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500 lg:grid">
               <span>Quote</span>
               <span>Customer</span>
@@ -311,7 +307,7 @@ export default function AdminQuotationsPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 p-8 text-center">
+          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 p-8 text-center">
             <FileText className="mx-auto size-8 text-teal-700" />
             <h2 className="mt-3 text-xl font-semibold text-primary">
               No quotations found

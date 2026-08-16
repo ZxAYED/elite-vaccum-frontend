@@ -11,7 +11,7 @@ export function AdminPageShell({ children, className }: AdminPageShellProps) {
   return (
     <section
       className={cn(
-        "flex w-full flex-col gap-4",
+        "flex w-full flex-col gap-3 lg:gap-4",
         className,
       )}
     >
@@ -38,7 +38,7 @@ export function AdminPageHeader({
   return (
     <header
       className={cn(
-        "flex flex-col gap-3 rounded-xl border border-teal-100 bg-white p-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.35)] md:flex-row md:items-center md:justify-between",
+        "flex flex-col gap-3 rounded-lg border border-teal-100 bg-white px-4 py-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.35)] md:flex-row md:items-center md:justify-between lg:px-5",
         className,
       )}
     >
@@ -75,7 +75,7 @@ export function AdminSurface({
   return (
     <div
       className={cn(
-        "rounded-xl border border-teal-100 bg-white p-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.34)]",
+        "rounded-lg border border-teal-100 bg-white p-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.34)] lg:p-5",
         className,
       )}
       {...props}
@@ -108,7 +108,7 @@ export function AdminStatCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-teal-100 p-4",
+        "rounded-lg border border-teal-100 p-4",
         statToneClassName[tone],
       )}
     >

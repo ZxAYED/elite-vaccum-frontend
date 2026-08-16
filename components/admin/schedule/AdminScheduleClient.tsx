@@ -11,7 +11,6 @@ import {
   MapPin,
   Pencil,
   Plus,
-  Search,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +24,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import {
@@ -574,7 +574,7 @@ export function AdminScheduleClient() {
 
       <AdminSurface className="space-y-4">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="inline-flex rounded-xl border border-teal-100 bg-teal-50/50 p-1">
+          <div className="inline-flex rounded-lg border border-teal-100 bg-teal-50/50 p-1">
             {(["calendar", "agenda"] as const).map((mode) => (
               <button
                 className={cn(
@@ -593,18 +593,13 @@ export function AdminScheduleClient() {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:flex">
-            <div className="relative min-w-[18rem]">
-              <Search
-                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                size={18}
-              />
-              <Input
-                className="pl-11"
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search customer, order, address, or technician..."
-                value={search}
-              />
-            </div>
+            <AdminSearchInput
+              className="min-w-[18rem]"
+              value={search}
+              onChange={setSearch}
+              placeholder="Search customer, order, address, or technician..."
+              ariaLabel="Search schedules"
+            />
             <Input
               onChange={(event) => setDateFilter(event.target.value)}
               type="date"

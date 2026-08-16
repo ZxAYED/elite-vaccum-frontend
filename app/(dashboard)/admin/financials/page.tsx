@@ -10,7 +10,6 @@ import {
   MoreHorizontal,
   Receipt,
   RotateCcw,
-  Search,
 } from "lucide-react";
 
 import {
@@ -19,6 +18,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
@@ -332,15 +332,12 @@ export default function AdminFinancialsPage() {
         </div>
 
         <div className="grid gap-3 lg:grid-cols-[1fr_12rem] xl:grid-cols-[1fr_12rem_12rem]">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              className="pl-11"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by ID, order, customer, or description..."
-            />
-          </div>
+          <AdminSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by ID, order, customer, or description..."
+            ariaLabel="Search billing records"
+          />
 
           {tab === "invoices" ? (
             <Select

@@ -8,7 +8,6 @@ import {
   ClipboardCheck,
   DollarSign,
   Package,
-  Search,
   UserRound,
   Wrench,
 } from "lucide-react";
@@ -31,7 +30,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
-import { Input } from "@/components/ui/Input";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import {
   Select,
   SelectContent,
@@ -75,8 +74,8 @@ function TabButton({
       onClick={onClick}
       className={
         active
-          ? "rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white"
-          : "rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-primary"
+          ? "rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white"
+          : "rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-primary"
       }
     >
       {label}
@@ -95,7 +94,7 @@ function SectionHeader({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="flex size-11 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
+      <div className="flex size-11 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
         <Icon size={20} />
       </div>
       <div className="min-w-0">
@@ -113,28 +112,6 @@ function EmptySection({ title }: { title: string }) {
       <h3 className="mt-3 text-xl font-semibold text-primary">No data available</h3>
       <p className="mt-2 text-sm text-slate-500">{title}</p>
     </AdminSurface>
-  );
-}
-
-function SearchInput({
-  value,
-  onChange,
-  placeholder,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-}) {
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-      <Input
-        className="pl-11"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-      />
-    </div>
   );
 }
 
@@ -279,7 +256,7 @@ export function AdminReportsClient() {
               />
               <div className="space-y-3">
                 {snapshot.services.funnel.map((step) => (
-                  <div key={step.label} className="flex items-center justify-between rounded-xl border border-teal-100 bg-slate-50 px-4 py-3">
+                  <div key={step.label} className="flex items-center justify-between rounded-lg border border-teal-100 bg-slate-50 px-4 py-3">
                     <span className="text-sm font-medium text-slate-700">{step.label}</span>
                     <span className="text-lg font-semibold text-primary">{step.value}</span>
                   </div>
@@ -349,15 +326,16 @@ export function AdminReportsClient() {
               title="Top selling products"
               description="Actual product order rows aggregated from shared product orders."
             />
-            <SearchInput
+            <AdminSearchInput
               value={query}
               onChange={setQuery}
               placeholder="Search product name or SKU..."
+              ariaLabel="Search report products"
             />
             {filteredProducts.length ? (
               <ProductTable rows={filteredProducts} />
             ) : (
-              <div className="rounded-xl border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
+              <div className="rounded-lg border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
                 No products match the current filters.
               </div>
             )}
@@ -397,7 +375,7 @@ export function AdminReportsClient() {
                   {snapshot.services.requestLeaders.map((entry) => (
                     <div
                       key={entry.name}
-                      className="flex items-center justify-between rounded-xl border border-teal-100 bg-white px-4 py-3"
+                      className="flex items-center justify-between rounded-lg border border-teal-100 bg-white px-4 py-3"
                     >
                       <span className="font-medium text-slate-800">{entry.name}</span>
                       <span className="text-sm font-semibold text-primary">{entry.requests} requests</span>
@@ -405,7 +383,7 @@ export function AdminReportsClient() {
                   ))}
                 </div>
               ) : (
-                <div className="rounded-xl border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
+                <div className="rounded-lg border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
                   No service request data for the selected filters.
                 </div>
               )}
@@ -422,7 +400,7 @@ export function AdminReportsClient() {
                   const base = items[0]?.value ?? 0;
                   const percent = base > 0 ? Math.round((step.value / base) * 100) : 0;
                   return (
-                    <div key={step.label} className="rounded-xl border border-teal-100 bg-slate-50 px-4 py-3">
+                    <div key={step.label} className="rounded-lg border border-teal-100 bg-slate-50 px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <span className="font-medium text-slate-800">{step.label}</span>
                         <span className="text-sm font-semibold text-primary">
@@ -454,15 +432,16 @@ export function AdminReportsClient() {
               title="Top customers by total spend"
               description="Customer totals derived from paid invoices and linked orders."
             />
-            <SearchInput
+            <AdminSearchInput
               value={query}
               onChange={setQuery}
               placeholder="Search customer name or email..."
+              ariaLabel="Search report customers"
             />
             {filteredCustomers.length ? (
               <CustomerTable rows={filteredCustomers} />
             ) : (
-              <div className="rounded-xl border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
+              <div className="rounded-lg border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
                 No customers match the current filters.
               </div>
             )}
@@ -490,15 +469,16 @@ export function AdminReportsClient() {
                   title="Technician workload"
                   description="Assignments and completion rates derived from shared service orders and schedule records."
                 />
-                <SearchInput
+                <AdminSearchInput
                   value={query}
                   onChange={setQuery}
                   placeholder="Search technician name..."
+                  ariaLabel="Search report technicians"
                 />
                 {filteredTechnicians.length ? (
                   <TechnicianTable rows={filteredTechnicians} />
                 ) : (
-                  <div className="rounded-xl border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
+                  <div className="rounded-lg border border-dashed border-teal-200 bg-slate-50 px-5 py-10 text-center text-sm text-slate-600">
                     No technicians match the current filters.
                   </div>
                 )}
@@ -514,7 +494,7 @@ export function AdminReportsClient() {
 function ProductTable({ rows }: { rows: AdminProductReportRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[760px] overflow-hidden rounded-xl border border-teal-100">
+      <div className="min-w-[760px] overflow-hidden rounded-lg border border-teal-100">
         <div className="grid grid-cols-[1.4fr_0.8fr_0.7fr_0.8fr_0.9fr_0.8fr] bg-teal-50/60 px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
           <span>Product</span>
           <span>SKU</span>
@@ -543,7 +523,7 @@ function ProductTable({ rows }: { rows: AdminProductReportRow[] }) {
 function CustomerTable({ rows }: { rows: AdminCustomerReportRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[820px] overflow-hidden rounded-xl border border-teal-100">
+      <div className="min-w-[820px] overflow-hidden rounded-lg border border-teal-100">
         <div className="grid grid-cols-[1.3fr_0.8fr_0.8fr_0.9fr_1fr] bg-teal-50/60 px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
           <span>Customer</span>
           <span>Product Orders</span>
@@ -575,7 +555,7 @@ function CustomerTable({ rows }: { rows: AdminCustomerReportRow[] }) {
 function TechnicianTable({ rows }: { rows: AdminTechnicianReportRow[] }) {
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[820px] overflow-hidden rounded-xl border border-teal-100">
+      <div className="min-w-[820px] overflow-hidden rounded-lg border border-teal-100">
         <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.9fr_0.8fr] bg-teal-50/60 px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
           <span>Technician</span>
           <span>Assigned</span>

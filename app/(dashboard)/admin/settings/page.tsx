@@ -8,7 +8,6 @@ import {
   Pencil,
   Plus,
   Save,
-  Search,
   Trash2,
 } from "lucide-react";
 
@@ -18,6 +17,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -1169,15 +1169,12 @@ export default function AdminSettingsPage() {
 
           <AdminSurface className="space-y-4">
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)_minmax(0,1fr)]">
-              <label className="relative block">
-                <Search className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  value={faqSearch}
-                  onChange={(event) => setFaqSearch(event.target.value)}
-                  placeholder="Search question, answer, or FAQ ID..."
-                  className="pl-11"
-                />
-              </label>
+              <AdminSearchInput
+                value={faqSearch}
+                onChange={setFaqSearch}
+                placeholder="Search question, answer, or FAQ ID..."
+                ariaLabel="Search FAQs"
+              />
 
               <Select
                 value={faqCategoryFilter}

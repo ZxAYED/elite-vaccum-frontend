@@ -7,7 +7,6 @@ import {
   Edit3,
   MoreHorizontal,
   Plus,
-  Search,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -15,6 +14,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { AdminPageHeader, AdminPageShell } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -31,7 +31,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
-import { Input } from "@/components/ui/Input";
 import {
   Select,
   SelectContent,
@@ -152,27 +151,21 @@ export function AdminProductsClient() {
           { label: "Draft", value: totals.draft },
           { label: "Inactive", value: totals.inactive },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-teal-100 bg-white p-4">
+          <div key={stat.label} className="rounded-lg border border-teal-100 bg-white p-4">
             <p className="text-sm text-slate-500">{stat.label}</p>
             <p className="mt-2 text-3xl font-semibold text-primary">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.34)]">
+      <div className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.34)]">
         <div className="grid gap-3 xl:grid-cols-[1fr_12rem_14rem_12rem]">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
-            <Input
-              className="pl-11"
-              placeholder="Search by name, slug, SKU, or model..."
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </div>
+          <AdminSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by name, slug, SKU, or model..."
+            ariaLabel="Search products"
+          />
 
           <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ProductStatusFilter)}>
             <SelectTrigger>
@@ -220,7 +213,7 @@ export function AdminProductsClient() {
 
         {filteredProducts.length ? (
           <>
-            <div className="mt-5 hidden overflow-hidden rounded-xl border border-teal-100 lg:block">
+            <div className="mt-5 hidden overflow-hidden rounded-lg border border-teal-100 lg:block">
               <table className="w-full border-collapse text-left">
                 <thead className="bg-[#f7fbfa] text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
                   <tr>
@@ -252,7 +245,7 @@ export function AdminProductsClient() {
                       <td className="px-5 py-5">
                         <span
                           className={cn(
-                            "inline-flex rounded-full px-3 py-1 text-xs font-semibold",
+                            "inline-flex rounded-lg px-3 py-1 text-xs font-semibold",
                             product.status === "active"
                               ? "bg-teal-50 text-teal-800"
                               : product.status === "draft"
@@ -279,7 +272,7 @@ export function AdminProductsClient() {
               {filteredProducts.map((product) => (
                 <article
                   key={product.id}
-                  className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+                  className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -289,11 +282,11 @@ export function AdminProductsClient() {
                     <ProductActions product={product} onDelete={setDeleteTarget} />
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl bg-slate-50 p-3 text-sm">
+                    <div className="rounded-lg bg-slate-50 p-3 text-sm">
                       <p className="text-slate-500">Category</p>
                       <p className="mt-1 font-semibold text-slate-900">{categoryName(product.categoryId)}</p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 p-3 text-sm">
+                    <div className="rounded-lg bg-slate-50 p-3 text-sm">
                       <p className="text-slate-500">Price</p>
                       <p className="mt-1 font-semibold text-slate-900">{formatCurrencyUsd(product.priceUsd)}</p>
                     </div>
@@ -303,7 +296,7 @@ export function AdminProductsClient() {
             </div>
           </>
         ) : (
-          <div className="mt-5 rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
+          <div className="mt-5 rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
             <Archive className="mx-auto text-teal-700" size={34} />
             <h2 className="mt-4 text-xl font-semibold text-primary">No products found</h2>
             <p className="mt-2 text-sm text-slate-600">

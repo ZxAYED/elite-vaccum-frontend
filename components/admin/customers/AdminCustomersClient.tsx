@@ -6,7 +6,6 @@ import {
   Eye,
   Mail,
   Phone,
-  Search,
   UserRound,
   XCircle,
 } from "lucide-react";
@@ -19,8 +18,8 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import {
   Select,
   SelectContent,
@@ -192,24 +191,18 @@ export function AdminCustomersClient() {
 
       <AdminSurface className="space-y-4">
         <div className="grid gap-3 xl:grid-cols-[1fr_24rem_18rem]">
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-              size={18}
-            />
-            <Input
-              className="pl-11"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by name, email, phone, or address..."
-              value={query}
-            />
-          </div>
+          <AdminSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search by name, email, phone, or address..."
+            ariaLabel="Search customers"
+          />
 
-          <div className="grid grid-cols-4 gap-2 rounded-xl bg-slate-50 p-1">
+          <div className="grid grid-cols-4 gap-2 rounded-lg bg-slate-50 p-1">
             {statusOptions.map((option) => (
               <button
                 className={cn(
-                  "h-10 rounded-xl text-sm font-semibold transition",
+                  "h-10 rounded-lg text-sm font-semibold transition",
                   statusFilter === option.value
                     ? "bg-primary text-white"
                     : "text-slate-600 hover:bg-white hover:text-primary",
@@ -241,12 +234,12 @@ export function AdminCustomersClient() {
         </div>
 
         {filteredCustomers.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center text-sm text-slate-600">
+          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center text-sm text-slate-600">
             No customers match the current search and filter.
           </div>
         ) : (
           <>
-            <div className="hidden overflow-hidden rounded-xl border border-teal-100 xl:block">
+            <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">
               <table className="w-full border-collapse text-left">
                 <thead className="bg-[#f7fbfa] text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
                   <tr>
@@ -270,7 +263,7 @@ export function AdminCustomersClient() {
                       <tr key={customer.id}>
                         <td className="px-5 py-5">
                           <div className="flex items-center gap-3">
-                            <span className="flex size-11 items-center justify-center rounded-full bg-teal-50 text-teal-800">
+                            <span className="flex size-11 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
                               <UserRound size={18} />
                             </span>
                             <div>
@@ -348,7 +341,7 @@ export function AdminCustomersClient() {
 
                 return (
                   <article
-                    className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+                    className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
                     key={customer.id}
                   >
                     <div className="flex items-start justify-between gap-3">
@@ -369,13 +362,13 @@ export function AdminCustomersClient() {
                     </div>
 
                     <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl bg-slate-50 p-3">
+                      <div className="rounded-lg bg-slate-50 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                           Contact
                         </p>
                         <p className="mt-1 font-semibold text-teal-950">{customer.phone}</p>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-3">
+                      <div className="rounded-lg bg-slate-50 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                           Last Activity
                         </p>
@@ -383,7 +376,7 @@ export function AdminCustomersClient() {
                           {formatLongDate(lastActivity)}
                         </p>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-3 sm:col-span-2">
+                      <div className="rounded-lg bg-slate-50 p-3 sm:col-span-2">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                           Primary Address
                         </p>
@@ -393,13 +386,13 @@ export function AdminCustomersClient() {
                             : "No primary address"}
                         </p>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-3">
+                      <div className="rounded-lg bg-slate-50 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                           Service Orders
                         </p>
                         <p className="mt-1 font-semibold text-teal-950">{orderCounts.service}</p>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-3">
+                      <div className="rounded-lg bg-slate-50 p-3">
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                           Product Orders
                         </p>

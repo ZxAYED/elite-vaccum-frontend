@@ -5,7 +5,6 @@ import {
   Eye,
   EyeOff,
   MessageSquareText,
-  Search,
   ShieldCheck,
   Star,
   Trash2,
@@ -19,6 +18,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
@@ -30,7 +30,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import { Input } from "@/components/ui/Input";
 import {
   Select,
   SelectContent,
@@ -199,15 +198,12 @@ export default function AdminReviewsPage() {
 
       <AdminSurface className="space-y-4">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_12rem_12rem_12rem_12rem]">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              className="pl-11"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search customer, item, order ID, or review text..."
-            />
-          </div>
+          <AdminSearchInput
+            value={query}
+            onChange={setQuery}
+            placeholder="Search customer, item, order ID, or review text..."
+            ariaLabel="Search reviews"
+          />
 
           <Select value={typeFilter} onValueChange={(value) => setTypeFilter(value as TypeFilter)}>
             <SelectTrigger className="h-12">
@@ -266,12 +262,12 @@ export default function AdminReviewsPage() {
         </div>
 
         {!reviews.length ? (
-          <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-5 py-12 text-center text-slate-600">
+          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-5 py-12 text-center text-slate-600">
             No reviews yet.
           </div>
         ) : filteredReviews.length ? (
           <>
-            <div className="hidden overflow-hidden rounded-xl border border-teal-100 lg:block">
+            <div className="hidden overflow-hidden rounded-lg border border-teal-100 lg:block">
               <div className="grid grid-cols-[1fr_0.8fr_1fr_0.9fr_0.7fr_1.3fr_0.8fr_0.9fr] bg-teal-50/60 px-4 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                 <span>Review ID</span>
                 <span>Type</span>
@@ -316,7 +312,7 @@ export default function AdminReviewsPage() {
                       <button
                         type="button"
                         onClick={() => setSelectedReview(review)}
-                        className="flex w-fit items-center gap-1 rounded-lg transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                        className="flex w-fit items-center gap-1 rounded-md transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-teal-200"
                         aria-label={`Open review ${review.id} rated ${review.rating} out of 5`}
                       >
                         {ratingStars(review.rating)}
@@ -332,7 +328,7 @@ export default function AdminReviewsPage() {
                       <Button
                         size="icon"
                         variant="outline"
-                        className="size-9 rounded-xl"
+                        className="size-9 rounded-lg"
                         onClick={() => setSelectedReview(review)}
                         aria-label={`View review ${review.id}`}
                         title="View review"
@@ -342,7 +338,7 @@ export default function AdminReviewsPage() {
                       {review.status !== "PUBLISHED" ? (
                         <Button
                           size="icon"
-                          className="size-9 rounded-xl"
+                          className="size-9 rounded-lg"
                           onClick={() => moderate(review.id, "PUBLISHED")}
                           aria-label={`Publish review ${review.id}`}
                           title="Publish review"
@@ -354,7 +350,7 @@ export default function AdminReviewsPage() {
                         <Button
                           size="icon"
                           variant="outline"
-                          className="size-9 rounded-xl"
+                          className="size-9 rounded-lg"
                           onClick={() => moderate(review.id, "HIDDEN")}
                           aria-label={`Hide review ${review.id}`}
                           title="Hide review"
@@ -365,7 +361,7 @@ export default function AdminReviewsPage() {
                       <Button
                         size="icon"
                         variant="destructive"
-                        className="size-9 rounded-xl"
+                        className="size-9 rounded-lg"
                         onClick={() => setDeleteTarget(review)}
                         aria-label={`Delete review ${review.id}`}
                         title="Delete review"
@@ -382,7 +378,7 @@ export default function AdminReviewsPage() {
               {filteredReviews.map((review) => (
                 <div
                   key={review.id}
-                  className="rounded-xl border border-teal-100 bg-white p-4 shadow-[0_18px_40px_-36px_rgba(28,79,80,0.34)]"
+                  className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_18px_40px_-36px_rgba(28,79,80,0.34)]"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <TypeBadge type={review.type} />
@@ -403,7 +399,7 @@ export default function AdminReviewsPage() {
                     <button
                       type="button"
                       onClick={() => setSelectedReview(review)}
-                      className="flex w-fit items-center gap-1 rounded-lg transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-teal-200"
+                      className="flex w-fit items-center gap-1 rounded-md transition hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-teal-200"
                       aria-label={`Open review ${review.id} rated ${review.rating} out of 5`}
                     >
                       {ratingStars(review.rating)}
@@ -437,7 +433,7 @@ export default function AdminReviewsPage() {
             </div>
           </>
         ) : (
-          <div className="rounded-xl border border-dashed border-teal-200 bg-white px-5 py-12 text-center text-slate-600">
+          <div className="rounded-lg border border-dashed border-teal-200 bg-white px-5 py-12 text-center text-slate-600">
             No reviews match your filters.
           </div>
         )}
@@ -463,7 +459,7 @@ export default function AdminReviewsPage() {
 
               <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-teal-100 bg-white p-4">
+                  <div className="rounded-lg border border-teal-100 bg-white p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                       Customer
                     </p>
@@ -477,7 +473,7 @@ export default function AdminReviewsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-teal-100 bg-white p-4">
+                  <div className="rounded-lg border border-teal-100 bg-white p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                       Review
                     </p>
@@ -492,7 +488,7 @@ export default function AdminReviewsPage() {
                     </p>
                   </div>
 
-                  <div className="rounded-xl border border-teal-100 bg-white p-4">
+                  <div className="rounded-lg border border-teal-100 bg-white p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                       Moderation History
                     </p>
@@ -515,7 +511,7 @@ export default function AdminReviewsPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="rounded-xl border border-teal-100 bg-white p-4">
+                  <div className="rounded-lg border border-teal-100 bg-white p-4">
                     <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
                       Related Details
                     </p>
@@ -550,7 +546,7 @@ export default function AdminReviewsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-4">
+                  <div className="rounded-lg border border-teal-100 bg-teal-50/60 p-4">
                     <p className="inline-flex items-center gap-2 text-sm font-semibold text-primary">
                       <ShieldCheck size={16} />
                       Moderation Actions
