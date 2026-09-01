@@ -16,6 +16,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 const navItems = [
   { label: "Overview", href: "/user", icon: StretchHorizontal },
@@ -53,15 +54,15 @@ export default function UserDashboardSidebar({
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
+        } lg:translate-x-0 border-r border-slate-100 shadow-sm`}
       >
-        <div className="flex items-center justify-between h-12 px-6 py-8">
+        <div className="flex items-center justify-between h-14 px-6 py-8">
           <Link href="/">
             <Image
               src="/logo_dashboard.png"
               alt="Elite Logo"
-              width={80}
-              height={12}
+              width={88}
+              height={14}
             />
           </Link>
 
@@ -70,7 +71,7 @@ export default function UserDashboardSidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1.5 px-3 py-4">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -78,25 +79,31 @@ export default function UserDashboardSidebar({
             const Icon = item.icon;
 
             return (
-              <Link
+              <motion.div
                 key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center gap-3 rounded-sm px-3 py-3.5 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-[#E8EDEE] text-[#2B3440] border-l-3 border-[#1C4F50]"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 450, damping: 25 }}
               >
-                <Icon size={18} />
-                {item.label}
-              </Link>
+                <Link
+                  href={item.href}
+                  onClick={onClose}
+                  className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-medium transition ${
+                    isActive
+                      ? "bg-[#E8EDEE] text-[#1C4F50] font-semibold border-l-4 border-[#1C4F50]"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon size={20} className={isActive ? "text-[#1C4F50]" : "text-slate-500"} />
+                  {item.label}
+                </Link>
+              </motion.div>
             );
           })}
         </nav>
 
-        <div className="p-4">
-          <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+        <div className="p-4 border-t border-slate-100">
+          <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
             <Image
               src="/nav_profile.jpg"
               alt="User"
@@ -104,22 +111,25 @@ export default function UserDashboardSidebar({
               height={40}
               className="rounded-full object-cover"
             />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-gray-900">John Doe</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-gray-900 truncate">John Doe</p>
               <p className="text-xs text-gray-500">Customer Portal</p>
             </div>
-            <Shield className="text-teal-700" size={18} />
+            <Shield className="text-teal-700 shrink-0" size={18} />
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ x: 3, scale: 1.01 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
             type="button"
             aria-disabled="true"
             title="Frontend-only demo. Backend sign-out is not connected yet."
-            className="mt-3 flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-red-600 opacity-70"
+            className="mt-3 flex w-full cursor-not-allowed items-center gap-3 rounded-xl bg-red-50/70 px-3.5 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors"
           >
-            <LogOut size={18} />
+            <LogOut size={19} className="text-red-500" />
             Logout
-          </button>
+          </motion.button>
         </div>
       </aside>
     </>

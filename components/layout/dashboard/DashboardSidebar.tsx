@@ -21,6 +21,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { motion } from "framer-motion";
 import styles from "./dashboardLayout.module.css";
 
 type AdminNavItem = {
@@ -112,7 +113,6 @@ export default function DashboardSidebar({
         {/* Logo */}
         <div className={styles.sidebarLogo}>
           <Link href="/">
-            {" "}
             <Image
               src="/logo-white.png"
               alt="Elite Logo"
@@ -151,7 +151,7 @@ export default function DashboardSidebar({
                 const IconComponent = item.icon;
                 const content = (
                   <>
-                    <IconComponent size={17} />
+                    <IconComponent size={18} />
                     <span>{item.label}</span>
                     {item.soon ? (
                       <span className={styles.sidebarSoonBadge}>Soon</span>
@@ -172,18 +172,24 @@ export default function DashboardSidebar({
                 }
 
                 return (
-                  <Link
+                  <motion.div
                     key={item.href}
-                    href={item.href}
-                    className={`${styles.sidebarNavItem} ${
-                      isActive ? styles.sidebarNavItemActive : ""
-                    }`}
-                    onClick={() => {
-                      if (window.innerWidth < 1024) onToggle();
-                    }}
+                    whileHover={{ x: 4 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 450, damping: 25 }}
                   >
-                    {content}
-                  </Link>
+                    <Link
+                      href={item.href}
+                      className={`${styles.sidebarNavItem} ${
+                        isActive ? styles.sidebarNavItemActive : ""
+                      }`}
+                      onClick={() => {
+                        if (window.innerWidth < 1024) onToggle();
+                      }}
+                    >
+                      {content}
+                    </Link>
+                  </motion.div>
                 );
               })}
             </div>
@@ -192,15 +198,18 @@ export default function DashboardSidebar({
 
         {/* Logout */}
         <div className={styles.sidebarLogout}>
-          <button
+          <motion.button
+            whileHover={{ x: 3, scale: 1.01 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
             aria-disabled="true"
             className={styles.sidebarLogoutBtn}
             title="Frontend-only demo. Backend sign-out is not connected yet."
             type="button"
           >
-            <LogOut size={18} />
+            <LogOut size={19} className="text-red-400" />
             <span>Logout</span>
-          </button>
+          </motion.button>
         </div>
       </aside>
     </>

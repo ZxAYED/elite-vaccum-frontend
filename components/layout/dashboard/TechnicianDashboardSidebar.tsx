@@ -14,6 +14,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import { motion } from "framer-motion";
 
 import {
   getCurrentTechnicianProfile,
@@ -52,7 +53,7 @@ export default function TechnicianDashboardSidebar({
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0`}
+        } lg:translate-x-0 border-r border-slate-100 shadow-sm`}
       >
         <div className="flex h-16 items-center justify-between px-6">
           <Link href="/">
@@ -69,7 +70,7 @@ export default function TechnicianDashboardSidebar({
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-4">
+        <nav className="flex-1 space-y-1.5 px-3 py-4">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -77,26 +78,32 @@ export default function TechnicianDashboardSidebar({
             const Icon = item.icon;
 
             return (
-              <Link
+              <motion.div
                 key={item.href}
-                href={item.href}
-                onClick={onClose}
-                className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-teal-50 text-primary ring-1 ring-teal-100"
-                    : "text-slate-600 hover:bg-slate-50"
-                }`}
+                whileHover={{ x: 4 }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: "spring", stiffness: 450, damping: 25 }}
               >
-                <span className="flex items-center gap-3">
-                  <Icon size={18} />
-                  {item.label}
-                </span>
-                {item.href === "/technician/notifications" && unreadCount > 0 ? (
-                  <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">
-                    {unreadCount}
+                <Link
+                  href={item.href}
+                  onClick={onClose}
+                  className={`flex items-center justify-between gap-3 rounded-xl px-3.5 py-3 text-[15px] font-medium transition ${
+                    isActive
+                      ? "bg-teal-50 text-primary font-semibold ring-1 ring-teal-100"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <span className="flex items-center gap-3.5">
+                    <Icon size={20} className={isActive ? "text-teal-700" : "text-slate-500"} />
+                    {item.label}
                   </span>
-                ) : null}
-              </Link>
+                  {item.href === "/technician/notifications" && unreadCount > 0 ? (
+                    <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                      {unreadCount}
+                    </span>
+                  ) : null}
+                </Link>
+              </motion.div>
             );
           })}
         </nav>
@@ -116,18 +123,21 @@ export default function TechnicianDashboardSidebar({
               </p>
               <p className="text-xs text-slate-500">Field Technician</p>
             </div>
-            <Shield className="text-teal-700" size={18} />
+            <Shield className="text-teal-700 shrink-0" size={18} />
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ x: 3, scale: 1.01 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 22 }}
             type="button"
             aria-disabled="true"
             title="Frontend-only demo. Backend sign-out is not connected yet."
-            className="mt-3 flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-rose-600 opacity-70"
+            className="mt-3 flex w-full cursor-not-allowed items-center gap-3 rounded-xl bg-rose-50/70 px-3.5 py-2.5 text-[15px] font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
           >
-            <LogOut size={18} />
+            <LogOut size={19} className="text-rose-500" />
             Logout
-          </button>
+          </motion.button>
         </div>
       </aside>
     </>

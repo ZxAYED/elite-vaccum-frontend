@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import TechnicianDashboardHeader from "./TechnicianDashboardHeader";
 import TechnicianDashboardSidebar from "./TechnicianDashboardSidebar";
+import DashboardPageTransition from "./DashboardPageTransition";
 
 export default function TechnicianDashboardLayout({
   children,
@@ -21,7 +22,9 @@ export default function TechnicianDashboardLayout({
 
       <div className="flex flex-1 flex-col lg:pl-64">
         <TechnicianDashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">
+          <DashboardPageTransition>{children}</DashboardPageTransition>
+        </main>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import DashboardSidebar from "./DashboardSidebar";
 import DashboardHeader from "./DashboardHeader";
+import DashboardPageTransition from "./DashboardPageTransition";
 import styles from "./dashboardLayout.module.css";
 
 interface DashboardLayoutProps {
@@ -19,7 +20,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <DashboardSidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
       <div className={styles.dashboardMain}>
         <DashboardHeader onMenuToggle={toggleSidebar} />
-        <main className={styles.dashboardContent}>{children}</main>
+        <main className={styles.dashboardContent}>
+          <DashboardPageTransition>{children}</DashboardPageTransition>
+        </main>
       </div>
     </div>
   );

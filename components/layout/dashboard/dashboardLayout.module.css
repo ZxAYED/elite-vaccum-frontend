@@ -112,29 +112,28 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 40px;
-  padding: 9px 11px;
+  min-height: 38px;
+  padding: 8px 11px;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.76);
+  color: rgba(255, 255, 255, 0.8);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
   transition:
     background 0.2s,
     color 0.2s,
-    transform 0.2s,
     box-shadow 0.2s;
   white-space: nowrap;
 }
 
 .sidebarNavItem svg {
   flex-shrink: 0;
-  opacity: 0.9;
+  opacity: 0.95;
 }
 
 .sidebarNavItem:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .sidebarNavItemActive {
@@ -181,10 +180,10 @@
   align-items: center;
   gap: 11px;
   width: 100%;
-  min-height: 40px;
-  padding: 9px 11px;
+  min-height: 38px;
+  padding: 8px 11px;
   border-radius: 12px;
-  color: rgba(255, 255, 255, 0.72);
+  color: #fca5a5;
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -196,8 +195,8 @@
 }
 
 .sidebarLogoutBtn:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.09);
+  color: #fee2e2;
+  background: rgba(239, 68, 68, 0.18);
 }
 
 /* ===== Header ===== */

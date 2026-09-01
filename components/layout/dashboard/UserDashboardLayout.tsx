@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import UserDashboardSidebar from "./UserDashboardSidebar";
 import UserDashboardHeader from "./UserDashboardHeader";
+import DashboardPageTransition from "./DashboardPageTransition";
 
 export default function UserDashboardLayout({
   children,
@@ -21,7 +22,9 @@ export default function UserDashboardLayout({
       <div className="flex flex-1 flex-col lg:pl-64">
         <UserDashboardHeader onMenuToggle={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main className="flex-1 p-4 md:p-6">
+          <DashboardPageTransition>{children}</DashboardPageTransition>
+        </main>
       </div>
     </div>
   );
