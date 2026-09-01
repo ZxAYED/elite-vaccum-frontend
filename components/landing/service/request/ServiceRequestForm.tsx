@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Check, CheckCircle2, Info, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/Button";
@@ -32,7 +32,10 @@ import {
   type ServiceRequestFormValues,
 } from "./service-request-schema";
 
-import { useGetAvailableSlotsQuery } from "@/redux/api/servicesApi";
+import {
+  useGetAvailableSlotsQuery,
+  type ScheduleSlot,
+} from "@/redux/api/servicesApi";
 import { useSubmitServiceRequestMutation } from "@/redux/api/serviceRequestsApi";
 import { toast } from "sonner";
 
@@ -50,6 +53,70 @@ const timeWindows = [
   "Afternoon - 2:00 PM to 5:00 PM",
   "Evening - 5:00 PM to 7:00 PM",
 ];
+
+function isWindowBooked(
+  windowLabel: string,
+  slots?: ScheduleSlot[],
+): boolean {
+  if (!slots || !Array.isArray(slots) || slots.length === 0) return false;
+
+  const normalizedWindow = windowLabel.toLowerCase();
+
+  return slots.some((slot) => {
+    const isBookedStatus =
+      slot.isBooked === true || slot.status === "BOOKED";
+    if (!isBookedStatus) return false;
+
+    const slotText = (
+      slot.timeWindow ||
+      `${slot.startTime} - ${slot.endTime}` ||
+      ""
+    ).toLowerCase();
+
+    if (!slotText) return false;
+
+    if (
+      slotText === normalizedWindow ||
+      normalizedWindow.includes(slotText) ||
+      slotText.includes(normalizedWindow)
+    ) {
+      return true;
+    }
+
+    if (
+      normalizedWindow.includes("morning") &&
+      (slotText.includes("morning") ||
+        slotText.includes("8:00") ||
+        slotText.includes("08:00"))
+    ) {
+      return true;
+    }
+    if (
+      normalizedWindow.includes("midday") &&
+      (slotText.includes("midday") || slotText.includes("11:00"))
+    ) {
+      return true;
+    }
+    if (
+      normalizedWindow.includes("afternoon") &&
+      (slotText.includes("afternoon") ||
+        slotText.includes("2:00") ||
+        slotText.includes("14:00"))
+    ) {
+      return true;
+    }
+    if (
+      normalizedWindow.includes("evening") &&
+      (slotText.includes("evening") ||
+        slotText.includes("5:00") ||
+        slotText.includes("17:00"))
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+}
 
 const problemLocations = [
   "Basement",
@@ -131,11 +198,26 @@ export function ServiceRequestForm({
   const [submitServiceRequestMutation] = useSubmitServiceRequestMutation();
 
   const requestedDate = watchedValues.requestedDate;
+  const requestedTime = watchedValues.requestedTime;
   const { data: slotsResponse, isLoading: isLoadingSlots } =
     useGetAvailableSlotsQuery(requestedDate ?? "", {
       skip: !requestedDate,
     });
   const availableSlots = slotsResponse?.slots;
+
+  const setValue = form.setValue;
+  useEffect(() => {
+    if (
+      requestedTime &&
+      availableSlots &&
+      isWindowBooked(requestedTime, availableSlots)
+    ) {
+      setValue("requestedTime", "");
+      toast.error(
+        "The selected time window is booked on this date. Please choose another time.",
+      );
+    }
+  }, [availableSlots, requestedTime, setValue]);
 
   async function onSubmit(values: ServiceRequestFormValues) {
     const localRequest = createSharedServiceRequest({
@@ -424,7 +506,7 @@ export function ServiceRequestForm({
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
-                          disabled={!requestedDate || isLoadingSlots}
+                          disabled={!requestedDate}
                         >
                           <SelectTrigger className="bg-slate-50 shadow-none">
                             <SelectValue
@@ -432,40 +514,41 @@ export function ServiceRequestForm({
                                 !requestedDate
                                   ? "Select a service date first..."
                                   : isLoadingSlots
-                                    ? "Checking available slots..."
+                                    ? "Checking availability..."
                                     : "Select a time window..."
                               }
                             />
                           </SelectTrigger>
                           <SelectContent>
-                            {availableSlots && availableSlots.length > 0 ? (
-                              availableSlots.map((slot) => {
-                                const isBooked =
-                                  slot.isBooked || slot.status === "BOOKED";
-                                return (
-                                  <SelectItem
-                                    key={
-                                      slot.timeWindow ||
-                                      `${slot.startTime}-${slot.endTime}`
-                                    }
-                                    value={slot.timeWindow}
-                                    disabled={isBooked}
-                                  >
-                                    {slot.timeWindow}{" "}
-                                    {isBooked ? "(Booked)" : ""}
-                                  </SelectItem>
-                                );
-                              })
-                            ) : (
-                              timeWindows.map((windowLabel) => (
+                            {timeWindows.map((windowLabel) => {
+                              const isBooked = isWindowBooked(
+                                windowLabel,
+                                availableSlots,
+                              );
+                              return (
                                 <SelectItem
                                   key={windowLabel}
                                   value={windowLabel}
+                                  disabled={isBooked}
                                 >
-                                  {windowLabel}
+                                  <div className="flex w-full items-center justify-between gap-4">
+                                    <span
+                                      className={cn(
+                                        isBooked &&
+                                          "text-slate-400 line-through",
+                                      )}
+                                    >
+                                      {windowLabel}
+                                    </span>
+                                    {isBooked && (
+                                      <span className="rounded bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-600">
+                                        Booked
+                                      </span>
+                                    )}
+                                  </div>
                                 </SelectItem>
-                              ))
-                            )}
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       )}
