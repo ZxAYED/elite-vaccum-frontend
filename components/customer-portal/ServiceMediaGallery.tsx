@@ -1,15 +1,13 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Download,
   Film,
   Image as ImageIcon,
-  Loader2,
   Maximize2,
   Play,
-  Plus,
-  UploadCloud,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -25,9 +23,6 @@ import type { ServiceRequestAttachment } from "@/types/domain";
 
 interface ServiceMediaGalleryProps {
   attachments: ServiceRequestAttachment[];
-  onUploadFiles?: (files: FileList) => Promise<void>;
-  isUploading?: boolean;
-  canUpload?: boolean;
 }
 
 export function resolveMediaUrl(att: { url?: string; fileName?: string }): string {
@@ -88,11 +83,7 @@ export function isImageAttachment(att: {
 
 export function ServiceMediaGallery({
   attachments = [],
-  onUploadFiles,
-  isUploading = false,
-  canUpload = true,
 }: ServiceMediaGalleryProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeMedia, setActiveMedia] = useState<ServiceRequestAttachment | null>(null);
 
   // Filter only images and videos as strictly requested
@@ -102,15 +93,9 @@ export function ServiceMediaGallery({
     );
   }, [attachments]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0 && onUploadFiles) {
-      onUploadFiles(e.target.files);
-    }
-  };
-
   return (
     <div className="space-y-4">
-      {/* Header with count and Upload button */}
+      {/* Header with count */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex size-8 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
@@ -125,56 +110,20 @@ export function ServiceMediaGallery({
             </p>
           </div>
         </div>
-
-        {canUpload && onUploadFiles && (
-          <div>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="h-9 gap-1.5 rounded-full border-teal-200 bg-white text-xs font-semibold text-teal-800 shadow-sm hover:bg-teal-50 hover:text-teal-900"
-            >
-              {isUploading ? (
-                <Loader2 size={14} className="animate-spin text-teal-600" />
-              ) : (
-                <Plus size={14} className="text-teal-600" />
-              )}
-              {isUploading ? "Uploading..." : "Add Media"}
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              multiple
-              className="hidden"
-              onChange={handleFileChange}
-            />
-          </div>
-        )}
       </div>
 
       {/* Media Gallery Grid */}
       {mediaItems.length === 0 ? (
-        <div
-          onClick={() => canUpload && fileInputRef.current?.click()}
-          className="group relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-teal-200/80 bg-teal-50/20 p-8 text-center transition hover:border-teal-400 hover:bg-teal-50/40"
-        >
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-white text-teal-700 shadow-sm border border-teal-100 transition group-hover:scale-110">
-            <UploadCloud size={24} />
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-teal-100 bg-teal-50/20 p-8 text-center">
+          <div className="flex size-11 items-center justify-center rounded-2xl bg-white text-teal-700 shadow-sm border border-teal-100">
+            <Sparkles size={20} />
           </div>
-          <p className="mt-3 text-sm font-bold text-slate-900">
-            No photos or videos attached yet
+          <p className="mt-3 text-sm font-bold text-slate-800">
+            No media attachments for this service
           </p>
           <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-slate-500">
-            Upload photos of your vacuum canister, inlet ports, or video clips of the noise/suction issue for faster diagnostic triage.
+            No photos or video recordings were submitted during the intake for this service request.
           </p>
-          {canUpload && (
-            <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-teal-700 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition group-hover:bg-teal-800">
-              <Plus size={14} />
-              Upload Photos or Videos
-            </span>
-          )}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 md:grid-cols-3">

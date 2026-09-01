@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ArrowLeft,
   CalendarDays,
@@ -27,7 +27,6 @@ import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import {
   useGetServiceRequestByIdQuery,
-  useAppendServiceRequestAttachmentsMutation,
 } from "@/redux/api/serviceRequestsApi";
 import { useGetMyQuotationsQuery, useGetQuotationByIdQuery } from "@/redux/api/quotationsApi";
 import { useGetMyServiceOrdersQuery } from "@/redux/api/serviceOrdersApi";
@@ -46,15 +45,12 @@ import {
   formatMonthDay,
   formatShortDateTime,
 } from "@/lib/formatters";
-import { toast } from "sonner";
 import type { QuoteStatus, ServiceRequest } from "@/types/domain";
 
 export default function ServiceRequestDetailPage() {
   useSharedBusinessStoreVersion();
   const params = useParams<{ requestId: string }>();
   const requestId = params.requestId;
-
-  const [isUploading, setIsUploading] = useState(false);
 
   // 1. Live RTK Queries
   const { data: apiRequest, isLoading: isLoadingRequest } =
@@ -70,8 +66,6 @@ export default function ServiceRequestDetailPage() {
   });
 
   const { data: myOrdersResponse } = useGetMyServiceOrdersQuery();
-
-  const [appendAttachmentsMutation] = useAppendServiceRequestAttachmentsMutation();
 
   // 2. Mock Fallbacks
   const mockRequest = useMemo(
@@ -119,34 +113,6 @@ export default function ServiceRequestDetailPage() {
     }
     return mockOrder;
   }, [myOrdersResponse, requestId, mockOrder]);
-
-  // Handle File Upload for Photos and Videos
-  const handleUploadFiles = async (files: FileList) => {
-    const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append("attachments", files[i]);
-    }
-
-    try {
-      setIsUploading(true);
-      await appendAttachmentsMutation({ id: requestId, formData }).unwrap();
-      toast.success("Photos/videos uploaded successfully", {
-        description: "Your files have been attached to this service request.",
-      });
-    } catch (err: unknown) {
-      const errorMessage =
-        err &&
-        typeof err === "object" &&
-        "data" in err &&
-        err.data &&
-        typeof (err.data as Record<string, unknown>).message === "string"
-          ? String((err.data as Record<string, unknown>).message)
-          : "Failed to upload attachments. Please ensure files are images or videos.";
-      toast.error(errorMessage);
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const isLoading = isLoadingRequest && !mockRequest;
 
@@ -420,13 +386,10 @@ export default function ServiceRequestDetailPage() {
             )}
           </section>
 
-          {/* MEDIA & ATTACHMENTS (Images & Videos Gallery with Lightbox) */}
+          {/* MEDIA & ATTACHMENTS (Images & Videos Gallery with Lightbox - View Only) */}
           <section className="rounded-3xl border border-teal-100/90 bg-white p-6 shadow-[0_12px_36px_-24px_rgba(28,79,80,0.15)]">
             <ServiceMediaGallery
               attachments={request.attachments || []}
-              onUploadFiles={handleUploadFiles}
-              isUploading={isUploading}
-              canUpload={true}
             />
           </section>
 

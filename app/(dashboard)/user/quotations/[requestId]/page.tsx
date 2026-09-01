@@ -384,12 +384,11 @@ export default function QuotationDetailPage() {
             ) : null}
           </section>
 
-          {/* Related Media Gallery from Request */}
+          {/* Related Media Gallery from Request (View Only) */}
           {request?.attachments && request.attachments.length > 0 && (
             <section className="rounded-3xl border border-teal-100/90 bg-white p-6 shadow-[0_12px_36px_-24px_rgba(28,79,80,0.15)]">
               <ServiceMediaGallery
                 attachments={request.attachments}
-                canUpload={false}
               />
             </section>
           )}
