@@ -7,11 +7,9 @@ import {
   Clock,
   CreditCard,
   FileText,
-  Globe2,
   Laptop,
   LogOut,
   Package,
-  Save,
   ShieldAlert,
   ShieldCheck,
   Trash2,
@@ -30,13 +28,6 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/Select";
 import { Switch } from "@/components/ui/Switch";
 
 interface NotificationSetting {
@@ -99,10 +90,6 @@ const defaultNotifications: NotificationSetting[] = [
 
 export default function UserSettingsPage() {
   const [notifications, setNotifications] = useState<NotificationSetting[]>(defaultNotifications);
-  const [language, setLanguage] = useState("en-US");
-  const [timezone, setTimezone] = useState("America/New_York");
-  const [preferredContact, setPreferredContact] = useState("email");
-  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
 
   // Dialog States
   const [logoutModalOpen, setLogoutModalOpen] = useState(false);
@@ -128,16 +115,6 @@ export default function UserSettingsPage() {
     toast.success("SMS preference updated", {
       description: `${target?.label}: ${enabled ? "Enabled" : "Disabled"}`,
     });
-  };
-
-  const handleSavePreferences = () => {
-    setIsSavingPreferences(true);
-    setTimeout(() => {
-      setIsSavingPreferences(false);
-      toast.success("Preferences saved successfully", {
-        description: "Your regional and communication settings are up to date.",
-      });
-    }, 400);
   };
 
   const handleLogoutAllDevices = () => {
@@ -167,16 +144,16 @@ export default function UserSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen space-y-8 pb-16 pt-2">
+    <div className="w-full space-y-8 pb-16 pt-2">
       <PageHeader
         title="Settings & Preferences"
         eyebrow="Customer Portal"
-        description="Configure your notifications, regional preferences, and account security controls."
+        description="Configure your notifications and account security controls."
       />
 
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="w-full space-y-8">
         {/* SECTION 1: NOTIFICATIONS */}
-        <section className="rounded-3xl border border-teal-100/90 bg-white p-6 shadow-sm transition-shadow hover:shadow-md md:p-8">
+        <section className="w-full rounded-3xl border border-teal-100/90 bg-white p-6 shadow-sm transition-shadow hover:shadow-md md:p-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-100">
@@ -210,7 +187,7 @@ export default function UserSettingsPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-slate-900">{item.label}</h3>
-                      <p className="mt-0.5 max-w-xl text-sm leading-relaxed text-slate-500">
+                      <p className="mt-0.5 max-w-2xl text-sm leading-relaxed text-slate-500">
                         {item.description}
                       </p>
                     </div>
@@ -245,90 +222,8 @@ export default function UserSettingsPage() {
           </div>
         </section>
 
-        {/* SECTION 2: REGIONAL & PREFERENCES */}
-        <section className="rounded-3xl border border-teal-100/90 bg-white p-6 shadow-sm transition-shadow hover:shadow-md md:p-8">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-100">
-              <Globe2 size={22} />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">Regional & System Preferences</h2>
-              <p className="text-sm text-slate-500">
-                Customize language, local timezone, and contact defaults.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">
-                Portal Language
-              </label>
-              <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger className="h-11 rounded-2xl border-teal-100 bg-slate-50/70 text-sm focus-visible:bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en-US">English (United States)</SelectItem>
-                  <SelectItem value="en-CA">English (Canada)</SelectItem>
-                  <SelectItem value="es-US">Español (Estados Unidos)</SelectItem>
-                  <SelectItem value="fr-CA">Français (Canada)</SelectItem>
-                  <SelectItem value="he-IL">עברית (Hebrew)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">
-                Local Timezone
-              </label>
-              <Select value={timezone} onValueChange={setTimezone}>
-                <SelectTrigger className="h-11 rounded-2xl border-teal-100 bg-slate-50/70 text-sm focus-visible:bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="America/New_York">Eastern Time (ET - New York)</SelectItem>
-                  <SelectItem value="America/Chicago">Central Time (CT - Chicago)</SelectItem>
-                  <SelectItem value="America/Denver">Mountain Time (MT - Denver)</SelectItem>
-                  <SelectItem value="America/Los_Angeles">Pacific Time (PT - Los Angeles)</SelectItem>
-                  <SelectItem value="America/Anchorage">Alaska Time (AKT)</SelectItem>
-                  <SelectItem value="Pacific/Honolulu">Hawaii Time (HST)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <label className="text-sm font-semibold text-slate-700">
-                Primary Contact Preference for Technicians
-              </label>
-              <Select value={preferredContact} onValueChange={setPreferredContact}>
-                <SelectTrigger className="h-11 rounded-2xl border-teal-100 bg-slate-50/70 text-sm focus-visible:bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="email">Email Only</SelectItem>
-                  <SelectItem value="sms">SMS / Text Messages Only</SelectItem>
-                  <SelectItem value="both">Both Email & SMS Alerts</SelectItem>
-                  <SelectItem value="call">Phone Call Before Arrival</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="mt-8 flex justify-end">
-            <Button
-              onClick={handleSavePreferences}
-              disabled={isSavingPreferences}
-              className="gap-2 rounded-2xl px-6"
-            >
-              <Save size={16} />
-              {isSavingPreferences ? "Saving..." : "Save Preferences"}
-            </Button>
-          </div>
-        </section>
-
-        {/* SECTION 3: ACCOUNT & SECURITY */}
-        <section className="rounded-3xl border border-teal-100/90 bg-white p-6 shadow-sm transition-shadow hover:shadow-md md:p-8">
+        {/* SECTION 2: ACCOUNT & SECURITY */}
+        <section className="w-full rounded-3xl border border-teal-100/90 bg-white p-6 shadow-sm transition-shadow hover:shadow-md md:p-8">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-100">
               <ShieldCheck size={22} />
@@ -366,8 +261,8 @@ export default function UserSettingsPage() {
           </div>
         </section>
 
-        {/* SECTION 4: DANGER ZONE */}
-        <section className="rounded-3xl border border-rose-200/80 bg-rose-50/30 p-6 shadow-sm md:p-8">
+        {/* SECTION 3: DANGER ZONE */}
+        <section className="w-full rounded-3xl border border-rose-200/80 bg-rose-50/30 p-6 shadow-sm md:p-8">
           <div className="flex items-center gap-3">
             <div className="flex size-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-800 ring-1 ring-rose-200">
               <ShieldAlert size={22} />
