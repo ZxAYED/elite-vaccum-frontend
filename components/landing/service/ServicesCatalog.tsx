@@ -109,32 +109,46 @@ const processSteps = [
   },
 ];
 
+import { useGetServicesQuery } from "@/redux/api/servicesApi";
+
 export function ServicesCatalog() {
   useSharedBusinessStoreVersion();
+  const { data: apiServices } = useGetServicesQuery();
   const [activeGroup, setActiveGroup] =
     useState<PublicServiceGroup>("Service & Maintenance");
 
-  const visibleServices = useMemo(
-    () => {
-      const sharedServices = getSharedActivePublicServices().filter(
-        (service) => service.group === activeGroup,
-      );
-      const order = serviceOrderByGroup[activeGroup];
-      const fallbackBySlug = new Map(
-        publicServiceOfferings
-          .filter((service) => service.group === activeGroup)
-          .map((service) => [service.slug, service]),
-      );
-      const sharedBySlug = new Map(
-        sharedServices.map((service) => [service.slug, service]),
-      );
+  const visibleServices = useMemo(() => {
+    const rawServices =
+      apiServices && apiServices.length > 0
+        ? apiServices
+        : getSharedActivePublicServices();
 
-      return order
-        .map((slug) => sharedBySlug.get(slug) ?? fallbackBySlug.get(slug))
-        .filter((service): service is NonNullable<typeof service> => Boolean(service));
-    },
-    [activeGroup],
-  );
+    const normalizedGroup =
+      activeGroup === "Service & Maintenance"
+        ? ["Service & Maintenance", "SERVICE_AND_MAINTENANCE"]
+        : ["Installation", "INSTALLATION"];
+
+    const servicesInGroup = rawServices.filter((service) =>
+      normalizedGroup.includes(service.group),
+    );
+
+    if (servicesInGroup.length > 0) {
+      return [...servicesInGroup].sort(
+        (a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999),
+      );
+    }
+
+    const order = serviceOrderByGroup[activeGroup];
+    const fallbackBySlug = new Map(
+      publicServiceOfferings
+        .filter((service) => normalizedGroup.includes(service.group))
+        .map((service) => [service.slug, service]),
+    );
+
+    return order
+      .map((slug) => fallbackBySlug.get(slug))
+      .filter((service): service is NonNullable<typeof service> => Boolean(service));
+  }, [activeGroup, apiServices]);
 
   return (
     <main className="overflow-hidden bg-white">

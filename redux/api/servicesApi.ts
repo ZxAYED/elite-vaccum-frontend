@@ -36,31 +36,74 @@ export interface DispatchBoardDto {
   technicianWorkload: Array<{ technicianId: string; count: number }>;
 }
 
+interface ApiResponse<T> {
+  success?: boolean;
+  message?: string;
+  data?: T;
+}
+
+function unwrapData<T>(response: ApiResponse<T> | T): T {
+  if (
+    response &&
+    typeof response === "object" &&
+    "data" in response &&
+    response.data !== undefined
+  ) {
+    return response.data as T;
+  }
+  return response as T;
+}
+
 export const servicesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getServices: builder.query<ServiceOffering[], void>({
       query: () => "/services",
+      transformResponse: (
+        response: ApiResponse<ServiceOffering[]> | ServiceOffering[]
+      ) => {
+        return unwrapData(response) || [];
+      },
       providesTags: (result) =>
-        result
+        Array.isArray(result)
           ? [
-              ...result.map(({ slug }) => ({ type: "Service" as const, id: slug })),
+              ...result.map(({ slug }) => ({
+                type: "Service" as const,
+                id: slug,
+              })),
               { type: "Service", id: "LIST" },
             ]
           : [{ type: "Service", id: "LIST" }],
     }),
     getServiceBySlug: builder.query<ServiceOffering, string>({
       query: (slug) => `/services/${slug}`,
+      transformResponse: (
+        response: ApiResponse<ServiceOffering> | ServiceOffering
+      ) => {
+        return unwrapData(response);
+      },
       providesTags: (_result, _error, slug) => [{ type: "Service", id: slug }],
     }),
     getAvailableSlots: builder.query<GetSlotsResponse, string>({
       query: (date) => `/schedule/slots?date=${date}`,
-      providesTags: (_result, _error, date) => [{ type: "Schedule", id: date }],
+      transformResponse: (
+        response: ApiResponse<GetSlotsResponse> | GetSlotsResponse
+      ) => {
+        return unwrapData(response);
+      },
+      providesTags: (_result, _error, date) => [
+        { type: "Schedule", id: date },
+      ],
     }),
     getDispatchBoard: builder.query<DispatchBoardDto, GetScheduleBoardParams>({
       query: (params) => ({
         url: "/schedule/board",
         params,
       }),
+      transformResponse: (
+        response: ApiResponse<DispatchBoardDto> | DispatchBoardDto
+      ) => {
+        return unwrapData(response);
+      },
       providesTags: [{ type: "Schedule", id: "BOARD" }],
     }),
     createAppointment: builder.mutation<Appointment, CreateAppointmentRequest>({
@@ -69,33 +112,71 @@ export const servicesApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
+      transformResponse: (
+        response: ApiResponse<Appointment> | Appointment
+      ) => {
+        return unwrapData(response);
+      },
       invalidatesTags: [
         { type: "Schedule", id: "BOARD" },
         { type: "ServiceRequest" },
       ],
     }),
-    updateAppointment: builder.mutation<Appointment, { appointmentId: string; body: Partial<CreateAppointmentRequest> }>({
+    updateAppointment: builder.mutation<
+      Appointment,
+      { appointmentId: string; body: Partial<CreateAppointmentRequest> }
+    >({
       query: ({ appointmentId, body }) => ({
         url: `/schedule/${appointmentId}`,
         method: "PATCH",
         body,
       }),
+      transformResponse: (
+        response: ApiResponse<Appointment> | Appointment
+      ) => {
+        return unwrapData(response);
+      },
       invalidatesTags: [{ type: "Schedule", id: "BOARD" }],
     }),
-    assignTechnicianToAppointment: builder.mutation<Appointment, { appointmentId: string; technicianId: string }>({
+    assignTechnicianToAppointment: builder.mutation<
+      Appointment,
+      { appointmentId: string; technicianId: string }
+    >({
       query: ({ appointmentId, technicianId }) => ({
         url: `/schedule/${appointmentId}/assign`,
         method: "POST",
         body: { technicianId },
       }),
+      transformResponse: (
+        response: ApiResponse<Appointment> | Appointment
+      ) => {
+        return unwrapData(response);
+      },
       invalidatesTags: [{ type: "Schedule", id: "BOARD" }],
     }),
-    cancelAppointment: builder.mutation<{ success: boolean; message: string }, { appointmentId: string; reason?: string }>({
+    cancelAppointment: builder.mutation<
+      { success: boolean; message: string },
+      { appointmentId: string; reason?: string }
+    >({
       query: ({ appointmentId, reason }) => ({
         url: `/schedule/${appointmentId}/cancel`,
         method: "POST",
         body: { reason },
       }),
+      transformResponse: (
+        response:
+          | ApiResponse<{ success: boolean; message: string }>
+          | { success: boolean; message: string }
+      ) => {
+        const data = unwrapData(response);
+        return {
+          success: (data as { success?: boolean })?.success ?? true,
+          message:
+            (data as { message?: string })?.message ||
+            (response as ApiResponse<unknown>)?.message ||
+            "Appointment cancelled successfully.",
+        };
+      },
       invalidatesTags: [{ type: "Schedule", id: "BOARD" }],
     }),
   }),

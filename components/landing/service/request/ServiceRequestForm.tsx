@@ -31,6 +31,8 @@ import {
   type ServiceRequestFormValues,
 } from "./service-request-schema";
 
+import { useGetAvailableSlotsQuery } from "@/redux/api/servicesApi";
+
 interface ServiceRequestFormProps {
   service: ServiceOffering;
   defaultValues: Pick<
@@ -122,6 +124,13 @@ export function ServiceRequestForm({
   const watchedValues = useWatch({ control });
   const media = watchedValues.media ?? [];
   const showOtherLocation = watchedValues.problemLocation === "Other";
+
+  const requestedDate = watchedValues.requestedDate;
+  const { data: slotsResponse, isLoading: isLoadingSlots } =
+    useGetAvailableSlotsQuery(requestedDate ?? "", {
+      skip: !requestedDate,
+    });
+  const availableSlots = slotsResponse?.slots;
 
   async function onSubmit(values: ServiceRequestFormValues) {
     const request = createSharedServiceRequest({
@@ -361,16 +370,48 @@ export function ServiceRequestForm({
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
+                          disabled={!requestedDate || isLoadingSlots}
                         >
                           <SelectTrigger className="bg-slate-50 shadow-none">
-                            <SelectValue placeholder="Select a time window..." />
+                            <SelectValue
+                              placeholder={
+                                !requestedDate
+                                  ? "Select a service date first..."
+                                  : isLoadingSlots
+                                    ? "Checking available slots..."
+                                    : "Select a time window..."
+                              }
+                            />
                           </SelectTrigger>
                           <SelectContent>
-                            {timeWindows.map((windowLabel) => (
-                              <SelectItem key={windowLabel} value={windowLabel}>
-                                {windowLabel}
-                              </SelectItem>
-                            ))}
+                            {availableSlots && availableSlots.length > 0 ? (
+                              availableSlots.map((slot) => {
+                                const isBooked =
+                                  slot.isBooked || slot.status === "BOOKED";
+                                return (
+                                  <SelectItem
+                                    key={
+                                      slot.timeWindow ||
+                                      `${slot.startTime}-${slot.endTime}`
+                                    }
+                                    value={slot.timeWindow}
+                                    disabled={isBooked}
+                                  >
+                                    {slot.timeWindow}{" "}
+                                    {isBooked ? "(Booked)" : ""}
+                                  </SelectItem>
+                                );
+                              })
+                            ) : (
+                              timeWindows.map((windowLabel) => (
+                                <SelectItem
+                                  key={windowLabel}
+                                  value={windowLabel}
+                                >
+                                  {windowLabel}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       )}

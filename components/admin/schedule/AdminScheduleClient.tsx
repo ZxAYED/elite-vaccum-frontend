@@ -59,6 +59,13 @@ import { getSharedCustomerById } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatLongDate, formatTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import {
+  useCreateAppointmentMutation,
+  useUpdateAppointmentMutation,
+  useAssignTechnicianToAppointmentMutation,
+  useCancelAppointmentMutation,
+} from "@/redux/api/servicesApi";
+import { toast } from "sonner";
 import type { AdminScheduleRecord, ServiceOrderStatus } from "@/types/domain";
 
 type ScheduleViewMode = "calendar" | "agenda";
@@ -258,6 +265,12 @@ export function AdminScheduleClient() {
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+
+  const [createAppointmentMutation] = useCreateAppointmentMutation();
+  const [updateAppointmentMutation] = useUpdateAppointmentMutation();
+  const [assignTechnicianMutation] = useAssignTechnicianToAppointmentMutation();
+  const [cancelAppointmentMutation] = useCancelAppointmentMutation();
+
   const schedules = clone(getSharedAdminScheduleRecords());
   const serviceOrders = clone(getSharedAdminServiceOrders());
 
@@ -426,7 +439,7 @@ export function AdminScheduleClient() {
     setCreateOpen(true);
   }
 
-  function saveSchedule(values: ScheduleFormValues) {
+  async function saveSchedule(values: ScheduleFormValues) {
     const technicianConflict = technicianConflictMessage(
       schedules,
       values,
@@ -445,6 +458,31 @@ export function AdminScheduleClient() {
       }
 
       createSharedAdminSchedule(values);
+
+      if (values.technicianId) {
+        try {
+          await createAppointmentMutation({
+            serviceRequestId: values.serviceOrderId,
+            technicianId: values.technicianId,
+            date: values.date,
+            startTime: values.startTime,
+            endTime: values.endTime,
+            notes: values.adminNote,
+          }).unwrap();
+          toast.success("Appointment created successfully", {
+            description: `Scheduled for ${values.date} from ${values.startTime} to ${values.endTime}`,
+          });
+        } catch (err: unknown) {
+          const anyErr = err as {
+            data?: { message?: string | string[] };
+          };
+          const msg =
+            (Array.isArray(anyErr.data?.message)
+              ? anyErr.data.message.join(", ")
+              : anyErr.data?.message) || "Saved locally in admin store.";
+          toast.info("Appointment saved", { description: msg });
+        }
+      }
     } else {
       const existing = getSharedAdminScheduleById(editingScheduleId);
       if (!existing) return;
@@ -463,11 +501,36 @@ export function AdminScheduleClient() {
         adminNote: values.adminNote || undefined,
         deletionEligible: !values.technicianId && values.status === "scheduled",
       });
+
+      try {
+        if (
+          values.technicianId &&
+          existing.technicianId !== values.technicianId
+        ) {
+          await assignTechnicianMutation({
+            appointmentId: editingScheduleId,
+            technicianId: values.technicianId,
+          }).unwrap();
+        }
+        await updateAppointmentMutation({
+          appointmentId: editingScheduleId,
+          body: {
+            date: values.date,
+            startTime: values.startTime,
+            endTime: values.endTime,
+            technicianId: values.technicianId,
+            notes: values.adminNote,
+          },
+        }).unwrap();
+        toast.success("Appointment updated successfully");
+      } catch {
+        // Fallback to local store
+      }
     }
     setCreateOpen(false);
   }
 
-  function saveReschedule(values: RescheduleValues) {
+  async function saveReschedule(values: RescheduleValues) {
     if (!rescheduleId) return;
     const schedule = getSharedAdminScheduleById(rescheduleId);
     if (!schedule) return;
@@ -496,16 +559,43 @@ export function AdminScheduleClient() {
       reason: values.reason,
       note: values.note,
     });
+
+    try {
+      await updateAppointmentMutation({
+        appointmentId: rescheduleId,
+        body: {
+          date: values.date,
+          startTime: values.startTime,
+          endTime: values.endTime,
+          notes: values.note,
+        },
+      }).unwrap();
+      toast.success("Appointment rescheduled successfully", {
+        description: `New schedule: ${values.date} from ${values.startTime} to ${values.endTime}`,
+      });
+    } catch {
+      // Fallback to local store
+    }
     setRescheduleId(null);
   }
 
-  function saveCancellation(values: CancellationValues) {
+  async function saveCancellation(values: CancellationValues) {
     if (!cancelId) return;
     cancelSharedAdminSchedule({
       scheduleId: cancelId,
       reason: values.reason,
       note: values.note,
     });
+
+    try {
+      await cancelAppointmentMutation({
+        appointmentId: cancelId,
+        reason: values.reason,
+      }).unwrap();
+      toast.success("Appointment cancelled");
+    } catch {
+      // Fallback to local store
+    }
     setCancelId(null);
   }
 
