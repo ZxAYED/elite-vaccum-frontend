@@ -4,8 +4,6 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
-  FileImage,
-  FileVideo,
   type LucideIcon,
   MapPin,
   PackageSearch,
@@ -18,6 +16,7 @@ import type { ReactNode } from "react";
 import { use, useMemo, useState } from "react";
 
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
+import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -55,7 +54,6 @@ import { toast } from "sonner";
 import type {
   RejectionHistoryEntry,
   ServiceRequest,
-  ServiceRequestAttachment,
   ServiceRequestStatus,
 } from "@/types/domain";
 
@@ -137,8 +135,6 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
   );
   const [acceptOpen, setAcceptOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [previewAttachment, setPreviewAttachment] =
-    useState<ServiceRequestAttachment | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectError, setRejectError] = useState("");
@@ -382,39 +378,12 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
             </section>
 
             <section className="rounded-xl border border-teal-100 bg-white p-5 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]">
-              <h2 className="text-xl font-semibold text-teal-950">
-                Customer Photos & Videos
-              </h2>
-              {request.attachments.length === 0 ? (
-                <div className="mt-5 rounded-[1.25rem] border border-dashed border-teal-200 bg-teal-50/40 p-8 text-center text-sm text-slate-600">
-                  No customer media was submitted with this request.
-                </div>
-              ) : (
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {request.attachments.map((attachment) => (
-                    <button
-                      className="rounded-[1.25rem] border border-teal-100 bg-slate-50 p-4 text-left transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]"
-                      key={attachment.id}
-                      onClick={() => setPreviewAttachment(attachment)}
-                      type="button"
-                    >
-                    <div className="flex h-32 items-center justify-center rounded-xl bg-white text-teal-800">
-                        {attachment.kind === "video" ? (
-                          <FileVideo size={34} />
-                        ) : (
-                          <FileImage size={34} />
-                        )}
-                      </div>
-                      <p className="mt-4 truncate font-semibold text-teal-950">
-                        {attachment.fileName}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {attachment.kind} · {attachment.fileType}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <MediaGalleryPreview
+                attachments={request.attachments}
+                title="Customer Photos & Videos"
+                emptyMessage="No customer media submitted"
+                emptyDescription="No photos or video recordings were submitted with this request."
+              />
             </section>
           </div>
 
@@ -571,35 +540,6 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
               Reject Request
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={Boolean(previewAttachment)}
-        onOpenChange={() => setPreviewAttachment(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{previewAttachment?.fileName}</DialogTitle>
-            <DialogDescription>
-              Customer-submitted evidence preview metadata.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-6 rounded-xl bg-slate-50 p-8 text-center">
-            {previewAttachment?.kind === "video" ? (
-              <FileVideo className="mx-auto text-teal-800" size={52} />
-            ) : (
-              <FileImage className="mx-auto text-teal-800" size={52} />
-            )}
-            <p className="mt-4 font-semibold text-teal-950">
-              {previewAttachment?.fileType}
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              {previewAttachment
-                ? `${Math.round(previewAttachment.sizeBytes / 1024)} KB`
-                : ""}
-            </p>
-          </div>
         </DialogContent>
       </Dialog>
     </main>

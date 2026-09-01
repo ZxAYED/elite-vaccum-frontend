@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Clock3,
   Edit3,
-  FileVideo,
   MapPin,
   PackagePlus,
   Phone,
@@ -23,6 +22,7 @@ import { z } from "zod";
 
 import { FormField } from "@/components/forms/FormField";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
+import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -822,31 +822,12 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
 
         <div className="space-y-4">
           <AdminSurface>
-            <h2 className="text-xl font-semibold text-slate-950">Customer Submitted Evidence</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Review the original media and supporting evidence provided with the request.
-            </p>
-            <div className="mt-5 space-y-3">
-              {originalCustomerEvidence.length === 0 ? (
-                <EmptyState text="No customer photo or video evidence was submitted." />
-              ) : (
-                originalCustomerEvidence.map((item) => (
-                  <div key={item.id} className="rounded-xl bg-slate-50 p-4">
-                    <div className="flex items-center gap-3">
-                      {item.kind === "video" ? (
-                        <FileVideo size={18} className="text-teal-700" />
-                      ) : (
-                        <Camera size={18} className="text-teal-700" />
-                      )}
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-900">{item.fileName}</p>
-                        <p className="text-sm text-slate-500">{item.fileType}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <MediaGalleryPreview
+              attachments={originalCustomerEvidence}
+              title="Customer Submitted Evidence"
+              emptyMessage="No customer media submitted"
+              emptyDescription="No photos or video recordings were submitted with this request."
+            />
           </AdminSurface>
 
           <AdminSurface>
