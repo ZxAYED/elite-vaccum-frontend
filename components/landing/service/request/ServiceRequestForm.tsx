@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Check, CheckCircle2, Info, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/Button";
@@ -64,52 +64,70 @@ function isWindowBooked(
 
   return slots.some((slot) => {
     const isBookedStatus =
-      slot.isBooked === true || slot.status === "BOOKED";
+      slot.isBooked === true ||
+      (typeof slot.status === "string" &&
+        slot.status.trim().toUpperCase() === "BOOKED");
+
     if (!isBookedStatus) return false;
 
-    const slotText = (
-      slot.timeWindow ||
-      `${slot.startTime} - ${slot.endTime}` ||
-      ""
-    ).toLowerCase();
+    const timeWindowStr = (slot.timeWindow || "").toLowerCase();
+    const startStr = (slot.startTime || "").toLowerCase();
+    const endStr = (slot.endTime || "").toLowerCase();
+    const slotCombined = `${timeWindowStr} ${startStr} ${endStr}`.trim();
 
-    if (!slotText) return false;
+    if (!slotCombined) return false;
 
     if (
-      slotText === normalizedWindow ||
-      normalizedWindow.includes(slotText) ||
-      slotText.includes(normalizedWindow)
+      timeWindowStr &&
+      (timeWindowStr === normalizedWindow ||
+        normalizedWindow.includes(timeWindowStr) ||
+        timeWindowStr.includes(normalizedWindow))
     ) {
       return true;
     }
 
     if (
       normalizedWindow.includes("morning") &&
-      (slotText.includes("morning") ||
-        slotText.includes("8:00") ||
-        slotText.includes("08:00"))
+      (slotCombined.includes("morning") ||
+        slotCombined.includes("8:00") ||
+        slotCombined.includes("08:00") ||
+        slotCombined.includes("9:00") ||
+        slotCombined.includes("09:00") ||
+        slotCombined.includes("10:00"))
     ) {
       return true;
     }
     if (
       normalizedWindow.includes("midday") &&
-      (slotText.includes("midday") || slotText.includes("11:00"))
+      (slotCombined.includes("midday") ||
+        slotCombined.includes("11:00") ||
+        slotCombined.includes("12:00") ||
+        slotCombined.includes("1:00") ||
+        slotCombined.includes("13:00"))
     ) {
       return true;
     }
     if (
       normalizedWindow.includes("afternoon") &&
-      (slotText.includes("afternoon") ||
-        slotText.includes("2:00") ||
-        slotText.includes("14:00"))
+      (slotCombined.includes("afternoon") ||
+        slotCombined.includes("2:00") ||
+        slotCombined.includes("14:00") ||
+        slotCombined.includes("3:00") ||
+        slotCombined.includes("15:00") ||
+        slotCombined.includes("4:00") ||
+        slotCombined.includes("16:00"))
     ) {
       return true;
     }
     if (
       normalizedWindow.includes("evening") &&
-      (slotText.includes("evening") ||
-        slotText.includes("5:00") ||
-        slotText.includes("17:00"))
+      (slotCombined.includes("evening") ||
+        slotCombined.includes("5:00") ||
+        slotCombined.includes("17:00") ||
+        slotCombined.includes("6:00") ||
+        slotCombined.includes("18:00") ||
+        slotCombined.includes("7:00") ||
+        slotCombined.includes("19:00"))
     ) {
       return true;
     }
@@ -215,7 +233,17 @@ export function ServiceRequestForm({
     useGetAvailableSlotsQuery(requestedDate ?? "", {
       skip: !requestedDate,
     });
-  const availableSlots = slotsResponse?.slots;
+  const availableSlots = useMemo(() => {
+    if (!slotsResponse) return undefined;
+    if (Array.isArray(slotsResponse)) return slotsResponse;
+    if (Array.isArray(slotsResponse.slots)) return slotsResponse.slots;
+    const anyResp = slotsResponse as unknown as { data?: { slots?: ScheduleSlot[] } | ScheduleSlot[] };
+    if (anyResp.data) {
+      if (Array.isArray(anyResp.data)) return anyResp.data;
+      if (Array.isArray(anyResp.data.slots)) return anyResp.data.slots;
+    }
+    return undefined;
+  }, [slotsResponse]);
 
   const setValue = form.setValue;
   useEffect(() => {
