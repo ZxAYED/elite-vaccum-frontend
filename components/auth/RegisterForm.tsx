@@ -69,9 +69,15 @@ export function RegisterForm() {
           message: "Verification code sent.",
         };
       } catch (err: unknown) {
-        const errorData = err as { data?: { message?: string } };
+        const anyErr = err as {
+          data?: { message?: string | string[]; error?: string };
+          message?: string;
+        };
         const errorMessage =
-          errorData?.data?.message ||
+          (Array.isArray(anyErr.data?.message)
+            ? anyErr.data.message.join(", ")
+            : anyErr.data?.message) ||
+          anyErr.data?.error ||
           "Unable to register. Please try again with a different email.";
 
         toast.error("Registration failed", {
@@ -109,9 +115,15 @@ export function RegisterForm() {
         router.push("/auth/login");
       }, 1200);
     } catch (err: unknown) {
-      const errorData = err as { data?: { message?: string } };
+      const anyErr = err as {
+        data?: { message?: string | string[]; error?: string };
+        message?: string;
+      };
       const errorMessage =
-        errorData?.data?.message ||
+        (Array.isArray(anyErr.data?.message)
+          ? anyErr.data.message.join(", ")
+          : anyErr.data?.message) ||
+        anyErr.data?.error ||
         "Invalid or expired OTP code. Please try again.";
 
       toast.error("Verification failed", {
@@ -141,9 +153,15 @@ export function RegisterForm() {
         message: response.message || "New verification code sent to your email.",
       });
     } catch (err: unknown) {
-      const errorData = err as { data?: { message?: string } };
+      const anyErr = err as {
+        data?: { message?: string | string[]; error?: string };
+        message?: string;
+      };
       const errorMessage =
-        errorData?.data?.message ||
+        (Array.isArray(anyErr.data?.message)
+          ? anyErr.data.message.join(", ")
+          : anyErr.data?.message) ||
+        anyErr.data?.error ||
         "Failed to resend code. Please try again in a moment.";
 
       toast.error("Resend failed", {

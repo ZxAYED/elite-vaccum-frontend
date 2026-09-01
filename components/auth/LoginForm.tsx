@@ -33,27 +33,49 @@ export function LoginForm() {
     },
     onValidSubmit: async (values) => {
       try {
-        const response = await loginMutation({
+        const rawResponse = await loginMutation({
           email: values.email,
           password: values.password,
         }).unwrap();
 
+        // Support both direct AuthResponse and wrapped { success: true, data: { user, accessToken } }
+        const payload = rawResponse as unknown as Record<string, unknown>;
+        const dataObj =
+          payload && typeof payload.data === "object" && payload.data !== null
+            ? (payload.data as Record<string, unknown>)
+            : payload;
+
+        const user =
+          (dataObj.user as typeof rawResponse.user) ||
+          (payload.user as typeof rawResponse.user);
+        const token =
+          (dataObj.accessToken as string) ||
+          (dataObj.token as string) ||
+          (payload.accessToken as string) ||
+          (payload.token as string);
+
+        if (!user || !token) {
+          throw new Error("Missing user or access token in login response.");
+        }
+
         dispatch(
           setCredentials({
-            user: response.user,
-            token: response.accessToken,
+            user,
+            token,
           })
         );
 
-        const displayName = response.user.firstName
-          ? `${response.user.firstName} ${response.user.lastName || ""}`.trim()
-          : response.user.email;
+        const displayName =
+          user.fullName ||
+          (user.firstName
+            ? `${user.firstName} ${user.lastName || ""}`.trim()
+            : user.email);
 
         toast.success("Signed in successfully!", {
           description: `Welcome back, ${displayName}!`,
         });
 
-        const userRole = String(response.user.role || "").toUpperCase();
+        const userRole = String(user.role || "").toUpperCase();
         if (userRole === "ADMIN") {
           router.push("/admin");
         } else if (userRole === "TECHNICIAN") {
@@ -67,9 +89,15 @@ export function LoginForm() {
           message: "Signed in successfully. Redirecting to dashboard...",
         };
       } catch (err: unknown) {
-        const errorData = err as { data?: { message?: string } };
+        const anyErr = err as {
+          data?: { message?: string | string[]; error?: string };
+          message?: string;
+        };
         const errorMessage =
-          errorData?.data?.message ||
+          (Array.isArray(anyErr.data?.message)
+            ? anyErr.data.message.join(", ")
+            : anyErr.data?.message) ||
+          anyErr.data?.error ||
           "Unable to sign in. Please verify your credentials and try again.";
 
         toast.error("Sign in failed", {

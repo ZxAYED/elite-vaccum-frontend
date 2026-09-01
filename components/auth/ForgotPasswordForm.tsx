@@ -58,9 +58,15 @@ export function ForgotPasswordForm() {
           message: "OTP sent.",
         };
       } catch (err: unknown) {
-        const errorData = err as { data?: { message?: string } };
+        const anyErr = err as {
+          data?: { message?: string | string[]; error?: string };
+          message?: string;
+        };
         const errorMessage =
-          errorData?.data?.message ||
+          (Array.isArray(anyErr.data?.message)
+            ? anyErr.data.message.join(", ")
+            : anyErr.data?.message) ||
+          anyErr.data?.error ||
           "Failed to request password reset. Please verify your email address.";
 
         toast.error("Request failed", {
@@ -101,9 +107,15 @@ export function ForgotPasswordForm() {
         router.push("/auth/login");
       }, 1200);
     } catch (err: unknown) {
-      const errorData = err as { data?: { message?: string } };
+      const anyErr = err as {
+        data?: { message?: string | string[]; error?: string };
+        message?: string;
+      };
       const errorMessage =
-        errorData?.data?.message ||
+        (Array.isArray(anyErr.data?.message)
+          ? anyErr.data.message.join(", ")
+          : anyErr.data?.message) ||
+        anyErr.data?.error ||
         "Failed to reset password. Please check your OTP code.";
 
       toast.error("Password reset failed", {
