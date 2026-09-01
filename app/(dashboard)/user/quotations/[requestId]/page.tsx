@@ -192,19 +192,22 @@ export default function QuotationDetailPage() {
       ? `${formatMonthDay(request.preferredDate)}${request.preferredTime ? ` at ${request.preferredTime}` : ""}`
       : "Pending scheduling");
 
-  const streetAddress =
-    request?.serviceAddress?.line1 || reqAny?.address || "Address on file";
+  const rawTitle = service?.name ?? request?.title ?? "Central Vacuum Quotation";
+  const cleanTitle = rawTitle.includes(" - ") ? rawTitle.split(" - ")[0].trim() : rawTitle;
 
-  const cityVal = request?.serviceAddress?.city || reqAny?.city || "";
-  const stateVal = request?.serviceAddress?.state || reqAny?.state || "";
-  const zipVal = request?.serviceAddress?.postalCode || reqAny?.zipCode || "";
-  const cityStateZip = [cityVal, stateVal, zipVal].filter(Boolean).join(", ");
+  const line1 = request?.serviceAddress?.line1 || reqAny?.address || "";
+  const city = request?.serviceAddress?.city || reqAny?.city || "";
+  const state = request?.serviceAddress?.state || reqAny?.state || "";
+  const zip = request?.serviceAddress?.postalCode || reqAny?.zipCode || "";
+  const cityStateZip = [city, state, zip].filter(Boolean).join(", ");
+  const displayStreet = line1 || cityStateZip || "Address on file";
+  const displayRegion = line1 && cityStateZip ? cityStateZip : "";
 
   return (
     <div className="min-h-screen">
       <PageHeader
         eyebrow={`Quotation ID: ${quote.id}`}
-        title={service?.name ?? request?.title ?? "Central Vacuum Quotation"}
+        title={cleanTitle}
         description="This official quotation was generated following remote intake review and remains linked to your service ticket."
         actions={
           <div className="flex flex-wrap gap-2.5">
@@ -266,11 +269,11 @@ export default function QuotationDetailPage() {
                   Service Property Address
                 </div>
                 <p className="mt-2.5 text-sm font-medium leading-relaxed text-slate-800">
-                  {streetAddress}
-                  {cityStateZip && (
+                  {displayStreet}
+                  {displayRegion && (
                     <>
                       <br />
-                      <span className="text-slate-600">{cityStateZip}</span>
+                      <span className="text-slate-600">{displayRegion}</span>
                     </>
                   )}
                 </p>

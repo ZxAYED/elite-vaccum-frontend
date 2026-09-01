@@ -5,29 +5,27 @@ import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import {
   ArrowLeft,
-  CalendarDays,
+  Calendar,
   CheckCircle2,
-  Clock3,
-  FileCheck2,
+  Clock,
+  Cpu,
   FileText,
   HelpCircle,
   Loader2,
   MapPin,
+  MessageSquare,
   Phone,
-  ShieldCheck,
   Sparkles,
   Star,
+  Tag,
   Wrench,
 } from "lucide-react";
 
-import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { QuotationDecisionPanel } from "@/components/customer-portal/QuotationDecisionPanel";
 import { ServiceMediaGallery } from "@/components/customer-portal/ServiceMediaGallery";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
-import {
-  useGetServiceRequestByIdQuery,
-} from "@/redux/api/serviceRequestsApi";
+import { useGetServiceRequestByIdQuery } from "@/redux/api/serviceRequestsApi";
 import { useGetMyQuotationsQuery, useGetQuotationByIdQuery } from "@/redux/api/quotationsApi";
 import { useGetMyServiceOrdersQuery } from "@/redux/api/serviceOrdersApi";
 import {
@@ -60,7 +58,6 @@ export default function ServiceRequestDetailPage() {
 
   const { data: myQuotations } = useGetMyQuotationsQuery();
 
-  // Try direct single quote query as well in case requestId is a quotation ID
   const { data: singleQuote } = useGetQuotationByIdQuery(requestId, {
     skip: !requestId,
   });
@@ -87,7 +84,7 @@ export default function ServiceRequestDetailPage() {
     return mockRequest;
   }, [apiRequest, mockRequest]);
 
-  // Matching Quotation for this specific service request
+  // Matching Quotation
   const quotation = useMemo(() => {
     if (singleQuote) return singleQuote;
     if (myQuotations && myQuotations.length > 0) {
@@ -116,64 +113,55 @@ export default function ServiceRequestDetailPage() {
 
   const isLoading = isLoadingRequest && !mockRequest;
 
-  // 3. Loading Skeleton State
+  // 3. Loading Skeleton
   if (isLoading) {
     return (
-      <div className="min-h-screen">
-        <PageHeader
-          eyebrow="Customer Portal"
-          title="Loading service request..."
-          description="Fetching live diagnostic intake and quotation records from the server."
-          actions={
-            <Button asChild variant="outline" size="pill">
-              <Link href="/user/services">
-                <ArrowLeft size={16} />
-                Back to requests
-              </Link>
-            </Button>
-          }
-        />
-        <div className="flex flex-col items-center justify-center py-28 text-teal-700">
-          <Loader2 size={44} className="animate-spin text-teal-600" />
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-8 sm:px-6">
+        <div className="flex items-center gap-3">
+          <Button asChild variant="outline" size="sm" className="rounded-full">
+            <Link href="/user/services">
+              <ArrowLeft size={15} />
+              Back
+            </Link>
+          </Button>
+          <div className="h-6 w-48 animate-pulse rounded-lg bg-slate-200" />
+        </div>
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white py-24 shadow-sm">
+          <Loader2 size={36} className="animate-spin text-teal-600" />
           <p className="mt-4 text-sm font-semibold text-slate-700">
-            Loading Request #{requestId}...
+            Loading Service Request #{requestId}...
           </p>
         </div>
       </div>
     );
   }
 
-  // 4. Not Found Fallback State (Friendly UI)
+  // 4. Not Found Fallback
   if (!request) {
     return (
-      <div className="min-h-screen">
-        <PageHeader
-          eyebrow="Customer Portal"
-          title="Service Request Not Found"
-          description="We could not locate the requested service intake ticket."
-          actions={
-            <Button asChild variant="outline" size="pill">
-              <Link href="/user/services">
-                <ArrowLeft size={16} />
-                Back to requests
-              </Link>
-            </Button>
-          }
-        />
-        <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/20 p-12 text-center shadow-sm">
-          <Wrench size={40} className="mx-auto text-teal-700 opacity-60" />
+      <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6">
+        <Button asChild variant="outline" size="sm" className="rounded-full">
+          <Link href="/user/services">
+            <ArrowLeft size={15} />
+            Back to Service Requests
+          </Link>
+        </Button>
+        <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-12 text-center shadow-sm">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-teal-100 text-teal-800 shadow-sm">
+            <Wrench size={24} />
+          </div>
           <h2 className="mt-4 text-xl font-bold text-slate-900">
-            Request #{requestId} Not Found
+            Service Request Not Found
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
-            This request might have been moved or is not associated with your logged-in customer account.
+            We couldn’t find record #{requestId}. It may have been archived or belongs to another customer account.
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Button asChild size="pill">
               <Link href="/user/services">View My Requests</Link>
             </Button>
             <Button asChild variant="outline" size="pill">
-              <Link href="/services">Start New Request</Link>
+              <Link href="/services">Book New Service</Link>
             </Button>
           </div>
         </div>
@@ -191,6 +179,7 @@ export default function ServiceRequestDetailPage() {
     createdAt?: string;
     problemDescription?: string;
     symptoms?: string[];
+    serviceName?: string;
   };
 
   const service = getServiceById(request.serviceId);
@@ -198,234 +187,252 @@ export default function ServiceRequestDetailPage() {
     mockDetail?.appointment?.technicianId ?? request.assignedTechnicianId,
   );
 
+  // Clean Service Title (strip any appended address string)
+  const rawTitle = request.title || reqAny.serviceName || service?.name || "Central Vacuum Service";
+  const cleanTitle = rawTitle.includes(" - ") ? rawTitle.split(" - ")[0].trim() : rawTitle;
+
+  // Clean Problem Description
+  const problemDesc =
+    request.description ||
+    reqAny.problemDescription ||
+    "No specific malfunction notes provided.";
+
+  // Clean Schedule formatting
   const requestedSchedule =
     request.requestedSchedule?.label ??
     (request.preferredDate
-      ? `${formatMonthDay(request.preferredDate)}${request.preferredTime ? ` at ${request.preferredTime}` : ""}`
-      : "Pending scheduling");
+      ? `${formatMonthDay(request.preferredDate)}${request.preferredTime ? ` · ${request.preferredTime}` : ""}`
+      : "Pending schedule");
 
   const currentSchedule =
     request.currentSchedule?.label ?? requestedSchedule;
 
-  // Clean Address Formatting (No undefined!)
-  const streetAddress =
-    request.serviceAddress?.line1 || reqAny.address || "Address on file";
+  // Clean Address (no "undefined" or weird placeholders)
+  const line1 = request.serviceAddress?.line1 || reqAny.address || "";
+  const city = request.serviceAddress?.city || reqAny.city || "";
+  const state = request.serviceAddress?.state || reqAny.state || "";
+  const zip = request.serviceAddress?.postalCode || reqAny.zipCode || "";
+  const cityStateZip = [city, state, zip].filter(Boolean).join(", ");
+  const displayStreet = line1 || cityStateZip || "Address on file";
+  const displayRegion = line1 && cityStateZip ? cityStateZip : "";
 
-  const cityVal = request.serviceAddress?.city || reqAny.city || "";
-  const stateVal = request.serviceAddress?.state || reqAny.state || "";
-  const zipVal = request.serviceAddress?.postalCode || reqAny.zipCode || "";
-  const cityStateZip = [cityVal, stateVal, zipVal].filter(Boolean).join(", ");
-
+  // Problem Location
   const problemLoc =
     request.problemLocation ||
     reqAny.problemLocation ||
     reqAny.otherProblemLocation ||
-    "Central Vacuum Unit / Whole House";
+    "Main Inlet Ports / Whole System";
 
   return (
-    <div className="min-h-screen">
-      <PageHeader
-        actions={
-          <div className="flex flex-wrap gap-2.5">
-            <Button asChild variant="outline" size="pill">
-              <Link href="/user/services">
-                <ArrowLeft size={16} />
-                Back to requests
-              </Link>
-            </Button>
-            {quotation && (
-              <Button
-                asChild
-                size="pill"
-                className="bg-amber-600 text-white shadow-sm hover:bg-amber-700"
-              >
-                <a href="#quotation-section">
-                  <FileText size={16} />
-                  Review Quotation
-                </a>
-              </Button>
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
+      {/* Top Header Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200/80 pb-5">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200/60">
+              ID: {request.id}
+            </span>
+            <StatusBadge status={request.status} />
+            {request.urgency && (
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                {request.urgency} Priority
+              </span>
             )}
-            <Button asChild size="pill">
-              <Link href="/user/billing">Related Billing</Link>
-            </Button>
           </div>
-        }
-        description={
-          request.description ||
-          reqAny.problemDescription ||
-          "Central vacuum diagnostic evaluation and service intake ticket."
-        }
-        eyebrow={`Request ID: ${request.id}`}
-        title={request.title || service?.name || "Central Vacuum Service Request"}
-      />
+          <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            {cleanTitle}
+          </h1>
+          <p className="text-xs text-slate-500 font-medium">
+            Submitted: {request.submittedAt || reqAny.createdAt ? formatShortDateTime(request.submittedAt || reqAny.createdAt || "") : "Recent"}
+          </p>
+        </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
-        {/* Left Column: Primary Details, Symptoms, Location, Media & Quotation */}
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button asChild variant="outline" size="sm" className="rounded-full">
+            <Link href="/user/services">
+              <ArrowLeft size={14} className="mr-1.5" />
+              All Requests
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="rounded-full bg-teal-700 text-white hover:bg-teal-800">
+            <Link href="/user/billing">
+              <FileText size={14} className="mr-1.5" />
+              Related Invoices
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Grid: Left Primary Content (65%) | Right Sidebar (35%) */}
+      <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+        {/* Left Column */}
         <div className="space-y-6">
-          {/* Main Info Card */}
-          <section className="rounded-3xl border border-teal-100/90 bg-white p-6 shadow-[0_12px_36px_-24px_rgba(28,79,80,0.15)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <StatusBadge status={request.status} />
-                {request.urgency && (
-                  <StatusBadge label={request.urgency} status={request.urgency} />
-                )}
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                <Clock3 size={14} className="text-teal-600" />
-                Submitted: {request.submittedAt || reqAny.createdAt ? formatShortDateTime(request.submittedAt || reqAny.createdAt || "") : "Recent"}
-              </div>
+          {/* Key Metrics Row */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Requested Time
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-900 leading-snug">
+                {requestedSchedule}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-teal-700">
+                Active Schedule
+              </p>
+              <p className="mt-1 text-sm font-bold text-teal-950 leading-snug">
+                {currentSchedule}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Service Type
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-900 truncate" title={cleanTitle}>
+                {cleanTitle}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                Quotation Status
+              </p>
+              <p className="mt-1 text-sm font-bold text-teal-800">
+                {quotation
+                  ? formatCurrencyUsd(quotation.totalUsd)
+                  : "Under Review"}
+              </p>
+            </div>
+          </div>
+
+          {/* Reported Issue Description Card */}
+          <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-800">
+              <MessageSquare size={16} className="text-teal-600" />
+              Reported Issue & Diagnostics Notes
+            </div>
+            <div className="mt-3 rounded-2xl bg-slate-50 border border-slate-100 p-4">
+              <p className="text-sm font-medium leading-relaxed text-slate-800">
+                {problemDesc}
+              </p>
             </div>
 
-            {/* 4 Metrics Row */}
-            <div className="mt-5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl border border-teal-50 bg-[linear-gradient(180deg,#F0FDFA_0%,#F8FAFC_100%)] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Requested Schedule
-                </p>
-                <p className="mt-1.5 text-sm font-bold text-slate-900">{requestedSchedule}</p>
-              </div>
-              <div className="rounded-2xl border border-teal-50 bg-[linear-gradient(180deg,#F0FDFA_0%,#F8FAFC_100%)] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Active Schedule
-                </p>
-                <p className="mt-1.5 text-sm font-bold text-slate-900">{currentSchedule}</p>
-              </div>
-              <div className="rounded-2xl border border-teal-50 bg-[linear-gradient(180deg,#F0FDFA_0%,#F8FAFC_100%)] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Service Category
-                </p>
-                <p className="mt-1.5 text-sm font-bold text-slate-900">
-                  {service?.name ?? request.title ?? "Maintenance"}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-teal-50 bg-[linear-gradient(180deg,#F0FDFA_0%,#F8FAFC_100%)] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Estimated Total
-                </p>
-                <p className="mt-1.5 text-sm font-bold text-teal-800">
-                  {quotation
-                    ? formatCurrencyUsd(quotation.totalUsd)
-                    : request.estimatedAmountUsd
-                      ? formatCurrencyUsd(request.estimatedAmountUsd)
-                      : "Pending Review"}
-                </p>
-              </div>
-            </div>
-
-            {/* Reported Symptoms */}
+            {/* Reported Symptoms Tags */}
             {reqAny.symptoms && reqAny.symptoms.length > 0 && (
-              <div className="mt-5 rounded-2xl border border-teal-100/70 bg-teal-50/30 p-4">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-teal-800">
-                  Reported Malfunction Symptoms
+              <div className="mt-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Observed Malfunction Symptoms
                 </p>
-                <div className="mt-2.5 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   {reqAny.symptoms.map((symptom: string, idx: number) => (
                     <span
                       key={idx}
-                      className="rounded-full border border-teal-100 bg-white px-3 py-1 text-xs font-semibold text-teal-900 shadow-sm"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-teal-100 bg-teal-50/70 px-3 py-1 text-xs font-semibold text-teal-900"
                     >
+                      <Tag size={12} className="text-teal-600" />
                       {symptom.replace(/_/g, " ")}
                     </span>
                   ))}
                 </div>
               </div>
             )}
+          </section>
 
-            {/* Service Location and Problem Area */}
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-800">
-                  <MapPin size={15} />
+          {/* Service Property & Unit Location Card */}
+          <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
+                  <MapPin size={15} className="text-teal-600" />
                   Service Property Address
                 </div>
-                <p className="mt-2.5 text-sm font-medium leading-relaxed text-slate-800">
-                  {streetAddress}
-                  {cityStateZip && (
-                    <>
-                      <br />
-                      <span className="text-slate-600">{cityStateZip}</span>
-                    </>
-                  )}
+                <p className="mt-2 text-sm font-semibold text-slate-900">
+                  {displayStreet}
                 </p>
+                {displayRegion && (
+                  <p className="text-xs text-slate-500 mt-0.5">{displayRegion}</p>
+                )}
               </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-800">
-                  <Wrench size={15} />
-                  Problem Area / Inlets
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600">
+                  <Wrench size={15} className="text-teal-600" />
+                  Problem Location / Inlets
                 </div>
-                <p className="mt-2.5 text-sm font-medium leading-relaxed text-slate-800">
+                <p className="mt-2 text-sm font-semibold text-slate-900">
                   {problemLoc}
                 </p>
+                <p className="text-xs text-slate-500 mt-0.5">Reported inlet zone</p>
               </div>
             </div>
 
-            {/* Equipment Information if available */}
+            {/* Equipment Specs */}
             {request.equipment && (
-              <div className="mt-5 rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-600 mb-3">
+                  <Cpu size={15} className="text-teal-600" />
                   Vacuum System Equipment Specifications
-                </p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  {[
-                    ["Manufacturer", request.equipment.manufacturer],
-                    ["Model", request.equipment.modelNumber],
-                    ["Serial", request.equipment.serialNumber],
-                    ["Unit Location", request.equipment.unitLocation],
-                  ].map(([label, value]) => (
-                    <div key={label} className="rounded-xl bg-white p-3 border border-slate-100">
-                      <p className="text-[10px] uppercase font-bold text-slate-400">{label}</p>
-                      <p className="mt-1 text-xs font-semibold text-slate-900">
-                        {value || "Not provided"}
-                      </p>
-                    </div>
-                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Manufacturer</span>
+                    <p className="text-xs font-bold text-slate-900 mt-0.5">{request.equipment.manufacturer || "Unknown"}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Model</span>
+                    <p className="text-xs font-bold text-slate-900 mt-0.5">{request.equipment.modelNumber || "N/A"}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Serial</span>
+                    <p className="text-xs font-bold text-slate-900 mt-0.5">{request.equipment.serialNumber || "N/A"}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-2.5 border border-slate-100">
+                    <span className="text-[10px] font-bold uppercase text-slate-400">Unit Location</span>
+                    <p className="text-xs font-bold text-slate-900 mt-0.5">{request.equipment.unitLocation || "Garage / Basement"}</p>
+                  </div>
                 </div>
               </div>
             )}
           </section>
 
-          {/* MEDIA & ATTACHMENTS (Images & Videos Gallery with Lightbox - View Only) */}
-          <section className="rounded-3xl border border-teal-100/90 bg-white p-6 shadow-[0_12px_36px_-24px_rgba(28,79,80,0.15)]">
+          {/* Inspection Photos & Videos Gallery (View Only) */}
+          <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
             <ServiceMediaGallery
               attachments={request.attachments || []}
             />
           </section>
 
-          {/* QUOTATION SECTION (Live Itemized Quote or Dynamic In-Progress UI) */}
+          {/* QUOTATION SECTION (Live Quotation or Polished Diagnostic Stepper) */}
           <div id="quotation-section">
             {quotation ? (
               <section className="rounded-3xl border-2 border-amber-300/80 bg-[linear-gradient(180deg,#FFFDF7_0%,#FEFBF2_100%)] p-6 shadow-sm">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between border-b border-amber-100 pb-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-amber-100 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-800">
+                      <span className="rounded-full bg-amber-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-800">
                         Official Service Quotation
                       </span>
                       <StatusBadge status={quotation.status} />
                     </div>
-                    <h2 className="mt-3 text-3xl font-bold text-slate-900">
+                    <h2 className="mt-2 text-3xl font-extrabold text-slate-900">
                       {formatCurrencyUsd(quotation.totalUsd)}
                     </h2>
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       Quote ID: <span className="font-mono font-bold text-amber-900">{quotation.id}</span>
-                      {quotation.expiresAt && ` · Valid through ${formatLongDate(quotation.expiresAt)}`}
+                      {quotation.expiresAt ? ` · Valid through ${formatLongDate(quotation.expiresAt)}` : ""}
                     </p>
                   </div>
-
-                  <div className="flex shrink-0 gap-2">
-                    <Button asChild variant="outline" size="sm" className="rounded-full border-amber-200 bg-white text-amber-900 hover:bg-amber-50">
-                      <Link href={`/user/quotations/${quotation.id}`}>
-                        <FileText size={14} />
-                        Full Quotation View
-                      </Link>
-                    </Button>
-                  </div>
+                  <Button asChild variant="outline" size="sm" className="rounded-full border-amber-200 bg-white text-amber-900 hover:bg-amber-50">
+                    <Link href={`/user/quotations/${quotation.id}`}>
+                      <FileText size={14} className="mr-1.5" />
+                      Full Quotation View
+                    </Link>
+                  </Button>
                 </div>
 
-                {/* Line Items Table */}
-                <div className="mt-6 space-y-3">
+                {/* Line items */}
+                <div className="mt-5 space-y-2.5">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-600">
                     Itemized Diagnostics, Parts & Labor
                   </p>
@@ -441,50 +448,44 @@ export default function ServiceRequestDetailPage() {
 
                       return (
                         <div
-                          className="flex items-start justify-between gap-4 rounded-2xl border border-amber-100/90 bg-white p-4 shadow-sm"
                           key={String(lineAny.id || idx)}
+                          className="flex items-center justify-between rounded-xl border border-amber-100 bg-white p-3.5 shadow-xs"
                         >
                           <div>
-                            <p className="font-bold text-slate-900 text-sm">{label}</p>
-                            {desc && (
-                              <p className="mt-0.5 text-xs text-slate-500 leading-relaxed">{desc}</p>
-                            )}
+                            <p className="text-sm font-bold text-slate-900">{label}</p>
+                            {desc && <p className="text-xs text-slate-500">{desc}</p>}
                             {lineAny.quantity ? (
-                              <p className="mt-1.5 text-xs font-semibold text-amber-800">
+                              <p className="text-[11px] font-semibold text-amber-800">
                                 Qty: {String(lineAny.quantity)}
-                                {lineAny.unitPriceUsd
-                                  ? ` × ${formatCurrencyUsd(Number(lineAny.unitPriceUsd))}`
-                                  : ""}
+                                {lineAny.unitPriceUsd ? ` × ${formatCurrencyUsd(Number(lineAny.unitPriceUsd))}` : ""}
                               </p>
                             ) : null}
                           </div>
-                          <p className="font-bold text-slate-900 text-base">
+                          <span className="text-sm font-bold text-slate-900">
                             {formatCurrencyUsd(amount)}
-                          </p>
+                          </span>
                         </div>
                       );
                     })
                   ) : (
-                    <div className="rounded-2xl border border-amber-100 bg-white p-4 text-sm text-slate-600">
-                      Standard central vacuum diagnosis and repair service package.
-                    </div>
+                    <p className="text-xs text-slate-500">Standard system diagnostic service.</p>
                   )}
                 </div>
 
-                {/* Totals Breakdown */}
+                {/* Totals */}
                 {(() => {
                   const quoteAny = quotation as unknown as Record<string, unknown>;
                   const discountVal = quoteAny.discountUsd ? Number(quoteAny.discountUsd) : undefined;
                   const taxVal = quoteAny.taxUsd ? Number(quoteAny.taxUsd) : undefined;
 
                   return (
-                    <div className="mt-6 rounded-2xl bg-white p-5 shadow-sm border border-amber-100 space-y-2.5 text-sm">
-                      {quotation.subtotalUsd ? (
-                        <div className="flex justify-between text-slate-600 font-medium">
+                    <div className="mt-5 rounded-2xl bg-white p-4 border border-amber-100 space-y-2 text-xs">
+                      {quotation.subtotalUsd && (
+                        <div className="flex justify-between text-slate-600">
                           <span>Subtotal</span>
-                          <span>{formatCurrencyUsd(quotation.subtotalUsd)}</span>
+                          <span className="font-semibold">{formatCurrencyUsd(quotation.subtotalUsd)}</span>
                         </div>
-                      ) : null}
+                      )}
                       {discountVal ? (
                         <div className="flex justify-between text-emerald-600 font-bold">
                           <span>Promotional Discount</span>
@@ -492,27 +493,27 @@ export default function ServiceRequestDetailPage() {
                         </div>
                       ) : null}
                       {taxVal ? (
-                        <div className="flex justify-between text-slate-600 font-medium">
+                        <div className="flex justify-between text-slate-600">
                           <span>Applicable Tax</span>
-                          <span>{formatCurrencyUsd(taxVal)}</span>
+                          <span className="font-semibold">{formatCurrencyUsd(taxVal)}</span>
                         </div>
                       ) : null}
-                      <div className="border-t border-slate-100 pt-3 flex justify-between text-lg font-bold text-slate-900">
-                        <span>Total Quotation Amount</span>
-                        <span className="text-teal-800 font-extrabold">{formatCurrencyUsd(quotation.totalUsd)}</span>
+                      <div className="border-t border-slate-100 pt-2.5 flex justify-between text-base font-extrabold text-slate-900">
+                        <span>Total Quotation</span>
+                        <span className="text-teal-800">{formatCurrencyUsd(quotation.totalUsd)}</span>
                       </div>
                     </div>
                   );
                 })()}
 
                 {quotation.notes && (
-                  <div className="mt-4 rounded-2xl border border-dashed border-amber-200 bg-amber-50/60 p-4 text-xs leading-relaxed text-amber-950">
-                    <span className="font-bold">Estimator Technical Note:</span> {quotation.notes}
+                  <div className="mt-4 rounded-xl border border-dashed border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-950">
+                    <span className="font-bold">Estimator Note:</span> {quotation.notes}
                   </div>
                 )}
 
-                {/* Quotation Action & Decision Panel */}
-                <div className="mt-6">
+                {/* Decision Panel */}
+                <div className="mt-5">
                   <QuotationDecisionPanel
                     quotationId={quotation.id}
                     requestId={request.id}
@@ -525,134 +526,106 @@ export default function ServiceRequestDetailPage() {
                 </div>
               </section>
             ) : (
-              /* Quotation in Preparation / Empty State */
-              <section className="rounded-3xl border border-teal-100/90 bg-[linear-gradient(180deg,#F0FDFA_0%,#FFFFFF_100%)] p-6 shadow-sm">
+              /* Quotation in Preparation (Clean Diagnostic Stepper) */
+              <section className="rounded-3xl border border-teal-100/90 bg-[linear-gradient(180deg,#F0FDFA_0%,#FFFFFF_100%)] p-6 shadow-xs">
                 <div className="flex items-start gap-3.5">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-teal-100 text-teal-800 shadow-sm">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-teal-100 text-teal-800 shadow-xs">
                     <Sparkles size={20} />
                   </div>
                   <div>
-                    <span className="rounded-full bg-teal-100/80 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-teal-800">
+                    <span className="rounded-full bg-teal-100/80 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-teal-800">
                       Diagnostics In Progress
                     </span>
-                    <h2 className="mt-2 text-xl font-bold text-slate-900">
+                    <h2 className="mt-1.5 text-lg font-bold text-slate-900">
                       Quotation In Preparation
                     </h2>
-                    <p className="mt-1 text-sm text-slate-600 leading-relaxed max-w-xl">
+                    <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-xl">
                       Our certified central vacuum specialists are reviewing your reported symptoms, equipment model details, and media attachments. An itemized quote with confirmed pricing and dispatch time slot options will appear right here.
                     </p>
                   </div>
                 </div>
 
-                {/* Stepper Progress */}
-                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 border-t border-teal-100/80 pt-5">
-                  <div className="rounded-xl bg-white p-3 border border-teal-100/60 shadow-xs">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-teal-800">
-                      <CheckCircle2 size={14} className="text-teal-600" />
-                      1. Submitted
+                {/* Refined Horizontal Step Progress */}
+                <div className="mt-6 border-t border-teal-100/70 pt-5">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="rounded-xl border border-teal-200/70 bg-white p-3 shadow-xs">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-teal-800">
+                        <CheckCircle2 size={14} className="text-teal-600" />
+                        1. Submitted
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-slate-500">Intake received</p>
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-500">Intake received</p>
-                  </div>
-                  <div className="rounded-xl bg-teal-50 p-3 border border-teal-200/80 shadow-xs">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
-                      <Loader2 size={14} className="animate-spin text-teal-700" />
-                      2. Diagnostic Review
+
+                    <div className="rounded-xl border border-teal-300 bg-teal-50 p-3 shadow-xs">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-teal-950">
+                        <Loader2 size={14} className="animate-spin text-teal-700" />
+                        2. Reviewing
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-teal-800">Diagnostic triage</p>
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-600">Technician triage</p>
-                  </div>
-                  <div className="rounded-xl bg-white/70 p-3 border border-slate-100 shadow-xs opacity-75">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                      <FileCheck2 size={14} />
-                      3. Itemized Quote
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 shadow-xs opacity-75">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                        <FileText size={14} />
+                        3. Quote
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-slate-400">Parts & labor estimate</p>
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-400">Parts & labor pricing</p>
-                  </div>
-                  <div className="rounded-xl bg-white/70 p-3 border border-slate-100 shadow-xs opacity-75">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                      <CalendarDays size={14} />
-                      4. Dispatch
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 shadow-xs opacity-75">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                        <Calendar size={14} />
+                        4. Dispatch
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-slate-400">Technician visit</p>
                     </div>
-                    <p className="mt-1 text-[11px] text-slate-400">Technician visit</p>
                   </div>
                 </div>
               </section>
             )}
           </div>
-
-          {/* SERVICE ORDER DISPATCH STATUS (If Provisioned) */}
-          {serviceOrder && (
-            <section className="rounded-3xl border border-teal-200 bg-[linear-gradient(135deg,#134E48_0%,#0D9488_100%)] p-6 text-white shadow-lg">
-              <div className="flex items-center gap-3.5">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-white/10 text-teal-200 backdrop-blur-sm">
-                  <CheckCircle2 size={24} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-teal-200">
-                    Service Order Confirmed & Dispatched
-                  </p>
-                  <h2 className="text-xl font-bold text-white">
-                    Order #{String((serviceOrder as unknown as Record<string, unknown>).id)}
-                  </h2>
-                </div>
-              </div>
-              <p className="mt-3 text-sm text-teal-50/90 leading-relaxed">
-                Your service order has been provisioned and added to the certified technician route. Real-time ETA and status updates will be tracked here.
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Button asChild size="pill" className="bg-white text-teal-950 hover:bg-white/90 font-bold">
-                  <Link href={`/user/schedule`}>View Live Schedule</Link>
-                </Button>
-              </div>
-            </section>
-          )}
         </div>
 
-        {/* Right Sidebar: Timeline, Tech, Support */}
+        {/* Right Column: Timeline, Tech, Support */}
         <div className="space-y-6">
-          {/* Assigned Technician Card */}
+          {/* Assigned Field Tech Card */}
           {technician && (
-            <section className="rounded-3xl border border-teal-100 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-teal-700">
-                    Assigned Field Technician
-                  </p>
-                  <h2 className="mt-1.5 text-xl font-bold text-slate-900">
-                    {technician.displayName}
-                  </h2>
-                </div>
-                <div className="flex size-10 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
-                  <ShieldCheck size={22} />
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-3 text-sm text-slate-700">
+            <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
+              <p className="text-xs font-bold uppercase tracking-wider text-teal-700">
+                Assigned Technician
+              </p>
+              <h3 className="mt-1 text-lg font-bold text-slate-900">
+                {technician.displayName}
+              </h3>
+              <div className="mt-3 space-y-2 text-xs text-slate-700">
                 <div className="flex items-center gap-2 font-medium">
-                  <Phone size={16} className="text-teal-600" />
+                  <Phone size={14} className="text-teal-600" />
                   {technician.phone}
                 </div>
                 <div className="flex items-center gap-2 font-medium">
-                  <Star className="fill-current text-amber-500" size={16} />
-                  {technician.rating} rating across {technician.completedJobs} verified visits
+                  <Star className="fill-current text-amber-500" size={14} />
+                  {technician.rating} rating · {technician.completedJobs} completed jobs
                 </div>
-                <div className="rounded-2xl bg-teal-50/60 p-3 text-xs font-semibold text-teal-900">
-                  Specialties: {technician.specializations.join(" · ")}
+                <div className="rounded-xl bg-teal-50/80 p-2.5 font-semibold text-teal-900">
+                  {technician.specializations.join(" · ")}
                 </div>
               </div>
             </section>
           )}
 
-          {/* Request Timeline */}
-          <section className="rounded-3xl border border-teal-100 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-bold text-slate-900">Request Lifecycle Timeline</h2>
-            <div className="mt-5 space-y-4">
+          {/* Activity Lifecycle Timeline */}
+          <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+              Request Activity Timeline
+            </h3>
+            <div className="mt-4 space-y-4">
               <div className="flex gap-3">
-                <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800">
-                  <Clock3 size={15} />
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-800 mt-0.5">
+                  <CheckCircle2 size={14} />
                 </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm font-bold text-slate-900">Intake Request Submitted</h3>
-                  <p className="text-xs text-slate-500">
+                <div>
+                  <p className="text-xs font-bold text-slate-900">Intake Request Submitted</p>
+                  <p className="text-[11px] text-slate-500">
                     {request.submittedAt || reqAny.createdAt
                       ? formatShortDateTime(request.submittedAt || reqAny.createdAt || "")
                       : "Recently submitted"}
@@ -660,50 +633,58 @@ export default function ServiceRequestDetailPage() {
                 </div>
               </div>
 
-              {quotation && (
+              {quotation ? (
                 <div className="flex gap-3">
-                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
-                    <FileText size={15} />
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800 mt-0.5">
+                    <FileText size={14} />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900">Quotation Ready</h3>
-                    <p className="text-xs text-slate-500">
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Quotation Issued</p>
+                    <p className="text-[11px] text-slate-500">
                       Total: {formatCurrencyUsd(quotation.totalUsd)} ({quotation.status})
                     </p>
                   </div>
                 </div>
-              )}
-
-              {serviceOrder && (
-                <div className="flex gap-3">
-                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800">
-                    <CheckCircle2 size={15} />
+              ) : (
+                <div className="flex gap-3 opacity-60">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400 mt-0.5">
+                    <Clock size={14} />
                   </div>
-                  <div className="min-w-0">
-                    <h3 className="text-sm font-bold text-slate-900">Service Order Dispatched</h3>
-                    <p className="text-xs text-slate-500">Appointment scheduled with certified tech</p>
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Awaiting Quotation</p>
+                    <p className="text-[11px] text-slate-400">Diagnostics in review</p>
                   </div>
                 </div>
               )}
+
+              {serviceOrder ? (
+                <div className="flex gap-3">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 mt-0.5">
+                    <CheckCircle2 size={14} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Service Order Dispatched</p>
+                    <p className="text-[11px] text-slate-500">Appointment locked with technician</p>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
 
-          {/* Customer Support Card */}
-          <section className="rounded-3xl border border-teal-100 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
-                <HelpCircle size={18} />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-slate-900">Customer Support</h2>
-                <p className="text-xs text-slate-500">Need help or changes to this visit?</p>
-              </div>
+          {/* Need Help / Customer Support */}
+          <section className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xs">
+            <div className="flex items-center gap-2">
+              <HelpCircle size={16} className="text-teal-700" />
+              <h3 className="text-sm font-bold text-slate-900">Need Assistance?</h3>
             </div>
-            <div className="mt-5 space-y-2.5">
-              <Button asChild className="w-full" variant="outline" size="pill">
+            <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+              Have questions regarding your service intake ticket or quotation? Our support team is here to assist.
+            </p>
+            <div className="mt-4 space-y-2">
+              <Button asChild className="w-full rounded-full" variant="outline" size="sm">
                 <Link href="/contact">Message Support Team</Link>
               </Button>
-              <Button asChild className="w-full" variant="outline" size="pill">
+              <Button asChild className="w-full rounded-full" variant="outline" size="sm">
                 <Link href="/user/schedule">View Complete Schedule</Link>
               </Button>
             </div>
