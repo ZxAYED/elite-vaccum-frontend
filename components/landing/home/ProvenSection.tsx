@@ -2,9 +2,9 @@ import { FadeIn } from "@/components/motion/Animated";
 
 export default function ProvenSection() {
   return (
-    <section className="bg-[#F8FBFA] py-16 md:py-20">
+    <section className="bg-[#F8FBFA] py-12 md:py-20">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-8 rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-100 bg-white px-6 py-8 md:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)] md:px-8 lg:px-10">
+        <div className="grid items-center gap-6 rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-100 bg-white px-5 py-7 sm:px-6 sm:py-8 md:grid-cols-[minmax(0,1.1fr)_minmax(260px,0.9fr)] md:px-8 lg:gap-8 lg:px-10">
           <FadeIn x={-24} y={0} duration={0.65}>
             <div className="inline-flex rounded-full bg-teal-50 px-5 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
               Our Reach

@@ -97,12 +97,19 @@ export function CartExperience({ initialItems }: CartExperienceProps) {
         </div>
 
         <Pressable className="mt-6 w-full">
-          <Button asChild className="w-full" size="pill">
-            <Link href="/checkout">
+          {items.length > 0 ? (
+            <Button asChild className="w-full" size="pill">
+              <Link href="/checkout">
+                Proceed to checkout
+                <ArrowRight size={16} />
+              </Link>
+            </Button>
+          ) : (
+            <Button className="w-full" size="pill" disabled>
               Proceed to checkout
               <ArrowRight size={16} />
-            </Link>
-          </Button>
+            </Button>
+          )}
         </Pressable>
 
         <Pressable className="mt-3 w-full">

@@ -336,10 +336,15 @@ export default function About() {
               team about your system.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Button className="bg-white text-primary" asChild size="pill">
+              <Button className="bg-white text-primary hover:bg-slate-100" asChild size="pill">
                 <Link href="/services">Request Service</Link>
               </Button>
-              <Button asChild size="pill" variant="outline">
+              <Button
+                asChild
+                size="pill"
+                variant="outline"
+                className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              >
                 <Link href="/contact">Contact Us</Link>
               </Button>
             </div>
@@ -349,4 +354,3 @@ export default function About() {
     </main>
   );
 }
-0;

@@ -25,17 +25,17 @@ export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-white">
       <div className="absolute inset-x-0 top-0 h-px bg-teal-100" />
-      <div className="mx-auto grid max-w-360 items-center gap-12 px-4 pb-16 pt-10 sm:px-6 lg:gap-14 lg:pb-[4.5rem] lg:pt-28 xl:px-8 xl:pb-20 2xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)]">
-        <div className="max-w-2xl">
+      <div className="mx-auto grid max-w-360 items-center gap-8 px-4 pb-12 pt-8 sm:gap-10 sm:px-6 sm:pb-14 sm:pt-10 lg:gap-14 lg:pb-[4.5rem] lg:pt-28 xl:px-8 xl:pb-20 2xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)]">
+        <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
           <FadeIn animateOnLoad duration={0.65} y={24}>
-            <h1 className="mt-2 max-w-[10.2ch] text-[clamp(2.45rem,9.2vw,4.2rem)] font-bold leading-[0.94] tracking-[-0.05em] text-primary sm:max-w-[12ch] 2xl:max-w-none 2xl:text-[4.3rem]">
+            <h1 className="mx-auto mt-2 max-w-[12ch] text-[clamp(2.45rem,9.2vw,4.2rem)] font-bold leading-[0.94] tracking-[-0.05em] text-primary sm:max-w-[12.5ch] lg:mx-0 lg:max-w-[10.8ch] 2xl:max-w-none 2xl:text-[4.3rem]">
               Powerful Central Vacuum{" "}
               <span className="text-hero-gradient">Solutions for</span> Modern
               Homes
             </h1>
           </FadeIn>
           <FadeIn animateOnLoad delay={0.08} duration={0.65} y={24}>
-            <p className="mt-6 max-w-xl text-base leading-8 text-slate-600 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8 lg:mx-0">
               Shop high-performance systems or request expert repair services with
               ease. Experience the invisible infrastructure of a truly clean
               environment.
@@ -43,7 +43,7 @@ export function HeroSection() {
           </FadeIn>
 
           <FadeIn animateOnLoad delay={0.14} duration={0.65} y={24}>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
               <Pressable>
                 <Button asChild size="pill">
                   <Link href="/store">
@@ -60,7 +60,7 @@ export function HeroSection() {
             </div>
           </FadeIn>
 
-          <StaggerGroup className="mt-8 grid auto-rows-fr gap-3 sm:grid-cols-3" delay={0.18} once>
+          <StaggerGroup className="mt-8 grid auto-rows-fr gap-3 text-left sm:grid-cols-3" delay={0.18} once>
             {highlights.map(({ icon: Icon, label }) => (
               <StaggerItem key={label}>
                 <article className="landing-card flex h-full flex-col p-4 backdrop-blur">
@@ -78,7 +78,7 @@ export function HeroSection() {
           animateOnLoad
           delay={0.12}
           duration={0.7}
-          className="relative mx-auto w-full max-w-2xl 2xl:max-w-[34rem]"
+          className="relative mx-auto w-full max-w-xl sm:max-w-2xl 2xl:max-w-[34rem]"
         >
           <div className="absolute inset-x-12 bottom-6 h-16 rounded-full bg-teal-200/50 blur-3xl" />
           <div className="relative overflow-hidden px-4 py-4 sm:px-6 sm:py-6">

@@ -26,7 +26,7 @@ const services = [
 
 export function EngineeredSupportSection() {
   return (
-    <section className="py-14 md:py-18">
+    <section className="py-12 md:py-18">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
         <FadeIn className="mx-auto max-w-2xl text-center" y={24} duration={0.65}>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
@@ -41,14 +41,14 @@ export function EngineeredSupportSection() {
           </p>
         </FadeIn>
 
-        <StaggerGroup className="mt-10 grid auto-rows-fr gap-6 lg:grid-cols-3" delay={0.05} once>
+        <StaggerGroup className="mt-8 grid auto-rows-fr gap-4 sm:mt-10 sm:gap-6 lg:grid-cols-3" delay={0.05} once>
           {services.map(({ title, description, icon: Icon }) => (
             <StaggerItem key={title}>
-              <article className="landing-card flex h-full flex-col p-7">
+              <article className="landing-card flex h-full flex-col p-5 sm:p-6 lg:p-7">
                 <div className="landing-icon-tile flex size-12 items-center justify-center bg-teal-50 text-teal-700">
                   <Icon size={22} />
                 </div>
-                <h3 className="mt-6 min-h-[3.5rem] text-2xl font-semibold text-slate-900">
+                <h3 className="mt-6 text-2xl font-semibold text-slate-900 sm:min-h-[3.5rem]">
                   {title}
                 </h3>
                 <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{description}</p>

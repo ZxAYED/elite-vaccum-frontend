@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, Clock3, MapPin, Phone } from "lucide-react";
+import { CalendarDays, Clock3, MapPin, Phone, Search, X } from "lucide-react";
 
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import {
@@ -8,6 +8,7 @@ import {
 } from "@/components/technician/TechnicianRouteShell";
 import { buildTechnicianAddressLabel } from "@/components/technician/technician-utils";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import {
   getTechnicianCustomerLabel,
   getTechnicianJobCounts,
@@ -30,7 +31,7 @@ const emptyStateByFilter = {
 } as const;
 
 interface TechnicianJobsPageProps {
-  searchParams?: Promise<{ filter?: string }>;
+  searchParams?: Promise<{ filter?: string; q?: string }>;
 }
 
 export default async function TechnicianJobsPage({
@@ -40,7 +41,20 @@ export default async function TechnicianJobsPage({
   const activeFilter = filters.some((item) => item.value === resolved?.filter)
     ? (resolved?.filter as (typeof filters)[number]["value"])
     : "today";
-  const jobs = getTechnicianJobsByFilter(activeFilter);
+  const query = (resolved?.q ?? "").trim().toLowerCase();
+
+  const allJobs = getTechnicianJobsByFilter(activeFilter);
+  const jobs = allJobs.filter((order) => {
+    if (!query) return true;
+    const customerLabel = getTechnicianCustomerLabel(order).toLowerCase();
+    const addressLabel = buildTechnicianAddressLabel(order).toLowerCase();
+    return (
+      order.id.toLowerCase().includes(query) ||
+      order.serviceName.toLowerCase().includes(query) ||
+      customerLabel.includes(query) ||
+      addressLabel.includes(query)
+    );
+  });
   const counts = getTechnicianJobCounts();
 
   return (
@@ -56,17 +70,41 @@ export default async function TechnicianJobsPage({
         <CompactCount label="Completed" value={counts.completed} />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {filters.map((filter) => (
-          <Button
-            asChild
-            key={filter.value}
-            size="sm"
-            variant={filter.value === activeFilter ? "default" : "outline"}
-          >
-            <Link href={`/technician/jobs?filter=${filter.value}`}>{filter.label}</Link>
-          </Button>
-        ))}
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-wrap gap-2">
+          {filters.map((filter) => (
+            <Button
+              asChild
+              key={filter.value}
+              size="sm"
+              variant={filter.value === activeFilter ? "default" : "outline"}
+            >
+              <Link href={`/technician/jobs?filter=${filter.value}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
+                {filter.label}
+              </Link>
+            </Button>
+          ))}
+        </div>
+
+        <form method="GET" action="/technician/jobs" className="relative flex items-center">
+          <input type="hidden" name="filter" value={activeFilter} />
+          <Search size={16} className="pointer-events-none absolute left-4 text-slate-400" />
+          <Input
+            name="q"
+            defaultValue={resolved?.q ?? ""}
+            placeholder="Search jobs by ID, customer name, service, or address..."
+            className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-10 text-sm focus-visible:bg-white"
+          />
+          {query ? (
+            <Link
+              href={`/technician/jobs?filter=${activeFilter}`}
+              aria-label="Clear search"
+              className="absolute right-3 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+            >
+              <X size={14} />
+            </Link>
+          ) : null}
+        </form>
       </div>
 
       <div className="space-y-4">

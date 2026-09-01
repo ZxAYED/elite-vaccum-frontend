@@ -15,14 +15,14 @@ import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
 import {
-  dashboardInvoices,
-  dashboardOrders,
-  dashboardServiceOrders,
+  getDashboardInvoices,
+  getDashboardOrders,
+  getDashboardServiceOrders,
 } from "@/data/mock/customer-dashboard";
 import {
   getCustomerQuotations,
+  getCustomerServiceRequests,
   mockCustomerNotifications,
-  mockCustomerServiceRequests,
 } from "@/data/mock/customer-portal";
 import { mockCurrentUser } from "@/data/mock/user";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
@@ -35,18 +35,23 @@ const cardToneClasses = {
 } as const;
 
 export default function DashboardOverview() {
+  const serviceOrders = getDashboardServiceOrders();
+  const allOrders = getDashboardOrders();
+  const invoices = getDashboardInvoices();
+  const serviceRequests = getCustomerServiceRequests();
+
   const quoteReady = getCustomerQuotations()[0];
-  const upcomingServiceOrder = dashboardServiceOrders.find(
+  const upcomingServiceOrder = serviceOrders.find(
     (order) => order.status !== "completed",
   );
-  const recentProductOrder = dashboardOrders.find(
+  const recentProductOrder = allOrders.find(
     (order) => order.type === "PRODUCT",
   );
-  const recentInvoice = dashboardInvoices[0];
-  const underReview = mockCustomerServiceRequests.find(
+  const recentInvoice = invoices[0];
+  const underReview = serviceRequests.find(
     (request) => request.status === "under-review" || request.status === "submitted",
   );
-  const activeRequests = mockCustomerServiceRequests.filter(
+  const activeRequests = serviceRequests.filter(
     (request) => request.status !== "completed" && request.status !== "rejected",
   );
   const unreadNotifications = mockCustomerNotifications.filter(
@@ -222,7 +227,7 @@ export default function DashboardOverview() {
           </div>
 
           <div className="mt-5 space-y-4">
-            {dashboardOrders.slice(0, 3).map((order) => (
+            {allOrders.slice(0, 3).map((order) => (
               <Link
                 className="flex flex-col gap-3 rounded-2xl bg-slate-50/60 p-4 ring-1 ring-slate-100 transition hover:bg-teal-50 hover:ring-teal-200 sm:flex-row sm:items-center sm:justify-between"
                 href={`/user/orders/${order.id}`}

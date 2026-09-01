@@ -40,7 +40,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section className="bg-white py-16 md:py-20 lg:py-24">
+    <section className="bg-white py-12 md:py-20 lg:py-24">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
         <FadeIn className="text-center" y={24} duration={0.65}>
           <div className="inline-flex rounded-full bg-teal-50 px-5 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
@@ -54,10 +54,10 @@ export default function HowItWorks() {
           </p>
         </FadeIn>
 
-        <StaggerGroup className="mt-12 grid auto-rows-fr gap-6 lg:grid-cols-4" delay={0.05} once>
+        <StaggerGroup className="mt-8 grid auto-rows-fr gap-4 sm:mt-12 sm:gap-6 lg:grid-cols-4" delay={0.05} once>
           {steps.map((step) => (
             <StaggerItem key={step.number}>
-              <article className="landing-card flex h-full flex-col px-6 py-8 text-center">
+              <article className="landing-card flex h-full flex-col px-5 py-7 text-center sm:px-6 sm:py-8">
                 <div className="landing-icon-tile relative mx-auto flex size-16 items-center justify-center border border-teal-100 bg-teal-50 text-teal-700">
                   <div className="absolute left-1/2 top-1 flex h-7 w-7 -translate-x-[-1.35rem] items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
                     {step.number}

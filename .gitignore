@@ -11,10 +11,12 @@
 !.yarn/versions
 
 # Environment files
+.env
+.env.local
 .env.development.local
 .env.test.local
 .env.production.local
-.env
+
 # Testing and coverage
 /coverage
 
@@ -46,4 +48,5 @@ branch_structure.json
 frotned.zip
 *.code-profile
 .codex-temp/
-.env
+.agents/
+skills-lock.json

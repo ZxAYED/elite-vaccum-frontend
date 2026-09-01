@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { MapPinned } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, MapPinned } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FormField } from "@/components/forms/FormField";
@@ -24,10 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
-import type { Address } from "@/types/domain";
+import type { Address, User } from "@/types/domain";
 import type { CartProduct } from "@/data/mock/customer-portal";
 import { calculateCartTotals } from "@/lib/store";
-import type { User } from "@/types/domain";
 
 import { CartItemRow } from "./CartItemRow";
 import { OrderTotals } from "./OrderTotals";
@@ -71,10 +71,13 @@ export function CheckoutExperience({
   user,
   addresses,
 }: CheckoutExperienceProps) {
+  const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [selectedAddressId, setSelectedAddressId] = useState(addresses[0]?.id ?? "");
   const [pendingAddressId, setPendingAddressId] = useState(addresses[0]?.id ?? "");
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [formState, setFormState] = useState<ShippingFormState>(() =>
     createFormState(user, addresses[0]),
   );
@@ -112,8 +115,45 @@ export function CheckoutExperience({
     setAddressDialogOpen(false);
   };
 
+  const validateForm = () => {
+    const nextErrors: Record<string, string> = {};
+    if (!formState.email.trim() || !formState.email.includes("@")) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+    if (!formState.fullName.trim() || formState.fullName.trim().length < 2) {
+      nextErrors.fullName = "Enter your full name.";
+    }
+    if (!formState.phone.trim() || formState.phone.trim().length < 7) {
+      nextErrors.phone = "Enter a valid phone number.";
+    }
+    if (!formState.line1.trim()) {
+      nextErrors.line1 = "Street address is required.";
+    }
+    if (!formState.city.trim()) {
+      nextErrors.city = "City is required.";
+    }
+    if (!formState.state.trim()) {
+      nextErrors.state = "State is required.";
+    }
+    if (!formState.postalCode.trim()) {
+      nextErrors.postalCode = "Zip code is required.";
+    }
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (items.length === 0) return;
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    router.push("/checkout/success");
+  };
+
   return (
-    <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_30rem]">
+    <form onSubmit={handlePlaceOrder} className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_30rem]">
       <FadeIn className="landing-card landing-card-soft p-6 sm:p-8">
         <p className="text-sm text-slate-500">Home &gt; Store &gt; Check out</p>
 
@@ -121,17 +161,20 @@ export function CheckoutExperience({
           <div>
             <h2 className="text-3xl font-semibold text-slate-950">Contact Information</h2>
             <div className="mt-5">
-              <FormField htmlFor="email" label="Email" required>
+              <FormField htmlFor="email" label="Email" required error={errors.email}>
                 <Input
                   id="email"
                   type="email"
                   value={formState.email}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFormState((current) => ({
                       ...current,
                       email: event.target.value,
-                    }))
-                  }
+                    }));
+                    if (errors.email) {
+                      setErrors((prev) => ({ ...prev, email: "" }));
+                    }
+                  }}
                 />
               </FormField>
             </div>
@@ -233,44 +276,47 @@ export function CheckoutExperience({
             ) : null}
 
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <FormField htmlFor="full-name" label="Name" required>
+              <FormField htmlFor="full-name" label="Name" required error={errors.fullName}>
                 <Input
                   id="full-name"
                   value={formState.fullName}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFormState((current) => ({
                       ...current,
                       fullName: event.target.value,
-                    }))
-                  }
+                    }));
+                    if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: "" }));
+                  }}
                 />
               </FormField>
 
-              <FormField htmlFor="phone" label="Phone Number" required>
+              <FormField htmlFor="phone" label="Phone Number" required error={errors.phone}>
                 <Input
                   id="phone"
                   value={formState.phone}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFormState((current) => ({
                       ...current,
                       phone: event.target.value,
-                    }))
-                  }
+                    }));
+                    if (errors.phone) setErrors((prev) => ({ ...prev, phone: "" }));
+                  }}
                 />
               </FormField>
             </div>
 
             <div className="mt-5">
-              <FormField htmlFor="line1" label="Street address" required>
+              <FormField htmlFor="line1" label="Street address" required error={errors.line1}>
                 <Input
                   id="line1"
                   value={formState.line1}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFormState((current) => ({
                       ...current,
                       line1: event.target.value,
-                    }))
-                  }
+                    }));
+                    if (errors.line1) setErrors((prev) => ({ ...prev, line1: "" }));
+                  }}
                 />
               </FormField>
             </div>
@@ -313,42 +359,45 @@ export function CheckoutExperience({
             </div>
 
             <div className="mt-5 grid gap-5 sm:grid-cols-3">
-              <FormField htmlFor="state" label="State" required>
+              <FormField htmlFor="state" label="State" required error={errors.state}>
                 <Input
                   id="state"
                   value={formState.state}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFormState((current) => ({
                       ...current,
                       state: event.target.value,
-                    }))
-                  }
+                    }));
+                    if (errors.state) setErrors((prev) => ({ ...prev, state: "" }));
+                  }}
                 />
               </FormField>
 
-              <FormField htmlFor="city" label="City" required>
+              <FormField htmlFor="city" label="City" required error={errors.city}>
                 <Input
                   id="city"
                   value={formState.city}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFormState((current) => ({
                       ...current,
                       city: event.target.value,
-                    }))
-                  }
+                    }));
+                    if (errors.city) setErrors((prev) => ({ ...prev, city: "" }));
+                  }}
                 />
               </FormField>
 
-              <FormField htmlFor="postal-code" label="Zip code" required>
+              <FormField htmlFor="postal-code" label="Zip code" required error={errors.postalCode}>
                 <Input
                   id="postal-code"
                   value={formState.postalCode}
-                  onChange={(event) =>
+                  onChange={(event) => {
                     setFormState((current) => ({
                       ...current,
                       postalCode: event.target.value,
-                    }))
-                  }
+                    }));
+                    if (errors.postalCode) setErrors((prev) => ({ ...prev, postalCode: "" }));
+                  }}
                 />
               </FormField>
             </div>
@@ -389,6 +438,14 @@ export function CheckoutExperience({
               />
             </StaggerItem>
           ))}
+          {items.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 p-4 text-center text-sm text-slate-500">
+              Your cart is empty.{" "}
+              <Link href="/store" className="font-semibold text-primary underline">
+                Browse store
+              </Link>
+            </p>
+          ) : null}
         </StaggerGroup>
 
         <div className="mt-6">
@@ -396,8 +453,20 @@ export function CheckoutExperience({
         </div>
 
         <Pressable className="mt-6 w-full">
-          <Button asChild className="w-full" size="pill">
-            <Link href="/checkout/success">Place Order</Link>
+          <Button
+            type="submit"
+            className="w-full"
+            size="pill"
+            disabled={items.length === 0 || isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Processing Order...
+              </>
+            ) : (
+              "Place Order"
+            )}
           </Button>
         </Pressable>
 
@@ -406,6 +475,6 @@ export function CheckoutExperience({
           Policy. Secure 256-bit SSL encrypted transaction.
         </p>
       </FadeIn>
-    </div>
+    </form>
   );
 }

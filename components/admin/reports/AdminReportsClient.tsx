@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   BarChart3,
   CalendarRange,
@@ -41,8 +41,8 @@ import {
 import {
   getAdminReportsSnapshot,
   type AdminReportsDateRange,
-  type AdminCustomerReportRow,
   type AdminProductReportRow,
+  type AdminCustomerReportRow,
   type AdminTechnicianReportRow,
 } from "@/data/mock/admin-reports";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
@@ -122,6 +122,14 @@ export function AdminReportsClient() {
   const [dateRange, setDateRange] = useState<AdminReportsDateRange>("30d");
   const [typeFilter, setTypeFilter] = useState<AdminOrdersTypeFilter>("ALL");
   const [query, setQuery] = useState("");
+  const [chartsReady, setChartsReady] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setChartsReady(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const snapshot = useMemo(
     () => getAdminReportsSnapshot(dateRange, typeFilter),
@@ -233,18 +241,22 @@ export function AdminReportsClient() {
                 description="Paid invoice totals only, filtered by the selected range and order type."
               />
               <div className="h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={snapshot.sales.revenueSeries}>
-                    <CartesianGrid stroke="#dbeeee" strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
-                    <YAxis tickFormatter={(value) => `$${Number(value) / 1000}k`} tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
-                    <Tooltip formatter={(value) => formatCurrencyUsd(Number(value ?? 0))} />
-                    <Legend />
-                    <Line type="monotone" dataKey="totalRevenue" stroke="#135b5d" strokeWidth={3} dot={{ r: 4 }} name="Total" />
-                    <Line type="monotone" dataKey="productRevenue" stroke="#5ea6d6" strokeWidth={2} dot={{ r: 3 }} name="Product" />
-                    <Line type="monotone" dataKey="serviceRevenue" stroke="#0f766e" strokeWidth={2} dot={{ r: 3 }} name="Service" />
-                  </LineChart>
-                </ResponsiveContainer>
+                {chartsReady ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={snapshot.sales.revenueSeries}>
+                      <CartesianGrid stroke="#dbeeee" strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                      <YAxis tickFormatter={(value) => `$${Number(value) / 1000}k`} tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                      <Tooltip formatter={(value) => formatCurrencyUsd(Number(value ?? 0))} />
+                      <Legend />
+                      <Line type="monotone" dataKey="totalRevenue" stroke="#135b5d" strokeWidth={3} dot={{ r: 4 }} name="Total" />
+                      <Line type="monotone" dataKey="productRevenue" stroke="#5ea6d6" strokeWidth={2} dot={{ r: 3 }} name="Product" />
+                      <Line type="monotone" dataKey="serviceRevenue" stroke="#0f766e" strokeWidth={2} dot={{ r: 3 }} name="Service" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full w-full animate-pulse rounded-lg bg-slate-100" />
+                )}
               </div>
             </AdminSurface>
 
@@ -288,15 +300,19 @@ export function AdminReportsClient() {
                 description="Compact line chart using shared billing totals."
               />
               <div className="h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={snapshot.sales.revenueSeries}>
-                    <CartesianGrid stroke="#dbeeee" strokeDasharray="3 3" />
-                    <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
-                    <YAxis tickFormatter={(value) => `$${Number(value) / 1000}k`} tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
-                    <Tooltip formatter={(value) => formatCurrencyUsd(Number(value ?? 0))} />
-                    <Line type="monotone" dataKey="totalRevenue" stroke="#135b5d" strokeWidth={3} dot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
+                {chartsReady ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={snapshot.sales.revenueSeries}>
+                      <CartesianGrid stroke="#dbeeee" strokeDasharray="3 3" />
+                      <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                      <YAxis tickFormatter={(value) => `$${Number(value) / 1000}k`} tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                      <Tooltip formatter={(value) => formatCurrencyUsd(Number(value ?? 0))} />
+                      <Line type="monotone" dataKey="totalRevenue" stroke="#135b5d" strokeWidth={3} dot={{ r: 4 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full w-full animate-pulse rounded-lg bg-slate-100" />
+                )}
               </div>
             </AdminSurface>
 
@@ -307,15 +323,19 @@ export function AdminReportsClient() {
                 description="Bar comparison derived from the same paid invoice source."
               />
               <div className="h-[320px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={snapshot.sales.typeRevenue}>
-                    <CartesianGrid stroke="#dbeeee" strokeDasharray="3 3" />
-                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
-                    <YAxis tickFormatter={(value) => `$${Number(value) / 1000}k`} tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
-                    <Tooltip formatter={(value) => formatCurrencyUsd(Number(value ?? 0))} />
-                    <Bar dataKey="revenue" radius={[10, 10, 0, 0]} fill="#135b5d" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {chartsReady ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={snapshot.sales.typeRevenue}>
+                      <CartesianGrid stroke="#dbeeee" strokeDasharray="3 3" />
+                      <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                      <YAxis tickFormatter={(value) => `$${Number(value) / 1000}k`} tick={{ fontSize: 12, fill: "#6b7280" }} tickLine={false} axisLine={false} />
+                      <Tooltip formatter={(value) => formatCurrencyUsd(Number(value ?? 0))} />
+                      <Bar dataKey="revenue" radius={[10, 10, 0, 0]} fill="#135b5d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full w-full animate-pulse rounded-lg bg-slate-100" />
+                )}
               </div>
             </AdminSurface>
           </div>

@@ -9,7 +9,7 @@ const featuredProducts = mockProducts.slice(0, 4);
 
 export function FeaturedProductsSection() {
   return (
-    <section className="py-12 md:py-16">
+    <section className="py-10 md:py-16">
       <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
         <FadeIn className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between" y={24} duration={0.65}>
           <div>
@@ -29,7 +29,7 @@ export function FeaturedProductsSection() {
           </Link>
         </FadeIn>
 
-        <StaggerGroup className="mt-10 grid auto-rows-fr gap-6 sm:grid-cols-2 xl:grid-cols-4" delay={0.05} once>
+        <StaggerGroup className="mt-8 grid auto-rows-fr gap-4 sm:mt-10 sm:gap-6 sm:grid-cols-2 xl:grid-cols-4" delay={0.05} once>
           {featuredProducts.map((product, index) => (
             <StaggerItem key={product.id}>
               <ProductCard product={product} priority={index < 4} />

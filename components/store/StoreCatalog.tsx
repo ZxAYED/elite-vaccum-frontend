@@ -1,9 +1,10 @@
 "use client";
 
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { FadeIn } from "@/components/motion/Animated";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/RadioGroup";
 import { mockProductCategories } from "@/data/mock/products";
@@ -156,6 +157,20 @@ export function StoreCatalog({ products }: StoreCatalogProps) {
     setAccessoryPage(1);
   };
 
+  const hasActiveFilters =
+    query.length > 0 ||
+    categoryId !== "all" ||
+    priceRange !== "all" ||
+    availability !== "all";
+
+  const clearAllFilters = () => {
+    setQuery("");
+    setCategoryId("all");
+    setPriceRange("all");
+    setAvailability("all");
+    resetPages();
+  };
+
   const handleQueryChange = (nextQuery: string) => {
     setQuery(nextQuery);
     resetPages();
@@ -165,14 +180,36 @@ export function StoreCatalog({ products }: StoreCatalogProps) {
     <div className="mt-8 grid gap-8 xl:grid-cols-[18rem_minmax(0,1fr)]">
       <FadeIn className="self-start" delay={0.06}>
         <section className="landing-card landing-card-soft p-5">
-          <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">
-            <SlidersHorizontal size={16} />
-            Filter by
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">
+              <SlidersHorizontal size={16} />
+              Filter by
+            </div>
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="text-xs font-semibold text-teal-700 hover:text-primary"
+              >
+                Reset all
+              </button>
+            ) : null}
           </div>
 
           <div className="mt-6">
-            <p className="text-sm font-semibold text-slate-900">Quick search</p>
-            <label className="mt-3 flex items-center gap-3 rounded-[1rem] border border-teal-100 bg-white px-4 py-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-900">Quick search</p>
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => handleQueryChange("")}
+                  className="text-xs font-medium text-teal-700 hover:text-primary"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            <div className="mt-3 flex items-center gap-3 rounded-[1rem] border border-teal-100 bg-white px-4 py-3">
               <Search size={16} className="text-slate-400" />
               <Input
                 type="text"
@@ -181,7 +218,17 @@ export function StoreCatalog({ products }: StoreCatalogProps) {
                 placeholder="Model or part number..."
                 className="h-auto rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0"
               />
-            </label>
+              {query ? (
+                <button
+                  type="button"
+                  onClick={() => handleQueryChange("")}
+                  aria-label="Clear search"
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X size={14} />
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-6 border-t border-teal-100 pt-6">
@@ -297,8 +344,20 @@ export function StoreCatalog({ products }: StoreCatalogProps) {
           <FadeIn className="landing-card landing-card-soft mt-10 p-8 text-center">
             <p className="text-lg font-semibold text-slate-950">No matching products</p>
             <p className="mt-2 text-sm text-slate-500">
-              Adjust the filters to see more Elite store items.
+              Adjust the filters or search query to see more Elite store items.
             </p>
+            {hasActiveFilters ? (
+              <div className="mt-5">
+                <Button
+                  type="button"
+                  size="pill"
+                  variant="outline"
+                  onClick={clearAllFilters}
+                >
+                  Clear all filters
+                </Button>
+              </div>
+            ) : null}
           </FadeIn>
         ) : null}
       </div>

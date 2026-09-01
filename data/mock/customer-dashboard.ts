@@ -236,59 +236,71 @@ function toDashboardPayment(payment: BillingPaymentRecord): DashboardPayment {
   };
 }
 
-const billingInvoices = getBillingInvoices().filter(
-  (invoice) => invoice.customerId === mockCurrentCustomer.id,
-);
+export function getDashboardInvoices(): DashboardInvoice[] {
+  const customerInvoices = getBillingInvoices().filter(
+    (invoice) => invoice.customerId === mockCurrentCustomer.id,
+  );
+  return customerInvoices.map(toDashboardInvoice);
+}
 
-export const dashboardInvoices: DashboardInvoice[] = billingInvoices.map(toDashboardInvoice);
+export function getDashboardPayments(): DashboardPayment[] {
+  return getBillingPayments()
+    .filter((payment) => payment.customerId === mockCurrentCustomer.id)
+    .map(toDashboardPayment);
+}
 
-export const dashboardPayments: DashboardPayment[] = getBillingPayments()
-  .filter((payment) => payment.customerId === mockCurrentCustomer.id)
-  .map(toDashboardPayment);
-
-export const dashboardProductOrders: DashboardProductOrder[] = billingInvoices
-  .filter((invoice) => invoice.type === "PRODUCT")
-  .map((invoice) => ({
-    id: invoice.relatedOrderId,
-    type: "PRODUCT",
-    status:
-      invoice.status === "paid"
-        ? "delivered"
-        : invoice.paymentStatus === "refunded"
-          ? "refunded"
-          : "processing",
-    placedAt: invoice.createdAt,
-    total: invoice.totals,
-    paymentStatus: invoice.paymentStatus,
-    invoiceId: invoice.id,
-    paymentId: invoice.paymentId ?? `PAY-${invoice.relatedOrderId.replace(/^[A-Z]+-/, "")}`,
-    items: invoice.lineItems.map((item) => ({
-      id: item.id,
-      productId: item.id,
-      name: item.label,
-      summary: item.description ?? "Elite central vacuum product",
-      sku: item.sku ?? "ECV-SKU",
-      quantity: item.quantity ?? 1,
-      unitPriceUsd: item.unitPriceUsd ?? item.amountUsd,
-      imageSrc: "/product.png",
-    })),
-    delivery: {
-      address: invoice.billingAddress,
-      trackingNumber: invoice.relatedOrderId === "ORD-88410" ? "1Z999AA1012345678" : "ECV-TRK-8052",
-      carrier: "UPS",
-      estimatedDelivery:
-        invoice.relatedOrderId === "ORD-88410"
-          ? "2026-08-02T18:00:00.000Z"
-          : "2026-08-11T18:00:00.000Z",
-      timeline: buildProductTimeline(
+export function getDashboardProductOrders(): DashboardProductOrder[] {
+  const customerInvoices = getBillingInvoices().filter(
+    (invoice) => invoice.customerId === mockCurrentCustomer.id,
+  );
+  return customerInvoices
+    .filter((invoice) => invoice.type === "PRODUCT")
+    .map((invoice) => ({
+      id: invoice.relatedOrderId,
+      type: "PRODUCT",
+      status:
         invoice.status === "paid"
           ? "delivered"
           : invoice.paymentStatus === "refunded"
             ? "refunded"
             : "processing",
-      ),
-    },
-  }));
+      placedAt: invoice.createdAt,
+      total: invoice.totals,
+      paymentStatus: invoice.paymentStatus,
+      invoiceId: invoice.id,
+      paymentId: invoice.paymentId ?? `PAY-${invoice.relatedOrderId.replace(/^[A-Z]+-/, "")}`,
+      items: invoice.lineItems.map((item) => ({
+        id: item.id,
+        productId: item.id,
+        name: item.label,
+        summary: item.description ?? "Elite central vacuum product",
+        sku: item.sku ?? "ECV-SKU",
+        quantity: item.quantity ?? 1,
+        unitPriceUsd: item.unitPriceUsd ?? item.amountUsd,
+        imageSrc: "/product.png",
+      })),
+      delivery: {
+        address: invoice.billingAddress,
+        trackingNumber: invoice.relatedOrderId === "ORD-88410" ? "1Z999AA1012345678" : "ECV-TRK-8052",
+        carrier: "UPS",
+        estimatedDelivery:
+          invoice.relatedOrderId === "ORD-88410"
+            ? "2026-08-02T18:00:00.000Z"
+            : "2026-08-11T18:00:00.000Z",
+        timeline: buildProductTimeline(
+          invoice.status === "paid"
+            ? "delivered"
+            : invoice.paymentStatus === "refunded"
+              ? "refunded"
+              : "processing",
+        ),
+      },
+    }));
+}
+
+export const dashboardInvoices: DashboardInvoice[] = getDashboardInvoices();
+export const dashboardPayments: DashboardPayment[] = getDashboardPayments();
+export const dashboardProductOrders: DashboardProductOrder[] = getDashboardProductOrders();
 
 export function getDashboardServiceOrders(): DashboardServiceOrder[] {
   return getSharedAdminServiceOrders()
@@ -335,7 +347,7 @@ export function getDashboardServiceOrders(): DashboardServiceOrder[] {
 }
 
 export function getDashboardOrders(): DashboardOrder[] {
-  return [...dashboardProductOrders, ...getDashboardServiceOrders()].sort(
+  return [...getDashboardProductOrders(), ...getDashboardServiceOrders()].sort(
     (left, right) => {
       const leftDate = left.type === "PRODUCT" ? left.placedAt : left.createdAt;
       const rightDate = right.type === "PRODUCT" ? right.placedAt : right.createdAt;

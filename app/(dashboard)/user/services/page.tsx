@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, CalendarDays, MapPin, Wrench } from "lucide-react";
+import { ArrowRight, CalendarDays, MapPin, Search, Wrench, X } from "lucide-react";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { getDashboardServiceOrderByRequestId } from "@/data/mock/customer-dashboard";
 import {
   getServiceById,
@@ -33,7 +34,7 @@ function matchesFilter(status: string, filter: string) {
 }
 
 interface UserServicesPageProps {
-  searchParams?: Promise<{ filter?: string }>;
+  searchParams?: Promise<{ filter?: string; q?: string }>;
 }
 
 export default async function UserServicesPage({
@@ -44,9 +45,21 @@ export default async function UserServicesPage({
   const selectedFilter = filters.some((filter) => filter.value === activeFilter)
     ? activeFilter
     : "all";
-  const requests = getCustomerServiceRequests().filter((request) =>
-    matchesFilter(request.status, selectedFilter),
-  );
+  const query = (resolvedSearchParams?.q ?? "").trim().toLowerCase();
+
+  const requests = getCustomerServiceRequests().filter((request) => {
+    const filterMatch = matchesFilter(request.status, selectedFilter);
+    const service = getServiceById(request.serviceId);
+    const searchMatch =
+      !query ||
+      request.id.toLowerCase().includes(query) ||
+      request.title.toLowerCase().includes(query) ||
+      request.description.toLowerCase().includes(query) ||
+      (service?.name.toLowerCase().includes(query) ?? false) ||
+      (request.serviceAddress?.line1.toLowerCase().includes(query) ?? false);
+
+    return filterMatch && searchMatch;
+  });
 
   return (
     <div className="min-h-screen">
@@ -64,20 +77,58 @@ export default async function UserServicesPage({
         title="Service Requests"
       />
 
-      <div className="mb-6 flex flex-wrap gap-2 rounded-3xl border border-teal-100 bg-white p-4 shadow-sm">
-        {filters.map((filter) => (
-          <Button
-            asChild
-            key={filter.value}
-            size="sm"
-            variant={selectedFilter === filter.value ? "default" : "ghost"}
-          >
-            <Link href={`/user/services?filter=${filter.value}`}>{filter.label}</Link>
-          </Button>
-        ))}
+      <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-teal-100 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          {filters.map((filter) => (
+            <Button
+              asChild
+              key={filter.value}
+              size="sm"
+              variant={selectedFilter === filter.value ? "default" : "ghost"}
+            >
+              <Link href={`/user/services?filter=${filter.value}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
+                {filter.label}
+              </Link>
+            </Button>
+          ))}
+        </div>
+
+        <form method="GET" action="/user/services" className="relative flex items-center">
+          <input type="hidden" name="filter" value={selectedFilter} />
+          <Search size={16} className="pointer-events-none absolute left-4 text-slate-400" />
+          <Input
+            name="q"
+            defaultValue={resolvedSearchParams?.q ?? ""}
+            placeholder="Search by request ID, problem, or service..."
+            className="h-11 rounded-2xl border-teal-100 bg-slate-50/50 pl-11 pr-10 text-sm focus-visible:bg-white"
+          />
+          {query ? (
+            <Link
+              href={`/user/services?filter=${selectedFilter}`}
+              aria-label="Clear search"
+              className="absolute right-3 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+            >
+              <X size={14} />
+            </Link>
+          ) : null}
+        </form>
       </div>
 
       <div className="space-y-5">
+        {requests.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
+            <Wrench size={32} className="mx-auto text-teal-700 opacity-60" />
+            <p className="mt-3 text-lg font-semibold text-slate-900">No matching service requests</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Try adjusting your search query or filter status.
+            </p>
+            {(query || selectedFilter !== "all") ? (
+              <Button asChild size="sm" variant="outline" className="mt-4">
+                <Link href="/user/services">Clear all filters</Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
         {requests.map((request) => {
           const service = getServiceById(request.serviceId);
           const detail = getServiceDetailByRequestId(request.id);

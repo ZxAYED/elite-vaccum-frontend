@@ -49,7 +49,7 @@ export function PrimaryJourneyCards() {
             }) => (
               <StaggerItem key={title}>
                 <article
-                  className={`relative flex h-full flex-col overflow-hidden p-7 md:p-8 ${surface}`}
+                  className={`relative flex h-full flex-col overflow-hidden p-5 sm:p-6 md:p-8 ${surface}`}
                 >
                   <div className="absolute right-0 top-0 size-28 rounded-full border border-current/10 opacity-30" />
                   <div
@@ -66,7 +66,7 @@ export function PrimaryJourneyCards() {
                       <Wrench size={20} />
                     )}
                   </div>
-                  <h2 className="mt-8 min-h-[3.5rem] text-2xl font-semibold">
+                  <h2 className="mt-8 text-2xl font-semibold sm:min-h-[3.5rem]">
                     {title}
                   </h2>
                   <p className="mt-3 flex-1 max-w-md text-sm leading-7 text-inherit/80">
