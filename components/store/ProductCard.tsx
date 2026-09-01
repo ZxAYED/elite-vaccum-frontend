@@ -9,6 +9,7 @@ import { HoverCard, Pressable, motion } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
 import { mockProductImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
+import { toast } from "sonner";
 import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -42,6 +43,9 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
         product,
       })
     );
+    toast.success("Added to cart", {
+      description: `${product.name} has been added to your cart.`,
+    });
     router.push("/cart");
   };
 

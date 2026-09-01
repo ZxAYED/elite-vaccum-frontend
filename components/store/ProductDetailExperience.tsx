@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { mockProductGalleryImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
+import { toast } from "sonner";
 import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -61,6 +62,10 @@ export function ProductDetailExperience({
         product,
       })
     );
+
+    toast.success("Added to cart", {
+      description: `${quantity} × ${product.name} added.`,
+    });
 
     router.push(destination);
   };

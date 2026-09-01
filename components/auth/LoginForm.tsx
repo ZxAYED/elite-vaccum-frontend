@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { useSchemaForm, type FormSubmissionState } from "@/lib/use-schema-form";
 import { loginSchema } from "@/lib/validation";
 import google from "@/public/common/google.png";
+import { toast } from "sonner";
 import { useLoginMutation } from "@/redux/api/authApi";
 import { useAppDispatch } from "@/redux/hooks";
 import { setCredentials } from "@/redux/slices/authSlice";
@@ -44,6 +45,14 @@ export function LoginForm() {
           })
         );
 
+        const displayName = response.user.firstName
+          ? `${response.user.firstName} ${response.user.lastName || ""}`.trim()
+          : response.user.email;
+
+        toast.success("Signed in successfully!", {
+          description: `Welcome back, ${displayName}!`,
+        });
+
         const userRole = String(response.user.role || "").toUpperCase();
         if (userRole === "ADMIN") {
           router.push("/admin");
@@ -59,11 +68,17 @@ export function LoginForm() {
         };
       } catch (err: unknown) {
         const errorData = err as { data?: { message?: string } };
+        const errorMessage =
+          errorData?.data?.message ||
+          "Unable to sign in. Please verify your credentials and try again.";
+
+        toast.error("Sign in failed", {
+          description: errorMessage,
+        });
+
         return {
           type: "error",
-          message:
-            errorData?.data?.message ||
-            "Unable to sign in. Please verify your credentials and try again.",
+          message: errorMessage,
         };
       }
     },

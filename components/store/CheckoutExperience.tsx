@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, MapPinned } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { FormField } from "@/components/forms/FormField";
@@ -150,6 +151,9 @@ export function CheckoutExperience({
 
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 600));
+    toast.success("Order placed successfully!", {
+      description: "Thank you for your order. Your receipt and confirmation are ready.",
+    });
     router.push("/checkout/success");
   };
 

@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { useLogoutMutation } from "@/redux/api/authApi";
 import { useAppDispatch } from "@/redux/hooks";
 import { logout } from "@/redux/slices/authSlice";
@@ -215,6 +216,7 @@ export default function DashboardSidebar({
                 // proceed with client logout regardless
               }
               dispatch(logout());
+              toast.success("Logged out successfully.");
               router.push("/auth/login");
             }}
             className={styles.sidebarLogoutBtn}

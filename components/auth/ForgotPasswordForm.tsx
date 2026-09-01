@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { FormField } from "@/components/forms/FormField";
 import { FormStatus } from "@/components/forms/FormStatus";
@@ -41,6 +42,10 @@ export function ForgotPasswordForm() {
         }).unwrap();
 
         setRequestedEmail(values.email);
+        toast.success("Verification code sent!", {
+          description: "Check your email for the password reset code.",
+        });
+
         setStepStatus({
           type: "success",
           message:
@@ -54,11 +59,17 @@ export function ForgotPasswordForm() {
         };
       } catch (err: unknown) {
         const errorData = err as { data?: { message?: string } };
+        const errorMessage =
+          errorData?.data?.message ||
+          "Failed to request password reset. Please verify your email address.";
+
+        toast.error("Request failed", {
+          description: errorMessage,
+        });
+
         return {
           type: "error",
-          message:
-            errorData?.data?.message ||
-            "Failed to request password reset. Please verify your email address.",
+          message: errorMessage,
         };
       }
     },
@@ -75,6 +86,10 @@ export function ForgotPasswordForm() {
         newPassword: newPassword.trim(),
       }).unwrap();
 
+      toast.success("Password reset successfully!", {
+        description: "Redirecting to login...",
+      });
+
       setStepStatus({
         type: "success",
         message:
@@ -84,14 +99,20 @@ export function ForgotPasswordForm() {
 
       setTimeout(() => {
         router.push("/auth/login");
-      }, 1500);
+      }, 1200);
     } catch (err: unknown) {
       const errorData = err as { data?: { message?: string } };
+      const errorMessage =
+        errorData?.data?.message ||
+        "Failed to reset password. Please check your OTP code.";
+
+      toast.error("Password reset failed", {
+        description: errorMessage,
+      });
+
       setStepStatus({
         type: "error",
-        message:
-          errorData?.data?.message ||
-          "Failed to reset password. Please check your OTP code.",
+        message: errorMessage,
       });
     }
   };

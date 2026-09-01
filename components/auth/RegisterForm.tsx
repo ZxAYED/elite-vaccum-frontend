@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { useSchemaForm, type FormSubmissionState } from "@/lib/use-schema-form";
 import { registerSchema } from "@/lib/validation";
 import google from "@/public/common/google.png";
+import { toast } from "sonner";
 import {
   useSignupMutation,
   useVerifyOtpMutation,
@@ -55,6 +56,10 @@ export function RegisterForm() {
         }).unwrap();
 
         setRegisteredEmail(values.email);
+        toast.success("Account created successfully!", {
+          description: "We've sent a 5-digit verification code to your email.",
+        });
+
         setOtpStatus({
           type: "success",
           message:
@@ -68,11 +73,17 @@ export function RegisterForm() {
         };
       } catch (err: unknown) {
         const errorData = err as { data?: { message?: string } };
+        const errorMessage =
+          errorData?.data?.message ||
+          "Unable to register. Please try again with a different email.";
+
+        toast.error("Registration failed", {
+          description: errorMessage,
+        });
+
         return {
           type: "error",
-          message:
-            errorData?.data?.message ||
-            "Unable to register. Please try again with a different email.",
+          message: errorMessage,
         };
       }
     },
@@ -88,6 +99,10 @@ export function RegisterForm() {
         otp: otpCode.trim(),
       }).unwrap();
 
+      toast.success("Email verified successfully!", {
+        description: "Redirecting to login...",
+      });
+
       setOtpStatus({
         type: "success",
         message: response.message || "Email verified! Redirecting to login...",
@@ -95,14 +110,20 @@ export function RegisterForm() {
 
       setTimeout(() => {
         router.push("/auth/login");
-      }, 1500);
+      }, 1200);
     } catch (err: unknown) {
       const errorData = err as { data?: { message?: string } };
+      const errorMessage =
+        errorData?.data?.message ||
+        "Invalid or expired OTP code. Please try again.";
+
+      toast.error("Verification failed", {
+        description: errorMessage,
+      });
+
       setOtpStatus({
         type: "error",
-        message:
-          errorData?.data?.message ||
-          "Invalid or expired OTP code. Please try again.",
+        message: errorMessage,
       });
     }
   };
@@ -113,17 +134,28 @@ export function RegisterForm() {
       const response = await resendOtpMutation({
         email: registeredEmail,
       }).unwrap();
+
+      toast.success("Verification code resent", {
+        description: "A fresh code was sent to your email.",
+      });
+
       setOtpStatus({
         type: "success",
         message: response.message || "New verification code sent to your email.",
       });
     } catch (err: unknown) {
       const errorData = err as { data?: { message?: string } };
+      const errorMessage =
+        errorData?.data?.message ||
+        "Failed to resend code. Please try again in a moment.";
+
+      toast.error("Resend failed", {
+        description: errorMessage,
+      });
+
       setOtpStatus({
         type: "error",
-        message:
-          errorData?.data?.message ||
-          "Failed to resend code. Please try again in a moment.",
+        message: errorMessage,
       });
     }
   };
