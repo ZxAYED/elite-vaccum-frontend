@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { mockProductGalleryImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
+import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addToCart } from "@/redux/slices/cartSlice";
@@ -44,10 +45,7 @@ export function ProductDetailExperience({
   const productHighlights = product.highlights ?? [];
 
   const handleAction = (destination: "/checkout" | "/cart") => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem(AUTH_TOKEN_KEY)
-        : null;
+    const token = getCookie(AUTH_TOKEN_KEY);
 
     if (!isAuthenticated && !token) {
       router.push(

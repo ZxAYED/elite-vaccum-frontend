@@ -5,6 +5,7 @@ import {
   type FetchArgs,
   type FetchBaseQueryError,
 } from "@reduxjs/toolkit/query/react";
+import { getCookie, setCookie } from "@/lib/cookies";
 import { API_BASE_URL, AUTH_TOKEN_KEY, AUTH_USER_KEY } from "../constants";
 import { setCredentials, logout } from "../slices/authSlice";
 import type { User } from "@/types/domain";
@@ -14,7 +15,7 @@ const rawBaseQuery = fetchBaseQuery({
   credentials: "include",
   prepareHeaders: (headers) => {
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem(AUTH_TOKEN_KEY);
+      const token = getCookie(AUTH_TOKEN_KEY);
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
@@ -56,11 +57,9 @@ export const baseQueryWithReauth: BaseQueryFn<
         };
 
         if (data.accessToken) {
-          if (typeof window !== "undefined") {
-            localStorage.setItem(AUTH_TOKEN_KEY, data.accessToken);
-            if (data.user) {
-              localStorage.setItem(AUTH_USER_KEY, JSON.stringify(data.user));
-            }
+          setCookie(AUTH_TOKEN_KEY, data.accessToken);
+          if (data.user) {
+            setCookie(AUTH_USER_KEY, JSON.stringify(data.user));
           }
 
           if (data.user) {

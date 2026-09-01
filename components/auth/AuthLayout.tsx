@@ -37,7 +37,7 @@ export function AuthLayout({
             </Link>
 
             <header className="mb-8">
-              <h1 className="text-balance text-4xl font-bold tracking-[-0.04em] text-slate-950">
+              <h1 className="text-balance text-4xl font-bold tracking-[-0.04em] text-primary">
                 {title}
               </h1>
               <p className="mt-3 text-pretty text-sm leading-6 text-slate-600">

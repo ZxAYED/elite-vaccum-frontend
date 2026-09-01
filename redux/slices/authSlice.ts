@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { User, UserRole } from "@/types/domain";
+import { getCookie, setCookie, removeCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from "../constants";
 
 export interface AuthState {
@@ -20,8 +21,8 @@ const getInitialAuth = (): AuthState => {
   }
 
   try {
-    const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    const storedUser = localStorage.getItem(AUTH_USER_KEY);
+    const storedToken = getCookie(AUTH_TOKEN_KEY);
+    const storedUser = getCookie(AUTH_USER_KEY);
     if (storedToken && storedUser) {
       const parsedUser: User = JSON.parse(storedUser);
       return {
@@ -29,6 +30,14 @@ const getInitialAuth = (): AuthState => {
         token: storedToken,
         isAuthenticated: true,
         role: parsedUser.role,
+      };
+    }
+    if (storedToken) {
+      return {
+        user: null,
+        token: storedToken,
+        isAuthenticated: true,
+        role: null,
       };
     }
   } catch {
@@ -58,18 +67,13 @@ export const authSlice = createSlice({
       state.isAuthenticated = true;
       state.role = action.payload.user.role;
 
-      if (typeof window !== "undefined") {
-        localStorage.setItem(AUTH_TOKEN_KEY, action.payload.token);
-        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(action.payload.user));
-        document.cookie = `${AUTH_TOKEN_KEY}=${action.payload.token}; path=/; max-age=2592000; SameSite=Lax`;
-      }
+      setCookie(AUTH_TOKEN_KEY, action.payload.token);
+      setCookie(AUTH_USER_KEY, JSON.stringify(action.payload.user));
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
       if (state.user) {
         state.user = { ...state.user, ...action.payload };
-        if (typeof window !== "undefined") {
-          localStorage.setItem(AUTH_USER_KEY, JSON.stringify(state.user));
-        }
+        setCookie(AUTH_USER_KEY, JSON.stringify(state.user));
       }
     },
     logout: (state) => {
@@ -78,11 +82,8 @@ export const authSlice = createSlice({
       state.isAuthenticated = false;
       state.role = null;
 
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(AUTH_USER_KEY);
-        document.cookie = `${AUTH_TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-      }
+      removeCookie(AUTH_TOKEN_KEY);
+      removeCookie(AUTH_USER_KEY);
     },
   },
 });

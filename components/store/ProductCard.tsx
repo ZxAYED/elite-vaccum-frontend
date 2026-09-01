@@ -9,6 +9,7 @@ import { HoverCard, Pressable, motion } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
 import { mockProductImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
+import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addToCart } from "@/redux/slices/cartSlice";
@@ -27,10 +28,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem(AUTH_TOKEN_KEY)
-        : null;
+    const token = getCookie(AUTH_TOKEN_KEY);
 
     if (!isAuthenticated && !token) {
       router.push(`/auth/login?redirect=${encodeURIComponent("/store")}`);

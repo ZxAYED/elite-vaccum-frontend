@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppSelector } from "@/redux/hooks";
+import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
 import type { UserRole } from "@/types/domain";
 
@@ -12,13 +13,13 @@ interface AuthGuardProps {
 }
 
 function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
+  // Listen for storage or custom events if needed
+  window.addEventListener("focus", callback);
+  return () => window.removeEventListener("focus", callback);
 }
 
 function getStoredToken() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(AUTH_TOKEN_KEY);
+  return getCookie(AUTH_TOKEN_KEY);
 }
 
 export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
