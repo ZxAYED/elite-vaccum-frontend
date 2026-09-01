@@ -47,6 +47,7 @@ export const serviceRequestSchema = z
           size: z.number(),
           type: z.enum(acceptedMediaTypes),
           previewUrl: z.string(),
+          file: z.custom<File>().optional(),
         }),
       )
       .max(8, "Upload up to 8 files."),

@@ -28,6 +28,11 @@ import {
   rejectSharedQuotation,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import {
+  useAcceptQuotationMutation,
+  useRejectQuotationMutation,
+} from "@/redux/api/quotationsApi";
+import { toast } from "sonner";
 import type { QuoteStatus, QuotationRejectionEntry } from "@/types/domain";
 
 interface QuotationDecisionPanelProps {
@@ -55,6 +60,9 @@ export function QuotationDecisionPanel({
   serviceOrderHref,
 }: QuotationDecisionPanelProps) {
   useSharedBusinessStoreVersion();
+  const [acceptQuotationMutation] = useAcceptQuotationMutation();
+  const [rejectQuotationMutation] = useRejectQuotationMutation();
+
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>(initialStatus);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
@@ -63,15 +71,27 @@ export function QuotationDecisionPanel({
   const latestHistoryEntry = history[0];
   const canDecide = quoteStatus === "sent" || quoteStatus === "viewed";
 
-  function rejectQuotation() {
+  async function rejectQuotation() {
     if (!reason) return;
     const quotation = rejectSharedQuotation(quotationId, reason, comments);
     setHistory(quotation?.rejectionHistory ?? history);
     setQuoteStatus(quotation?.status ?? "rejected");
     setRejectOpen(false);
+
+    try {
+      await rejectQuotationMutation({
+        id: quotationId,
+        reason: comments ? `${reason}: ${comments}` : reason,
+      }).unwrap();
+      toast.success("Quotation rejected", {
+        description: "Your decision has been sent to our team.",
+      });
+    } catch {
+      // Local fallback handled
+    }
   }
 
-  function acceptQuotation() {
+  async function acceptQuotation() {
     const request = getSharedServiceRequestById(requestId);
     if (!request) return;
     const acceptedQuotation = acceptSharedQuotation(quotationId);
@@ -79,6 +99,17 @@ export function QuotationDecisionPanel({
     const order = createOrSyncSharedServiceOrderFromRequest(request);
     if (!order) return;
     setQuoteStatus(acceptedQuotation.status);
+
+    try {
+      const res = await acceptQuotationMutation({
+        id: quotationId,
+      }).unwrap();
+      toast.success(res.message || "Quotation accepted!", {
+        description: "A service order has been generated for your appointment.",
+      });
+    } catch {
+      // Local fallback handled
+    }
   }
 
   return (

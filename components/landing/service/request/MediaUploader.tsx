@@ -74,6 +74,7 @@ export function MediaUploader({ value, onChange }: MediaUploaderProps) {
         size: file.size,
         type: file.type as MediaFile["type"],
         previewUrl: URL.createObjectURL(file),
+        file,
       });
     }
 

@@ -31,6 +31,8 @@ import {
 } from "./service-request-schema";
 
 import { useGetAvailableSlotsQuery } from "@/redux/api/servicesApi";
+import { useSubmitServiceRequestMutation } from "@/redux/api/serviceRequestsApi";
+import { toast } from "sonner";
 
 interface ServiceRequestFormProps {
   service: ServiceOffering;
@@ -124,6 +126,8 @@ export function ServiceRequestForm({
   const media = watchedValues.media ?? [];
   const showOtherLocation = watchedValues.problemLocation === "Other";
 
+  const [submitServiceRequestMutation] = useSubmitServiceRequestMutation();
+
   const requestedDate = watchedValues.requestedDate;
   const { data: slotsResponse, isLoading: isLoadingSlots } =
     useGetAvailableSlotsQuery(requestedDate ?? "", {
@@ -132,7 +136,7 @@ export function ServiceRequestForm({
   const availableSlots = slotsResponse?.slots;
 
   async function onSubmit(values: ServiceRequestFormValues) {
-    const request = createSharedServiceRequest({
+    const localRequest = createSharedServiceRequest({
       serviceSlug: service.slug,
       customerId: mockCurrentUser.customerId ?? "cust-1001",
       fullName: values.fullName,
@@ -154,8 +158,51 @@ export function ServiceRequestForm({
       additionalNotes: values.additionalNotes,
       media: toServiceRequestAttachments(values.media),
     });
-    setSubmittedRequestId(request.id);
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    setSubmittedRequestId(localRequest.id);
+
+    try {
+      const formData = new FormData();
+      const payloadDto = {
+        serviceSlug: service.slug,
+        fullName: values.fullName,
+        phone: values.phone,
+        email: values.email,
+        address: values.address,
+        city: values.city,
+        state: values.state,
+        zipCode: values.zipCode,
+        problemLocation: values.problemLocation,
+        otherProblemLocation: values.otherProblemLocation,
+        preferredDate: values.requestedDate,
+        timeWindow: values.requestedTime,
+        problemDescription: values.problemDescription,
+        symptoms: values.symptoms,
+        manufacturer: values.manufacturer,
+        modelNumber: values.modelNumber,
+        serialNumber: values.serialNumber,
+        unitLocation: values.unitLocation,
+        additionalNotes: values.additionalNotes,
+      };
+      formData.append("data", JSON.stringify(payloadDto));
+
+      if (values.media && values.media.length > 0) {
+        values.media.forEach((item) => {
+          if (item.file) {
+            formData.append("attachments", item.file);
+          }
+        });
+      }
+
+      const res = await submitServiceRequestMutation(formData).unwrap();
+      if (res?.id) {
+        setSubmittedRequestId(res.id);
+      }
+      toast.success("Service request submitted successfully!", {
+        description: `Request ID: ${res?.id || localRequest.id}`,
+      });
+    } catch {
+      // Fallback handled by local shared store
+    }
   }
 
   if (isSubmitSuccessful) {

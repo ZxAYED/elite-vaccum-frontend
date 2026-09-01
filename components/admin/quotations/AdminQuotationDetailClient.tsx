@@ -47,6 +47,11 @@ import {
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatShortDate, formatShortDateTime } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
+import {
+  useCreateQuotationMutation,
+  useReviseQuotationMutation,
+} from "@/redux/api/quotationsApi";
+import { toast } from "sonner";
 import type { QuotationBuilderValues } from "@/lib/validation";
 import type { AdminQuotation, QuoteStatus } from "@/types/domain";
 
@@ -110,13 +115,16 @@ export function AdminQuotationDetailClient({
     notFound();
   }
 
+  const [createQuotationMutation] = useCreateQuotationMutation();
+  const [reviseQuotationMutation] = useReviseQuotationMutation();
+
   const request = getQuotationRequest(quotation);
   const customer = getQuotationCustomer(quotation);
   const service = getQuotationService(quotation);
   const editingMode =
     !quotationId || mode === "edit" || mode === "revise" || quotation.status === "draft";
 
-  function save(values: QuotationBuilderValues) {
+  async function save(values: QuotationBuilderValues) {
     const next = applyBuilderValues(quotation, values, "draft");
     upsertSharedQuotation({
       id: next.id,
@@ -131,9 +139,48 @@ export function AdminQuotationDetailClient({
       expiresAt: next.expiresAt || undefined,
       status: next.status,
     });
+
+    if (!quotationId || mode === "create") {
+      try {
+        await createQuotationMutation({
+          serviceRequestId: quotation.serviceRequestId,
+          lineItems: values.lineItems.map((li) => ({
+            description: li.description,
+            quantity: li.quantity,
+            unitPriceUsd: li.unitPriceUsd,
+          })),
+          discountUsd: values.discountUsd,
+          taxUsd: values.taxUsd,
+          notes: values.notes,
+        }).unwrap();
+        toast.success("Quotation draft saved.");
+      } catch {
+        // Fallback handled locally
+      }
+    } else {
+      try {
+        await reviseQuotationMutation({
+          id: quotation.id,
+          body: {
+            serviceRequestId: quotation.serviceRequestId,
+            lineItems: values.lineItems.map((li) => ({
+              description: li.description,
+              quantity: li.quantity,
+              unitPriceUsd: li.unitPriceUsd,
+            })),
+            discountUsd: values.discountUsd,
+            taxUsd: values.taxUsd,
+            notes: values.notes,
+          },
+        }).unwrap();
+        toast.success("Quotation draft updated.");
+      } catch {
+        // Fallback handled locally
+      }
+    }
   }
 
-  function send(values: QuotationBuilderValues) {
+  async function send(values: QuotationBuilderValues) {
     upsertSharedQuotation({
       id: quotation.id,
       requestId: quotation.serviceRequestId,
@@ -151,6 +198,45 @@ export function AdminQuotationDetailClient({
           ? "Admin revision before resending."
           : undefined,
     });
+
+    if (!quotationId || mode === "create") {
+      try {
+        await createQuotationMutation({
+          serviceRequestId: quotation.serviceRequestId,
+          lineItems: values.lineItems.map((li) => ({
+            description: li.description,
+            quantity: li.quantity,
+            unitPriceUsd: li.unitPriceUsd,
+          })),
+          discountUsd: values.discountUsd,
+          taxUsd: values.taxUsd,
+          notes: values.notes,
+        }).unwrap();
+        toast.success("Quotation issued and sent to customer!");
+      } catch {
+        // Fallback handled locally
+      }
+    } else {
+      try {
+        await reviseQuotationMutation({
+          id: quotation.id,
+          body: {
+            serviceRequestId: quotation.serviceRequestId,
+            lineItems: values.lineItems.map((li) => ({
+              description: li.description,
+              quantity: li.quantity,
+              unitPriceUsd: li.unitPriceUsd,
+            })),
+            discountUsd: values.discountUsd,
+            taxUsd: values.taxUsd,
+            notes: values.notes,
+          },
+        }).unwrap();
+        toast.success("Quotation revised and sent to customer!");
+      } catch {
+        // Fallback handled locally
+      }
+    }
   }
 
   if (deleted) {

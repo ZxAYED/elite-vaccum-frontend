@@ -47,6 +47,11 @@ import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVer
 import { formatLongDate, formatShortDateTime } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import { cn } from "@/lib/utils";
+import {
+  useUpdateServiceRequestStatusMutation,
+  useRejectServiceRequestMutation,
+} from "@/redux/api/serviceRequestsApi";
+import { toast } from "sonner";
 import type {
   RejectionHistoryEntry,
   ServiceRequest,
@@ -179,13 +184,28 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
     return base;
   }, [decisionStatus, localRejections, request.status, request.submittedAt]);
 
-  function acceptRequest() {
+  const [updateStatusMutation] = useUpdateServiceRequestStatusMutation();
+  const [rejectRequestMutation] = useRejectServiceRequestMutation();
+
+  async function acceptRequest() {
     acceptSharedServiceRequest(request.id);
     setDecisionStatus("accepted");
     setAcceptOpen(false);
+
+    try {
+      await updateStatusMutation({
+        id: request.id,
+        status: "accepted",
+      }).unwrap();
+      toast.success("Service request accepted", {
+        description: "You can now prepare a quotation for the customer.",
+      });
+    } catch {
+      // Local store fallback handled
+    }
   }
 
-  function rejectRequest() {
+  async function rejectRequest() {
     if (!rejectReason) {
       setRejectError("Choose a rejection reason.");
       return;
@@ -200,6 +220,19 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
     setDecisionStatus("rejected");
     setRejectError("");
     setRejectOpen(false);
+
+    try {
+      await rejectRequestMutation({
+        id: request.id,
+        body: {
+          reason: rejectReason,
+          comments: rejectNote || undefined,
+        },
+      }).unwrap();
+      toast.success("Service request rejected");
+    } catch {
+      // Local store fallback handled
+    }
   }
 
   return (
