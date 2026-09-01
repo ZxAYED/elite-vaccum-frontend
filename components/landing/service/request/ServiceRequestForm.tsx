@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, CheckCircle2, Info, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, Info, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
 import {
   Select,
@@ -19,6 +20,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import type { ServiceOffering, ServiceRequestAttachment } from "@/types/domain";
 import { mockCurrentUser } from "@/data/mock/user";
 import { createSharedServiceRequest } from "@/data/mock/shared-business-store";
+import { cn } from "@/lib/utils";
 
 import { FormField } from "./FormField";
 import { FormSection } from "./FormSection";
@@ -398,11 +400,17 @@ export function ServiceRequestForm({
                     label="Service Date"
                     error={errors.requestedDate?.message}
                   >
-                    <Input
-                      type="date"
-                      className={inputClassName}
-                      min={mediaConstraints.minimumRequestedDate}
-                      {...register("requestedDate")}
+                    <Controller
+                      control={control}
+                      name="requestedDate"
+                      render={({ field }) => (
+                        <DatePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          minDate={mediaConstraints.minimumRequestedDate}
+                          error={Boolean(errors.requestedDate)}
+                        />
+                      )}
                     />
                   </FormField>
                   <FormField
@@ -481,22 +489,59 @@ export function ServiceRequestForm({
                     {...register("problemDescription")}
                   />
                 </FormField>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {symptoms.map((symptom) => (
-                    <label
-                      key={symptom}
-                      className="flex items-center gap-3 rounded-[1rem] bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700"
-                    >
-                      <input
-                        type="checkbox"
-                        value={symptom}
-                        className="size-4 rounded border-teal-200 accent-primary"
-                        {...register("symptoms")}
-                      />
-                      {symptom}
-                    </label>
-                  ))}
-                </div>
+                <Controller
+                  control={control}
+                  name="symptoms"
+                  render={({ field }) => {
+                    const selectedSymptoms = field.value || [];
+                    const toggleSymptom = (symptom: string) => {
+                      if (selectedSymptoms.includes(symptom)) {
+                        field.onChange(
+                          selectedSymptoms.filter((s: string) => s !== symptom),
+                        );
+                      } else {
+                        field.onChange([...selectedSymptoms, symptom]);
+                      }
+                    };
+
+                    return (
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {symptoms.map((symptom) => {
+                          const isSelected = selectedSymptoms.includes(symptom);
+                          return (
+                            <button
+                              type="button"
+                              key={symptom}
+                              onClick={() => toggleSymptom(symptom)}
+                              className={cn(
+                                "flex items-center gap-3.5 rounded-2xl border p-3.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                                isSelected
+                                  ? "border-primary bg-teal-50/70 text-slate-950 shadow-xs ring-1 ring-primary/20"
+                                  : "border-slate-200/80 bg-slate-50 text-slate-700 hover:border-teal-200 hover:bg-slate-100/70",
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  "flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                                  isSelected
+                                    ? "border-primary bg-primary text-white shadow-xs"
+                                    : "border-slate-300 bg-white",
+                                )}
+                              >
+                                {isSelected && (
+                                  <Check size={14} strokeWidth={3} />
+                                )}
+                              </span>
+                              <span className="select-none leading-snug">
+                                {symptom}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  }}
+                />
               </FormSection>
             </div>
 
