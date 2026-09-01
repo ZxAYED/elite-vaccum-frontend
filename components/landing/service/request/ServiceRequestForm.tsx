@@ -140,6 +140,17 @@ const symptoms = [
   "Other",
 ];
 
+const symptomKeyMap: Record<string, string> = {
+  "Unit not turning on": "UNIT_NOT_TURNING_ON",
+  "Unit does not shut off": "UNIT_DOES_NOT_SHUT_OFF",
+  "Clogged": "CLOGGED",
+  "Low suction": "LOW_SUCTION",
+  "Retractable hose problem": "WALL_OR_POWER_HOSE_PROBLEM",
+  "Broken inlet": "BROKEN_INLET",
+  "Noise": "NOISE",
+  "Other": "OTHER",
+};
+
 const fieldGridClassName = "grid gap-5 md:grid-cols-2";
 const inputClassName = "bg-slate-50 shadow-none focus-visible:bg-white";
 
@@ -185,11 +196,12 @@ export function ServiceRequestForm({
 
   const {
     control,
-    formState: { errors, isSubmitting, isSubmitSuccessful },
+    formState: { errors, isSubmitting },
     handleSubmit,
     register,
   } = form;
   const [submittedRequestId, setSubmittedRequestId] = useState<string | null>(null);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const watchedValues = useWatch({ control });
   const media = watchedValues.media ?? [];
@@ -220,53 +232,35 @@ export function ServiceRequestForm({
   }, [availableSlots, requestedTime, setValue]);
 
   async function onSubmit(values: ServiceRequestFormValues) {
-    const localRequest = createSharedServiceRequest({
+    const payloadDto = {
       serviceSlug: service.slug,
-      customerId: mockCurrentUser.customerId ?? "cust-1001",
       fullName: values.fullName,
-      email: values.email,
       phone: values.phone,
+      email: values.email,
       address: values.address,
       city: values.city,
       state: values.state,
       zipCode: values.zipCode,
-      requestedDate: values.requestedDate,
-      requestedTime: values.requestedTime,
+      problemLocation:
+        values.problemLocation === "Other"
+          ? values.otherProblemLocation || "Other"
+          : values.problemLocation,
+      otherProblemLocation: values.otherProblemLocation || undefined,
+      preferredDate: values.requestedDate,
+      timeWindow: values.requestedTime,
       problemDescription: values.problemDescription,
-      problemLocation: values.problemLocation,
-      otherProblemLocation: values.otherProblemLocation,
-      manufacturer: values.manufacturer,
-      modelNumber: values.modelNumber,
-      serialNumber: values.serialNumber,
-      unitLocation: values.unitLocation,
-      additionalNotes: values.additionalNotes,
-      media: toServiceRequestAttachments(values.media),
-    });
-    setSubmittedRequestId(localRequest.id);
+      symptoms: (values.symptoms || []).map(
+        (s) => symptomKeyMap[s] || s.toUpperCase().replace(/\s+/g, "_"),
+      ),
+      manufacturer: values.manufacturer || undefined,
+      modelNumber: values.modelNumber || undefined,
+      serialNumber: values.serialNumber || undefined,
+      unitLocation: values.unitLocation || undefined,
+      additionalNotes: values.additionalNotes || undefined,
+    };
 
     try {
       const formData = new FormData();
-      const payloadDto = {
-        serviceSlug: service.slug,
-        fullName: values.fullName,
-        phone: values.phone,
-        email: values.email,
-        address: values.address,
-        city: values.city,
-        state: values.state,
-        zipCode: values.zipCode,
-        problemLocation: values.problemLocation,
-        otherProblemLocation: values.otherProblemLocation,
-        preferredDate: values.requestedDate,
-        timeWindow: values.requestedTime,
-        problemDescription: values.problemDescription,
-        symptoms: values.symptoms,
-        manufacturer: values.manufacturer,
-        modelNumber: values.modelNumber,
-        serialNumber: values.serialNumber,
-        unitLocation: values.unitLocation,
-        additionalNotes: values.additionalNotes,
-      };
       formData.append("data", JSON.stringify(payloadDto));
 
       if (values.media && values.media.length > 0) {
@@ -278,18 +272,61 @@ export function ServiceRequestForm({
       }
 
       const res = await submitServiceRequestMutation(formData).unwrap();
-      if (res?.id) {
-        setSubmittedRequestId(res.id);
-      }
-      toast.success("Service request submitted successfully!", {
-        description: `Request ID: ${res?.id || localRequest.id}`,
+      const finalId = res?.id || "REQ-SUBMITTED";
+      setSubmittedRequestId(finalId);
+      setIsSubmitted(true);
+
+      createSharedServiceRequest({
+        serviceSlug: service.slug,
+        customerId: mockCurrentUser.customerId ?? "cust-1001",
+        fullName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        address: values.address,
+        city: values.city,
+        state: values.state,
+        zipCode: values.zipCode,
+        requestedDate: values.requestedDate,
+        requestedTime: values.requestedTime,
+        problemDescription: values.problemDescription,
+        problemLocation: values.problemLocation,
+        otherProblemLocation: values.otherProblemLocation,
+        manufacturer: values.manufacturer,
+        modelNumber: values.modelNumber,
+        serialNumber: values.serialNumber,
+        unitLocation: values.unitLocation,
+        additionalNotes: values.additionalNotes,
+        media: toServiceRequestAttachments(values.media),
       });
-    } catch {
-      // Fallback handled by local shared store
+
+      toast.success("Service request submitted successfully!", {
+        description: `Request ID: ${finalId}`,
+      });
+    } catch (err: unknown) {
+      console.error("Failed to submit service request:", err);
+      const apiErr = err as {
+        status?: number;
+        data?: {
+          message?: string | string[];
+          error?: string;
+          statusCode?: number;
+        };
+        message?: string;
+      };
+      const message =
+        (Array.isArray(apiErr?.data?.message)
+          ? apiErr.data.message.join(", ")
+          : apiErr?.data?.message) ||
+        apiErr?.message ||
+        "Server error while submitting service request. Please check server logs or make sure you are signed in.";
+      toast.error(message, {
+        description:
+          apiErr?.data?.error || `Status: ${apiErr?.status || "500"}`,
+      });
     }
   }
 
-  if (isSubmitSuccessful) {
+  if (isSubmitted) {
     return (
       <main className="bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_38%)] py-16 md:py-24">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
