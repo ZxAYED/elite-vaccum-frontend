@@ -1,4 +1,7 @@
+"use client";
+
 import type { PropsWithChildren } from "react";
+import { motion, type Variants } from "framer-motion";
 
 interface MotionSectionProps extends PropsWithChildren {
   className?: string;
@@ -10,45 +13,91 @@ interface MotionSectionProps extends PropsWithChildren {
   as?: "div" | "section";
 }
 
+const staggerContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: (delay = 0) => ({
+    opacity: 1,
+    transition: {
+      delayChildren: delay,
+      staggerChildren: 0.1,
+    },
+  }),
+};
+
+const staggerItemVariants: Variants = {
+  hidden: { opacity: 0, y: 34 },
+  visible: (duration = 0.6) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration,
+      ease: [0.21, 0.47, 0.32, 0.98],
+    },
+  }),
+};
+
 export function MotionSection({
   children,
   className,
-  delay: _delay = 0,
-  duration: _duration = 0.82,
-  y: _y = 42,
-  amount: _amount = 0.18,
-  once: _once = false,
+  delay = 0,
+  duration = 0.65,
+  y = 34,
+  amount = 0.18,
+  once = true,
   as = "div",
 }: MotionSectionProps) {
-  void _delay;
-  void _duration;
-  void _y;
-  void _amount;
-  void _once;
-  const StaticComp = as;
-  return <StaticComp className={className}>{children}</StaticComp>;
+  const Comp = as === "section" ? motion.section : motion.div;
+
+  return (
+    <Comp
+      initial={{ opacity: 0, y }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once, amount }}
+      transition={{
+        duration,
+        delay,
+        ease: [0.21, 0.47, 0.32, 0.98],
+      }}
+      className={className}
+    >
+      {children}
+    </Comp>
+  );
 }
 
 export function MotionStagger({
   children,
   className,
-  delay: _delay = 0,
-  amount: _amount = 0.18,
-  once: _once = false,
+  delay = 0,
+  amount = 0.18,
+  once = true,
 }: MotionSectionProps) {
-  void _delay;
-  void _amount;
-  void _once;
-  return <div className={className}>{children}</div>;
+  return (
+    <motion.div
+      variants={staggerContainerVariants}
+      custom={delay}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once, amount }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 export function MotionStaggerItem({
   children,
   className,
-  duration: _duration = 0.76,
-  y: _y = 34,
+  duration = 0.6,
 }: MotionSectionProps) {
-  void _duration;
-  void _y;
-  return <div className={className}>{children}</div>;
+  return (
+    <motion.div
+      variants={staggerItemVariants}
+      custom={duration}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
 }
