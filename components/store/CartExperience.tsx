@@ -5,6 +5,7 @@ import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Button } from "@/components/ui/Button";
 import type { CartProduct } from "@/data/mock/customer-portal";
 import { calculateCartTotals } from "@/lib/store";
@@ -40,7 +41,8 @@ export function CartExperience({ initialItems }: CartExperienceProps) {
   };
 
   return (
-    <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_28rem]">
+    <AuthGuard>
+      <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.12fr)_28rem]">
       <FadeIn className="landing-card landing-card-soft p-5 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -129,5 +131,6 @@ export function CartExperience({ initialItems }: CartExperienceProps) {
         </div>
       </FadeIn>
     </div>
+    </AuthGuard>
   );
 }

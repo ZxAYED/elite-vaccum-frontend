@@ -3,11 +3,15 @@
 import { ArrowRight, ShoppingCart } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { HoverCard, Pressable, motion } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
 import { mockProductImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
+import { AUTH_TOKEN_KEY } from "@/redux/constants";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { addToCart } from "@/redux/slices/cartSlice";
 import type { Product } from "@/types/domain";
 
 interface ProductCardProps {
@@ -16,7 +20,32 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, priority = false }: ProductCardProps) {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
   const productImage = mockProductImagesById[product.id];
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem(AUTH_TOKEN_KEY)
+        : null;
+
+    if (!isAuthenticated && !token) {
+      router.push(`/auth/login?redirect=${encodeURIComponent("/store")}`);
+      return;
+    }
+
+    dispatch(
+      addToCart({
+        productId: product.id,
+        quantity: 1,
+        product,
+      })
+    );
+    router.push("/cart");
+  };
 
   return (
     <HoverCard className="h-full" yOffset={-6}>
@@ -67,10 +96,14 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
 
             <div className="flex items-center gap-2">
               <Pressable scaleHover={1.08} scaleTap={0.92}>
-                <Button asChild size="icon-sm" variant="soft">
-                  <Link aria-label={`Add ${product.name} to cart`} href="/cart">
-                    <ShoppingCart size={16} data-icon="inline-start" />
-                  </Link>
+                <Button
+                  aria-label={`Add ${product.name} to cart`}
+                  onClick={handleAddToCart}
+                  size="icon-sm"
+                  variant="soft"
+                  type="button"
+                >
+                  <ShoppingCart size={16} data-icon="inline-start" />
                 </Button>
               </Pressable>
               <Pressable className="w-fit" scaleHover={1.04} scaleTap={0.96}>

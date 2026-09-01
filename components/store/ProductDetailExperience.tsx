@@ -2,12 +2,15 @@
 
 import { CheckCircle2, PackageCheck, ShieldCheck, ShoppingCart, Truck, Zap } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { mockProductGalleryImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
+import { AUTH_TOKEN_KEY } from "@/redux/constants";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { addToCart } from "@/redux/slices/cartSlice";
 import type { Product } from "@/types/domain";
 
 import { QuantityControl } from "./QuantityControl";
@@ -24,6 +27,10 @@ export function ProductDetailExperience({
   product,
   categoryName,
 }: ProductDetailExperienceProps) {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const { isAuthenticated } = useAppSelector((state) => state.auth);
+
   const galleryImages = mockProductGalleryImagesById[product.id] ?? [];
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -35,6 +42,30 @@ export function ProductDetailExperience({
 
   const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0];
   const productHighlights = product.highlights ?? [];
+
+  const handleAction = (destination: "/checkout" | "/cart") => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem(AUTH_TOKEN_KEY)
+        : null;
+
+    if (!isAuthenticated && !token) {
+      router.push(
+        `/auth/login?redirect=${encodeURIComponent(`/store/${product.slug}`)}`
+      );
+      return;
+    }
+
+    dispatch(
+      addToCart({
+        productId: product.id,
+        quantity,
+        product,
+      })
+    );
+
+    router.push(destination);
+  };
 
   return (
     <section className="mt-6 grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
@@ -124,22 +155,24 @@ export function ProductDetailExperience({
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Pressable>
-            <Link
-              href="/checkout"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] bg-primary px-6 text-[15px] font-semibold text-white shadow-[0_20px_40px_-28px_rgba(28,79,80,0.72)]"
+            <button
+              type="button"
+              onClick={() => handleAction("/checkout")}
+              className="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-control)] bg-primary px-6 text-[15px] font-semibold text-white shadow-[0_20px_40px_-28px_rgba(28,79,80,0.72)] hover:bg-teal-900 transition-colors"
             >
               <ShieldCheck size={16} />
               Buy now
-            </Link>
+            </button>
           </Pressable>
           <Pressable>
-            <Link
-              href="/cart"
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[var(--radius-control)] bg-white px-6 text-[15px] font-semibold text-primary shadow-[inset_0_0_0_1px_rgba(28,79,80,0.12)]"
+            <button
+              type="button"
+              onClick={() => handleAction("/cart")}
+              className="inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-control)] bg-white px-6 text-[15px] font-semibold text-primary shadow-[inset_0_0_0_1px_rgba(28,79,80,0.12)] hover:bg-slate-50 transition-colors"
             >
               <ShoppingCart size={16} />
               Add to cart
-            </Link>
+            </button>
           </Pressable>
         </div>
 

@@ -1,6 +1,5 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { User, UserRole } from "@/types/domain";
-import { mockCurrentUser } from "@/data/mock/user";
 import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from "../constants";
 
 export interface AuthState {
@@ -13,21 +12,21 @@ export interface AuthState {
 const getInitialAuth = (): AuthState => {
   if (typeof window === "undefined") {
     return {
-      user: mockCurrentUser,
-      token: "mock-jwt-token-active",
-      isAuthenticated: true,
-      role: mockCurrentUser.role,
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      role: null,
     };
   }
 
   try {
     const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
     const storedUser = localStorage.getItem(AUTH_USER_KEY);
-    if (storedUser) {
+    if (storedToken && storedUser) {
       const parsedUser: User = JSON.parse(storedUser);
       return {
         user: parsedUser,
-        token: storedToken ?? "mock-jwt-token-active",
+        token: storedToken,
         isAuthenticated: true,
         role: parsedUser.role,
       };
@@ -37,10 +36,10 @@ const getInitialAuth = (): AuthState => {
   }
 
   return {
-    user: mockCurrentUser,
-    token: "mock-jwt-token-active",
-    isAuthenticated: true,
-    role: mockCurrentUser.role,
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    role: null,
   };
 };
 
@@ -62,6 +61,7 @@ export const authSlice = createSlice({
       if (typeof window !== "undefined") {
         localStorage.setItem(AUTH_TOKEN_KEY, action.payload.token);
         localStorage.setItem(AUTH_USER_KEY, JSON.stringify(action.payload.user));
+        document.cookie = `${AUTH_TOKEN_KEY}=${action.payload.token}; path=/; max-age=2592000; SameSite=Lax`;
       }
     },
     updateUser: (state, action: PayloadAction<Partial<User>>) => {
@@ -81,6 +81,7 @@ export const authSlice = createSlice({
       if (typeof window !== "undefined") {
         localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(AUTH_USER_KEY);
+        document.cookie = `${AUTH_TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
       }
     },
   },

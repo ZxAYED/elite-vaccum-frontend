@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, MapPinned } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AuthGuard } from "@/components/auth/AuthGuard";
 import { FormField } from "@/components/forms/FormField";
 import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
@@ -153,7 +154,8 @@ export function CheckoutExperience({
   };
 
   return (
-    <form onSubmit={handlePlaceOrder} className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_30rem]">
+    <AuthGuard>
+      <form onSubmit={handlePlaceOrder} className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_30rem]">
       <FadeIn className="landing-card landing-card-soft p-6 sm:p-8">
         <p className="text-sm text-slate-500">Home &gt; Store &gt; Check out</p>
 
@@ -476,5 +478,6 @@ export function CheckoutExperience({
         </p>
       </FadeIn>
     </form>
+    </AuthGuard>
   );
 }
