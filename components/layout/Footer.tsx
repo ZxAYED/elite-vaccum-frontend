@@ -1,6 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Mail, MapPin, Smartphone } from "lucide-react";
+import { motion } from "framer-motion";
 
 import facebookImage from "@/public/common/facebook.png";
 import instaImage from "@/public/common/instagram.png";
@@ -55,15 +58,24 @@ const socialLinks = [
   { label: "LinkedIn", href: "#", image: linkedinImage },
 ];
 
+const motionTransition = { type: "spring", stiffness: 400, damping: 17 } as const;
+
 export function Footer() {
   return (
     <footer className="bg-primary text-primary-foreground">
       <div className="mx-auto max-w-360 px-4 py-12">
         <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-4">
           <div>
-            <Link href="/" className="flex items-center gap-2 text-xl font-bold">
-              <Image src={logo} alt="Elite Central Vacuum" />
-            </Link>
+            <motion.div
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.8 }}
+              className="inline-block origin-left"
+              transition={motionTransition}
+            >
+              <Link href="/" className="flex items-center gap-2 text-xl font-bold">
+                <Image src={logo} alt="Elite Central Vacuum" />
+              </Link>
+            </motion.div>
             <p className="mt-4 max-w-xs text-sm text-primary-foreground/80">
               Professional central vacuum product guidance, service requests,
               and customer account tools.
@@ -79,7 +91,13 @@ export function Footer() {
               {contactLinks.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <li className="flex gap-3" key={item.href}>
+                  <motion.li
+                    className="flex gap-3 origin-left"
+                    key={item.href}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.8 }}
+                    transition={motionTransition}
+                  >
                     <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
                     <Link
                       href={item.href}
@@ -87,7 +105,7 @@ export function Footer() {
                     >
                       {item.label}
                     </Link>
-                  </li>
+                  </motion.li>
                 );
               })}
             </ul>
@@ -102,27 +120,38 @@ export function Footer() {
 
             <ul className="flex flex-col items-center justify-center gap-3 text-sm md:flex-row md:gap-6">
               {footerLinks.legal.map((link) => (
-                <li key={link.href}>
+                <motion.li
+                  key={link.href}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.8 }}
+                  transition={motionTransition}
+                >
                   <Link
                     href={link.href}
                     className="text-primary-foreground/80 transition-colors hover:text-accent"
                   >
                     {link.label}
                   </Link>
-                </li>
+                </motion.li>
               ))}
             </ul>
 
             <div className="flex justify-center gap-4 md:justify-end">
               {socialLinks.map((link) => (
-                <Link
-                  href={link.href}
-                  className="flex size-10 items-center justify-center rounded-full transition-colors hover:bg-white/10"
-                  aria-label={link.label}
+                <motion.div
                   key={link.label}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.8 }}
+                  transition={motionTransition}
                 >
-                  <Image src={link.image} alt="" aria-hidden="true" />
-                </Link>
+                  <Link
+                    href={link.href}
+                    className="flex size-10 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+                    aria-label={link.label}
+                  >
+                    <Image src={link.image} alt="" aria-hidden="true" />
+                  </Link>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -144,16 +173,23 @@ function FooterLinkGroup({
       <h3 className="mb-4 font-bold">{title}</h3>
       <ul className="space-y-2 text-sm">
         {links.map((link) => (
-          <li key={link.href}>
+          <motion.li
+            key={link.href}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.8 }}
+            className="origin-left"
+            transition={motionTransition}
+          >
             <Link
               href={link.href}
-              className="text-primary-foreground/85 transition-colors hover:text-accent"
+              className="inline-block text-primary-foreground/85 transition-colors hover:text-accent"
             >
               {link.label}
             </Link>
-          </li>
+          </motion.li>
         ))}
       </ul>
     </div>
   );
 }
+
