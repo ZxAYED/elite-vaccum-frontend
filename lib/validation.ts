@@ -26,16 +26,11 @@ export const loginSchema = z.object({
 });
 
 export const registerSchema = z.object({
-  firstName: z
+  fullName: z
     .string()
     .trim()
-    .min(1, "First name is required.")
-    .max(50, "First name must be 50 characters or fewer."),
-  lastName: z
-    .string()
-    .trim()
-    .min(1, "Last name is required.")
-    .max(50, "Last name must be 50 characters or fewer."),
+    .min(2, "Enter your full name.")
+    .max(80, "Name must be 80 characters or fewer."),
   email: emailSchema,
   phone: optionalPhoneSchema.optional(),
   password: passwordSchema,

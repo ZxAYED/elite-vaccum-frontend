@@ -100,10 +100,13 @@ export interface Address {
 export interface User {
   id: string;
   role: UserRole;
-  firstName: string;
-  lastName: string;
   email: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   phone?: string;
+  isActive?: boolean;
+  isEmailVerified?: boolean;
   createdAt: string;
   customerId?: string;
   technicianId?: string;

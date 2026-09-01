@@ -88,13 +88,24 @@ export function Navbar() {
   const isTechnician = userRole === "TECHNICIAN";
   const isCustomer = isAuthenticated && !isAdmin && !isTechnician;
 
-  const fullName = user?.firstName
-    ? `${user.firstName} ${user.lastName || ""}`.trim()
-    : user?.email || "Elite User";
+  const fullName =
+    user?.fullName ||
+    (user?.firstName
+      ? `${user.firstName} ${user.lastName || ""}`.trim()
+      : user?.email || "Elite User");
 
-  const initials = user?.firstName
-    ? `${user.firstName[0]}${user.lastName ? user.lastName[0] : ""}`.toUpperCase()
-    : "E";
+  const initials = (() => {
+    if (user?.fullName) {
+      const parts = user.fullName.trim().split(/\s+/);
+      return parts.length > 1
+        ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+        : `${parts[0][0] || "E"}`.toUpperCase();
+    }
+    if (user?.firstName) {
+      return `${user.firstName[0]}${user.lastName ? user.lastName[0] : ""}`.toUpperCase();
+    }
+    return user?.email ? user.email[0].toUpperCase() : "E";
+  })();
 
   const handleLogout = async () => {
     try {

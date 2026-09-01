@@ -4,8 +4,7 @@ import type { User } from "@/types/domain";
 export interface SignupRequest {
   email: string;
   password?: string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phone?: string;
 }
 

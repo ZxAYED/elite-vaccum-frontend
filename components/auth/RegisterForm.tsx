@@ -37,8 +37,7 @@ export function RegisterForm() {
   const form = useSchemaForm({
     schema: registerSchema,
     initialValues: {
-      firstName: "",
-      lastName: "",
+      fullName: "",
       email: "",
       phone: "",
       password: "",
@@ -47,8 +46,7 @@ export function RegisterForm() {
     onValidSubmit: async (values) => {
       try {
         const response = await signupMutation({
-          firstName: values.firstName.trim(),
-          lastName: values.lastName.trim(),
+          fullName: values.fullName.trim(),
           email: values.email.trim(),
           password: values.password,
           phone: values.phone?.trim() || undefined,
@@ -230,37 +228,20 @@ export function RegisterForm() {
         status={googleStatus.type === "idle" ? form.status : googleStatus}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormField
-          error={form.errors.firstName}
-          htmlFor="firstName"
-          label="First Name"
-          required
-        >
-          <input
-            {...form.getInputProps("firstName")}
-            autoComplete="given-name"
-            className={inputClassName}
-            placeholder="Jane"
-            type="text"
-          />
-        </FormField>
-
-        <FormField
-          error={form.errors.lastName}
-          htmlFor="lastName"
-          label="Last Name"
-          required
-        >
-          <input
-            {...form.getInputProps("lastName")}
-            autoComplete="family-name"
-            className={inputClassName}
-            placeholder="Doe"
-            type="text"
-          />
-        </FormField>
-      </div>
+      <FormField
+        error={form.errors.fullName}
+        htmlFor="fullName"
+        label="Full Name"
+        required
+      >
+        <input
+          {...form.getInputProps("fullName")}
+          autoComplete="name"
+          className={inputClassName}
+          placeholder="Jane Doe"
+          type="text"
+        />
+      </FormField>
 
       <FormField
         error={form.errors.email}
