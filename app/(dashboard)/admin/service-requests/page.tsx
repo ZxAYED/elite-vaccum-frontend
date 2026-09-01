@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useGetAdminServiceRequestsQuery } from "@/redux/api/serviceRequestsApi";
 
 import {
   AdminPageHeader,
@@ -113,7 +114,17 @@ export default function AdminServiceRequestsPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<AdminRequestStatus>("all");
   const [serviceFilter, setServiceFilter] = useState("all");
-  const serviceRequests = getSharedServiceRequests();
+
+  const { data: apiResponse } = useGetAdminServiceRequestsQuery();
+  const mockServiceRequests = getSharedServiceRequests();
+
+  const serviceRequests = useMemo(() => {
+    const apiItems = apiResponse?.items || [];
+    if (apiItems.length > 0) {
+      return apiItems;
+    }
+    return mockServiceRequests;
+  }, [apiResponse, mockServiceRequests]);
   const services = Array.from(
     new Map(
       getSharedPublicServices().map((service) => [

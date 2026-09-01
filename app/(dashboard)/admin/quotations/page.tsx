@@ -47,6 +47,7 @@ import {
   upsertSharedQuotation,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import { useGetAdminQuotationsQuery } from "@/redux/api/quotationsApi";
 import { formatCurrencyUsd, formatShortDate } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import type { AdminQuotation } from "@/types/domain";
@@ -69,7 +70,17 @@ export default function AdminQuotationsPage() {
   const [status, setStatus] = useState<AdminQuotationFilterStatus>("all");
   const [sort, setSort] = useState<SortValue>("newest");
   const [deleteTarget, setDeleteTarget] = useState<AdminQuotation | null>(null);
-  const quotations = getSharedQuotations();
+
+  const { data: apiResponse } = useGetAdminQuotationsQuery();
+  const mockQuotations = getSharedQuotations();
+
+  const quotations = useMemo(() => {
+    const apiItems = apiResponse?.items || [];
+    if (apiItems.length > 0) {
+      return apiItems;
+    }
+    return mockQuotations;
+  }, [apiResponse, mockQuotations]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
