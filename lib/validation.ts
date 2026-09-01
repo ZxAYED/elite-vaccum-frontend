@@ -26,12 +26,18 @@ export const loginSchema = z.object({
 });
 
 export const registerSchema = z.object({
-  fullName: z
+  firstName: z
     .string()
     .trim()
-    .min(2, "Enter your full name.")
-    .max(80, "Name must be 80 characters or fewer."),
+    .min(1, "First name is required.")
+    .max(50, "First name must be 50 characters or fewer."),
+  lastName: z
+    .string()
+    .trim()
+    .min(1, "Last name is required.")
+    .max(50, "Last name must be 50 characters or fewer."),
   email: emailSchema,
+  phone: optionalPhoneSchema.optional(),
   password: passwordSchema,
   termsAccepted: z.boolean().refine((value) => value, {
     message: "You must accept the terms to continue.",

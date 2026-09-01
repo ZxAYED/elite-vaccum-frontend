@@ -37,22 +37,21 @@ export function RegisterForm() {
   const form = useSchemaForm({
     schema: registerSchema,
     initialValues: {
-      fullName: "",
+      firstName: "",
+      lastName: "",
       email: "",
+      phone: "",
       password: "",
       termsAccepted: false,
     },
     onValidSubmit: async (values) => {
       try {
-        const parts = values.fullName.trim().split(/\s+/);
-        const firstName = parts[0] || "User";
-        const lastName = parts.slice(1).join(" ") || "Customer";
-
         const response = await signupMutation({
-          email: values.email,
+          firstName: values.firstName.trim(),
+          lastName: values.lastName.trim(),
+          email: values.email.trim(),
           password: values.password,
-          firstName,
-          lastName,
+          phone: values.phone?.trim() || undefined,
         }).unwrap();
 
         setRegisteredEmail(values.email);
@@ -231,20 +230,37 @@ export function RegisterForm() {
         status={googleStatus.type === "idle" ? form.status : googleStatus}
       />
 
-      <FormField
-        error={form.errors.fullName}
-        htmlFor="fullName"
-        label="Full Name"
-        required
-      >
-        <input
-          {...form.getInputProps("fullName")}
-          autoComplete="name"
-          className={inputClassName}
-          placeholder="Jordan Mercer..."
-          type="text"
-        />
-      </FormField>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField
+          error={form.errors.firstName}
+          htmlFor="firstName"
+          label="First Name"
+          required
+        >
+          <input
+            {...form.getInputProps("firstName")}
+            autoComplete="given-name"
+            className={inputClassName}
+            placeholder="Jane"
+            type="text"
+          />
+        </FormField>
+
+        <FormField
+          error={form.errors.lastName}
+          htmlFor="lastName"
+          label="Last Name"
+          required
+        >
+          <input
+            {...form.getInputProps("lastName")}
+            autoComplete="family-name"
+            className={inputClassName}
+            placeholder="Doe"
+            type="text"
+          />
+        </FormField>
+      </div>
 
       <FormField
         error={form.errors.email}
@@ -260,6 +276,22 @@ export function RegisterForm() {
           placeholder="name@example.com..."
           spellCheck={false}
           type="email"
+        />
+      </FormField>
+
+      <FormField
+        error={form.errors.phone}
+        hint="Optional. Used for service scheduling updates."
+        htmlFor="phone"
+        label="Phone Number"
+      >
+        <input
+          {...form.getInputProps("phone")}
+          autoComplete="tel"
+          className={inputClassName}
+          inputMode="tel"
+          placeholder="+1 (555) 000-0000"
+          type="tel"
         />
       </FormField>
 
