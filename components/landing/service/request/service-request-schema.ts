@@ -15,7 +15,6 @@ export const serviceRequestSchema = z
     serviceSlug: z.string().min(1),
     serviceTitle: z.string().min(1),
     fullName: z.string().min(2, "Enter your full name."),
-    email: z.string().email("Enter a valid email address."),
     phone: z.string().min(7, "Enter a valid phone number."),
     address: z.string().min(4, "Enter the service address."),
     city: z.string().min(2, "Enter the city."),

@@ -43,7 +43,7 @@ interface ServiceRequestFormProps {
   service: ServiceOffering;
   defaultValues: Pick<
     ServiceRequestFormValues,
-    "fullName" | "email" | "phone" | "address" | "city" | "state" | "zipCode"
+    "fullName" | "phone" | "address" | "city" | "state" | "zipCode"
   >;
 }
 
@@ -236,7 +236,6 @@ export function ServiceRequestForm({
       serviceSlug: service.slug,
       fullName: values.fullName,
       phone: values.phone,
-      email: values.email,
       address: values.address,
       city: values.city,
       state: values.state,
@@ -280,7 +279,7 @@ export function ServiceRequestForm({
         serviceSlug: service.slug,
         customerId: mockCurrentUser.customerId ?? "cust-1001",
         fullName: values.fullName,
-        email: values.email,
+        email: mockCurrentUser.email ?? "customer@example.com",
         phone: values.phone,
         address: values.address,
         city: values.city,
@@ -405,14 +404,6 @@ export function ServiceRequestForm({
                       autoComplete="name"
                       className={inputClassName}
                       {...register("fullName")}
-                    />
-                  </FormField>
-                  <FormField label="Email Address" error={errors.email?.message}>
-                    <Input
-                      autoComplete="email"
-                      className={inputClassName}
-                      type="email"
-                      {...register("email")}
                     />
                   </FormField>
                   <FormField label="Phone Number" error={errors.phone?.message}>

@@ -54,7 +54,6 @@ export default async function ServicesRequestPage({
       service={service}
       defaultValues={{
         fullName: `${mockCurrentUser.firstName} ${mockCurrentUser.lastName}`,
-        email: mockCurrentUser.email,
         phone: mockCurrentUser.phone ?? "",
         address: primaryAddress?.line1 ?? "",
         city: primaryAddress?.city ?? "",
