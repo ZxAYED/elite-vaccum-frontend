@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { FormField } from "@/components/forms/FormField";
@@ -11,23 +12,64 @@ import { Button } from "@/components/ui/Button";
 import { useSchemaForm, type FormSubmissionState } from "@/lib/use-schema-form";
 import { loginSchema } from "@/lib/validation";
 import google from "@/public/common/google.png";
+import { useLoginMutation } from "@/redux/api/authApi";
+import { useAppDispatch } from "@/redux/hooks";
+import { setCredentials } from "@/redux/slices/authSlice";
 
 export function LoginForm() {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [loginMutation, { isLoading: isApiLoggingIn }] = useLoginMutation();
   const [googleStatus, setGoogleStatus] = useState<FormSubmissionState>({
     type: "idle",
   });
+
   const form = useSchemaForm({
     schema: loginSchema,
     initialValues: {
       email: "",
       password: "",
     },
-    onValidSubmit: async () => ({
-      type: "ready",
-      message:
-        "Credentials look valid. Sign-in will begin once the authentication API is connected.",
-    }),
+    onValidSubmit: async (values) => {
+      try {
+        const response = await loginMutation({
+          email: values.email,
+          password: values.password,
+        }).unwrap();
+
+        dispatch(
+          setCredentials({
+            user: response.user,
+            token: response.accessToken,
+          })
+        );
+
+        const userRole = String(response.user.role || "").toUpperCase();
+        if (userRole === "ADMIN") {
+          router.push("/admin");
+        } else if (userRole === "TECHNICIAN") {
+          router.push("/technician");
+        } else {
+          router.push("/user");
+        }
+
+        return {
+          type: "success",
+          message: "Signed in successfully. Redirecting to dashboard...",
+        };
+      } catch (err: unknown) {
+        const errorData = err as { data?: { message?: string } };
+        return {
+          type: "error",
+          message:
+            errorData?.data?.message ||
+            "Unable to sign in. Please verify your credentials and try again.",
+        };
+      }
+    },
   });
+
+  const isSubmitting = form.isSubmitting || isApiLoggingIn;
 
   return (
     <form className="space-y-5" noValidate onSubmit={form.handleSubmit}>
@@ -78,10 +120,10 @@ export function LoginForm() {
 
       <Button
         className="mt-2 w-full rounded-[var(--radius-control)] py-6 text-base"
-        disabled={form.isSubmitting}
+        disabled={isSubmitting}
         type="submit"
       >
-        {form.isSubmitting ? "Validating..." : "Log In"}
+        {isSubmitting ? "Signing in..." : "Log In"}
       </Button>
 
       <Button

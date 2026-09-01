@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
@@ -15,6 +15,9 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLogoutMutation } from "@/redux/api/authApi";
+import { useAppDispatch } from "@/redux/hooks";
+import { logout } from "@/redux/slices/authSlice";
 
 import {
   getCurrentTechnicianProfile,
@@ -38,8 +41,22 @@ export default function TechnicianDashboardSidebar({
   onClose: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [logoutMutation] = useLogoutMutation();
+
   const technician = getCurrentTechnicianProfile();
   const unreadCount = getTechnicianUnreadNotificationCount();
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation().unwrap();
+    } catch {
+      // client logout proceeds
+    }
+    dispatch(logout());
+    router.push("/auth/login");
+  };
 
   return (
     <>
@@ -131,9 +148,8 @@ export default function TechnicianDashboardSidebar({
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 22 }}
             type="button"
-            aria-disabled="true"
-            title="Frontend-only demo. Backend sign-out is not connected yet."
-            className="mt-3 flex w-full cursor-not-allowed items-center gap-3 rounded-xl bg-rose-50/70 px-3.5 py-2.5 text-[15px] font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+            onClick={handleLogout}
+            className="mt-3 flex w-full cursor-pointer items-center gap-3 rounded-xl bg-rose-50/70 px-3.5 py-2.5 text-[15px] font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
           >
             <LogOut size={19} className="text-rose-500" />
             Logout

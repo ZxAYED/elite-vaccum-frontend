@@ -1,4 +1,10 @@
-export type UserRole = "customer" | "technician" | "admin";
+export type UserRole =
+  | "customer"
+  | "technician"
+  | "admin"
+  | "CUSTOMER"
+  | "TECHNICIAN"
+  | "ADMIN";
 
 export type CustomerStatus = "active" | "inactive" | "lead";
 export type ProductCategoryStatus = "ACTIVE" | "INACTIVE";

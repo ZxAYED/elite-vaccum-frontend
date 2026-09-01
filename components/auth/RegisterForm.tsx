@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { FormField } from "@/components/forms/FormField";
@@ -11,11 +12,27 @@ import { Button } from "@/components/ui/Button";
 import { useSchemaForm, type FormSubmissionState } from "@/lib/use-schema-form";
 import { registerSchema } from "@/lib/validation";
 import google from "@/public/common/google.png";
+import {
+  useSignupMutation,
+  useVerifyOtpMutation,
+  useResendOtpMutation,
+} from "@/redux/api/authApi";
 
 export function RegisterForm() {
+  const router = useRouter();
+  const [signupMutation, { isLoading: isSigningUp }] = useSignupMutation();
+  const [verifyOtpMutation, { isLoading: isVerifying }] = useVerifyOtpMutation();
+  const [resendOtpMutation, { isLoading: isResending }] = useResendOtpMutation();
+
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpStatus, setOtpStatus] = useState<FormSubmissionState>({
+    type: "idle",
+  });
   const [googleStatus, setGoogleStatus] = useState<FormSubmissionState>({
     type: "idle",
   });
+
   const form = useSchemaForm({
     schema: registerSchema,
     initialValues: {
@@ -24,12 +41,157 @@ export function RegisterForm() {
       password: "",
       termsAccepted: false,
     },
-    onValidSubmit: async () => ({
-      type: "ready",
-      message:
-        "Registration details passed validation. Account creation will be enabled once the auth backend is connected.",
-    }),
+    onValidSubmit: async (values) => {
+      try {
+        const parts = values.fullName.trim().split(/\s+/);
+        const firstName = parts[0] || "User";
+        const lastName = parts.slice(1).join(" ") || "Customer";
+
+        const response = await signupMutation({
+          email: values.email,
+          password: values.password,
+          firstName,
+          lastName,
+        }).unwrap();
+
+        setRegisteredEmail(values.email);
+        setOtpStatus({
+          type: "success",
+          message:
+            response.message ||
+            "Registration successful! Enter the 5-digit verification code sent to your email.",
+        });
+
+        return {
+          type: "success",
+          message: "Verification code sent.",
+        };
+      } catch (err: unknown) {
+        const errorData = err as { data?: { message?: string } };
+        return {
+          type: "error",
+          message:
+            errorData?.data?.message ||
+            "Unable to register. Please try again with a different email.",
+        };
+      }
+    },
   });
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registeredEmail || !otpCode.trim()) return;
+
+    try {
+      const response = await verifyOtpMutation({
+        email: registeredEmail,
+        otp: otpCode.trim(),
+      }).unwrap();
+
+      setOtpStatus({
+        type: "success",
+        message: response.message || "Email verified! Redirecting to login...",
+      });
+
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 1500);
+    } catch (err: unknown) {
+      const errorData = err as { data?: { message?: string } };
+      setOtpStatus({
+        type: "error",
+        message:
+          errorData?.data?.message ||
+          "Invalid or expired OTP code. Please try again.",
+      });
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!registeredEmail) return;
+    try {
+      const response = await resendOtpMutation({
+        email: registeredEmail,
+      }).unwrap();
+      setOtpStatus({
+        type: "success",
+        message: response.message || "New verification code sent to your email.",
+      });
+    } catch (err: unknown) {
+      const errorData = err as { data?: { message?: string } };
+      setOtpStatus({
+        type: "error",
+        message:
+          errorData?.data?.message ||
+          "Failed to resend code. Please try again in a moment.",
+      });
+    }
+  };
+
+  // OTP Verification Step
+  if (registeredEmail) {
+    return (
+      <form className="space-y-5" onSubmit={handleVerifyOtp} noValidate>
+        <FormStatus status={otpStatus} />
+
+        <div className="rounded-2xl border border-teal-100 bg-teal-50/60 p-4 text-sm text-slate-700">
+          <p className="font-semibold text-primary">Verify Your Email</p>
+          <p className="mt-1 text-slate-600">
+            We sent a 5-digit verification code to{" "}
+            <strong className="text-slate-900">{registeredEmail}</strong>.
+          </p>
+        </div>
+
+        <FormField htmlFor="otp" label="5-Digit Verification Code" required>
+          <input
+            id="otp"
+            name="otp"
+            autoComplete="one-time-code"
+            className={`${inputClassName} text-center tracking-widest text-lg font-bold`}
+            maxLength={6}
+            placeholder="• • • • •"
+            value={otpCode}
+            onChange={(e) => setOtpCode(e.target.value)}
+            type="text"
+            required
+          />
+        </FormField>
+
+        <Button
+          className="w-full rounded-[var(--radius-control)] py-6 text-base"
+          disabled={isVerifying || !otpCode.trim()}
+          type="submit"
+        >
+          {isVerifying ? "Verifying..." : "Verify Code & Proceed"}
+        </Button>
+
+        <div className="flex items-center justify-between text-sm">
+          <button
+            type="button"
+            disabled={isResending}
+            onClick={handleResendOtp}
+            className="font-semibold text-primary transition-opacity hover:opacity-80 disabled:opacity-50"
+          >
+            {isResending ? "Resending..." : "Resend Code"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setRegisteredEmail(null);
+              setOtpCode("");
+              setOtpStatus({ type: "idle" });
+            }}
+            className="text-slate-500 hover:text-slate-700"
+          >
+            Use different email
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  const isSubmitting = form.isSubmitting || isSigningUp;
 
   return (
     <form className="space-y-5" noValidate onSubmit={form.handleSubmit}>
@@ -120,10 +282,10 @@ export function RegisterForm() {
 
       <Button
         className="mt-2 w-full rounded-[var(--radius-control)] py-6 text-base"
-        disabled={form.isSubmitting}
+        disabled={isSubmitting}
         type="submit"
       >
-        {form.isSubmitting ? "Validating..." : "Create Account"}
+        {isSubmitting ? "Creating Account..." : "Create Account"}
       </Button>
 
       <Button

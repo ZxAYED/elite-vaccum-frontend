@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
@@ -22,6 +22,9 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useLogoutMutation } from "@/redux/api/authApi";
+import { useAppDispatch } from "@/redux/hooks";
+import { logout } from "@/redux/slices/authSlice";
 import styles from "./dashboardLayout.module.css";
 
 type AdminNavItem = {
@@ -101,6 +104,9 @@ export default function DashboardSidebar({
   onToggle,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const [logoutMutation] = useLogoutMutation();
 
   return (
     <>
@@ -202,12 +208,19 @@ export default function DashboardSidebar({
             whileHover={{ x: 3, scale: 1.01 }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 22 }}
-            aria-disabled="true"
+            onClick={async () => {
+              try {
+                await logoutMutation().unwrap();
+              } catch {
+                // proceed with client logout regardless
+              }
+              dispatch(logout());
+              router.push("/auth/login");
+            }}
             className={styles.sidebarLogoutBtn}
-            title="Frontend-only demo. Backend sign-out is not connected yet."
             type="button"
           >
-            <LogOut size={19} className="text-red-400" />
+            <LogOut size={18} className="text-red-400" />
             <span>Logout</span>
           </motion.button>
         </div>
