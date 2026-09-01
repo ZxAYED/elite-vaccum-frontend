@@ -60,11 +60,6 @@ export function AuthLayout({
               priority
               sizes="(min-width: 1024px) 46vw, 100vw"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-primary/55 to-transparent p-8 text-white">
-              <p className="max-w-sm text-xl font-semibold leading-tight">
-                Cleaner home care with service history in one calm workspace.
-              </p>
-            </div>
           </div>
         </aside>
       </div>
