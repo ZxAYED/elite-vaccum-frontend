@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
-import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
@@ -162,7 +161,7 @@ export function ServiceRequestForm({
   if (isSubmitSuccessful) {
     return (
       <main className="bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_38%)] py-16 md:py-24">
-        <FadeIn className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
           <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-[var(--brand-soft)] text-primary">
             <CheckCircle2 size={32} />
           </div>
@@ -184,7 +183,7 @@ export function ServiceRequestForm({
               <Link href="/services">Start another request</Link>
             </Button>
           </div>
-        </FadeIn>
+        </div>
       </main>
     );
   }
@@ -196,7 +195,7 @@ export function ServiceRequestForm({
         className="mx-auto grid max-w-360 gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
       >
         <div className="min-w-0">
-          <FadeIn>
+          <div>
             <Link
               href="/services"
               className="inline-flex items-center gap-2 text-sm font-semibold text-primary transition hover:text-teal-700"
@@ -223,10 +222,10 @@ export function ServiceRequestForm({
                 </p>
               </div>
             </div>
-          </FadeIn>
+          </div>
 
-          <StaggerGroup className="mt-10 space-y-10" once={false} amount={0.18}>
-            <StaggerItem>
+          <div className="mt-10 space-y-10">
+            <div>
               <FormSection
                 title="Customer Information"
                 description="Basic contact details so our team can confirm the request."
@@ -258,9 +257,9 @@ export function ServiceRequestForm({
                   </FormField>
                 </div>
               </FormSection>
-            </StaggerItem>
+            </div>
 
-            <StaggerItem>
+            <div>
               <FormSection
                 title="Service Location"
                 description="Where should our technician visit?"
@@ -340,9 +339,9 @@ export function ServiceRequestForm({
                   ) : null}
                 </div>
               </FormSection>
-            </StaggerItem>
+            </div>
 
-            <StaggerItem>
+            <div>
               <FormSection
                 title="Requested Schedule"
                 description="Choose the date and time that works best for you."
@@ -419,9 +418,9 @@ export function ServiceRequestForm({
                   </FormField>
                 </div>
               </FormSection>
-            </StaggerItem>
+            </div>
 
-            <StaggerItem>
+            <div>
               <FormSection
                 title="Tell Us What's Happening"
                 description="Describe the issue clearly so our team can prepare."
@@ -452,9 +451,9 @@ export function ServiceRequestForm({
                   ))}
                 </div>
               </FormSection>
-            </StaggerItem>
+            </div>
 
-            <StaggerItem>
+            <div>
               <FormSection
                 title="Equipment Information"
                 description="These details help our technician prepare the right tools and parts."
@@ -482,9 +481,9 @@ export function ServiceRequestForm({
                   the equipment label below.
                 </p>
               </FormSection>
-            </StaggerItem>
+            </div>
 
-            <StaggerItem>
+            <div>
               <FormSection
                 title="Photos & Videos"
                 description="Show us the machine, affected area, damaged part, or a video of the issue."
@@ -502,9 +501,9 @@ export function ServiceRequestForm({
                   </p>
                 ) : null}
               </FormSection>
-            </StaggerItem>
+            </div>
 
-            <StaggerItem>
+            <div>
               <FormSection
                 title="Additional Notes"
                 description="Access instructions, system history, or anything else our team should know."
@@ -514,11 +513,11 @@ export function ServiceRequestForm({
                   {...register("additionalNotes")}
                 />
               </FormSection>
-            </StaggerItem>
-          </StaggerGroup>
+            </div>
+          </div>
         </div>
 
-        <FadeIn once={false} amount={0.15} className="lg:pt-36">
+        <div className="lg:pt-36">
           <RequestSummary
             serviceTitle={service.title}
             requestedDate={watchedValues.requestedDate}
@@ -540,7 +539,7 @@ export function ServiceRequestForm({
               </p>
             </div>
           </div>
-        </FadeIn>
+        </div>
 
         <input type="hidden" {...register("serviceSlug")} />
         <input type="hidden" {...register("serviceTitle")} />
