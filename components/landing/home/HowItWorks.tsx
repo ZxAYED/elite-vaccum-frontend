@@ -1,3 +1,5 @@
+"use client";
+
 import {
   CalendarClock,
   CircleCheckBig,
@@ -5,7 +7,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+import { FadeIn, HoverCard, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 
 const steps = [
   {
@@ -57,20 +59,22 @@ export default function HowItWorks() {
         <StaggerGroup className="mt-8 grid auto-rows-fr gap-4 sm:mt-12 sm:gap-6 lg:grid-cols-4" delay={0.05} once>
           {steps.map((step) => (
             <StaggerItem key={step.number}>
-              <article className="landing-card flex h-full flex-col px-5 py-7 text-center sm:px-6 sm:py-8">
-                <div className="landing-icon-tile relative mx-auto flex size-16 items-center justify-center border border-teal-100 bg-teal-50 text-teal-700">
-                  <div className="absolute left-1/2 top-1 flex h-7 w-7 -translate-x-[-1.35rem] items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
-                    {step.number}
+              <HoverCard className="h-full" yOffset={-6}>
+                <article className="landing-card flex h-full flex-col px-5 py-7 text-center sm:px-6 sm:py-8 transition-shadow hover:shadow-lg">
+                  <div className="landing-icon-tile relative mx-auto flex size-16 items-center justify-center border border-teal-100 bg-teal-50 text-teal-700">
+                    <div className="absolute left-1/2 top-1 flex h-7 w-7 -translate-x-[-1.35rem] items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
+                      {step.number}
+                    </div>
+                    {step.icon}
                   </div>
-                  {step.icon}
-                </div>
-                <h3 className="mt-6 min-h-[3.5rem] text-2xl font-semibold text-slate-900">
-                  {step.title}
-                </h3>
-                <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
-                  {step.description}
-                </p>
-              </article>
+                  <h3 className="mt-6 min-h-[3.5rem] text-2xl font-semibold text-slate-900">
+                    {step.title}
+                  </h3>
+                  <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">
+                    {step.description}
+                  </p>
+                </article>
+              </HoverCard>
             </StaggerItem>
           ))}
         </StaggerGroup>

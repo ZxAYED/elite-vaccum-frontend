@@ -1,8 +1,16 @@
+"use client";
+
 import { ArrowRight, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+import {
+  FadeIn,
+  HoverCard,
+  Pressable,
+  StaggerGroup,
+  StaggerItem,
+} from "@/components/motion/Animated";
 import shopIcon from "@/public/landing/home/shopicon.png";
 
 const cards = [
@@ -48,40 +56,42 @@ export function PrimaryJourneyCards() {
               ctaClass,
             }) => (
               <StaggerItem key={title}>
-                <article
-                  className={`relative flex h-full flex-col overflow-hidden p-5 sm:p-6 md:p-8 ${surface}`}
-                >
-                  <div className="absolute right-0 top-0 size-28 rounded-full border border-current/10 opacity-30" />
-                  <div
-                    className={`landing-icon-tile flex size-12 items-center justify-center ${accent}`}
+                <HoverCard className="h-full" yOffset={-6}>
+                  <article
+                    className={`relative flex h-full flex-col overflow-hidden p-5 sm:p-6 md:p-8 transition-shadow hover:shadow-xl ${surface}`}
                   >
-                    {iconType === "image" ? (
-                      <Image
-                        src={shopIcon}
-                        alt=""
-                        aria-hidden="true"
-                        className="size-10"
-                      />
-                    ) : (
-                      <Wrench size={20} />
-                    )}
-                  </div>
-                  <h2 className="mt-8 text-2xl font-semibold sm:min-h-[3.5rem]">
-                    {title}
-                  </h2>
-                  <p className="mt-3 flex-1 max-w-md text-sm leading-7 text-inherit/80">
-                    {description}
-                  </p>
-                  <Pressable>
-                    <Link
-                      className={`mt-8 inline-flex w-fit items-center gap-2 text-sm font-semibold transition-colors ${ctaClass}`}
-                      href={href}
+                    <div className="absolute right-0 top-0 size-28 rounded-full border border-current/10 opacity-30" />
+                    <div
+                      className={`landing-icon-tile flex size-12 items-center justify-center ${accent}`}
                     >
-                      {cta}
-                      <ArrowRight size={16} />
-                    </Link>
-                  </Pressable>
-                </article>
+                      {iconType === "image" ? (
+                        <Image
+                          src={shopIcon}
+                          alt=""
+                          aria-hidden="true"
+                          className="size-10"
+                        />
+                      ) : (
+                        <Wrench size={20} />
+                      )}
+                    </div>
+                    <h2 className="mt-8 text-2xl font-semibold sm:min-h-[3.5rem]">
+                      {title}
+                    </h2>
+                    <p className="mt-3 flex-1 max-w-md text-sm leading-7 text-inherit/80">
+                      {description}
+                    </p>
+                    <Pressable scaleHover={1.03} scaleTap={0.97}>
+                      <Link
+                        className={`mt-8 inline-flex w-fit items-center gap-2 text-sm font-semibold transition-colors ${ctaClass}`}
+                        href={href}
+                      >
+                        {cta}
+                        <ArrowRight size={16} />
+                      </Link>
+                    </Pressable>
+                  </article>
+                </HoverCard>
               </StaggerItem>
             ),
           )}

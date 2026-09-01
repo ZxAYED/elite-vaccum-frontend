@@ -1,8 +1,10 @@
+"use client";
+
 import Image from "next/image";
 import appStoreImage from "@/public/common/App Store.png";
 import playStoreImage from "@/public/common/Play Store.png";
 import mobileImage from "@/public/landing/home/mobileImage.png";
-import { FadeIn } from "@/components/motion/Animated";
+import { FadeIn, Pressable, motion } from "@/components/motion/Animated";
 
 export default function SmartIntegration() {
   return (
@@ -30,33 +32,37 @@ export default function SmartIntegration() {
               </h3>
 
               <div className="flex flex-wrap gap-3 sm:gap-4">
-                <a
-                  href="https://play.google.com/store/apps/details?id=com.elitecentralvacuum.app"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Image
-                    src={playStoreImage}
-                    alt="Get it on Google Play"
-                    width={140}
-                    height={50}
-                    className="h-10 w-auto"
-                  />
-                </a>
+                <Pressable scaleHover={1.06} scaleTap={0.95}>
+                  <a
+                    href="https://play.google.com/store/apps/details?id=com.elitecentralvacuum.app"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Image
+                      src={playStoreImage}
+                      alt="Get it on Google Play"
+                      width={140}
+                      height={50}
+                      className="h-10 w-auto"
+                    />
+                  </a>
+                </Pressable>
 
-                <a
-                  href="https://apps.apple.com/app/elit-central-vacuum"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Image
-                    src={appStoreImage}
-                    alt="Download on the App Store"
-                    width={140}
-                    height={50}
-                    className="h-10 w-auto"
-                  />
-                </a>
+                <Pressable scaleHover={1.06} scaleTap={0.95}>
+                  <a
+                    href="https://apps.apple.com/app/elit-central-vacuum"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Image
+                      src={appStoreImage}
+                      alt="Download on the App Store"
+                      width={140}
+                      height={50}
+                      className="h-10 w-auto"
+                    />
+                  </a>
+                </Pressable>
               </div>
             </div>
           </FadeIn>
@@ -68,14 +74,19 @@ export default function SmartIntegration() {
             duration={0.7}
           >
             <div className="absolute inset-0 rounded-[calc(var(--radius-card)+0.5rem)] bg-teal-100/70 blur-3xl" />
-            <Image
-              src={mobileImage}
-              alt="Elite Central Vacuum App dashboard with booking and system monitoring"
-              width={1920}
-              height={1681}
-              sizes="(max-width: 1024px) 80vw, 28vw"
-              className="relative h-auto w-full object-contain"
-            />
+            <motion.div
+              whileHover={{ y: -8, scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            >
+              <Image
+                src={mobileImage}
+                alt="Elite Central Vacuum App dashboard with booking and system monitoring"
+                width={1920}
+                height={1681}
+                sizes="(max-width: 1024px) 80vw, 28vw"
+                className="relative h-auto w-full object-contain drop-shadow-2xl"
+              />
+            </motion.div>
           </FadeIn>
         </div>
       </div>

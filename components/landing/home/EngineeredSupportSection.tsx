@@ -1,7 +1,15 @@
+"use client";
+
 import { ArrowRight, HousePlus, ShieldCheck, Wrench } from "lucide-react";
 import Link from "next/link";
 
-import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+import {
+  FadeIn,
+  HoverCard,
+  Pressable,
+  StaggerGroup,
+  StaggerItem,
+} from "@/components/motion/Animated";
 
 const services = [
   {
@@ -44,22 +52,26 @@ export function EngineeredSupportSection() {
         <StaggerGroup className="mt-8 grid auto-rows-fr gap-4 sm:mt-10 sm:gap-6 lg:grid-cols-3" delay={0.05} once>
           {services.map(({ title, description, icon: Icon }) => (
             <StaggerItem key={title}>
-              <article className="landing-card flex h-full flex-col p-5 sm:p-6 lg:p-7">
-                <div className="landing-icon-tile flex size-12 items-center justify-center bg-teal-50 text-teal-700">
-                  <Icon size={22} />
-                </div>
-                <h3 className="mt-6 text-2xl font-semibold text-slate-900 sm:min-h-[3.5rem]">
-                  {title}
-                </h3>
-                <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{description}</p>
-                <Link
-                  className="mt-8 inline-flex w-fit items-center gap-2 text-sm font-semibold text-teal-700 transition hover:text-teal-800"
-                  href="/services"
-                >
-                  Book Service
-                  <ArrowRight size={16} />
-                </Link>
-              </article>
+              <HoverCard className="h-full" yOffset={-6}>
+                <article className="landing-card flex h-full flex-col p-5 sm:p-6 lg:p-7 transition-shadow hover:shadow-xl">
+                  <div className="landing-icon-tile flex size-12 items-center justify-center bg-teal-50 text-teal-700">
+                    <Icon size={22} />
+                  </div>
+                  <h3 className="mt-6 text-2xl font-semibold text-slate-900 sm:min-h-[3.5rem]">
+                    {title}
+                  </h3>
+                  <p className="mt-3 flex-1 text-sm leading-7 text-slate-600">{description}</p>
+                  <Pressable className="mt-8 w-fit" scaleHover={1.04} scaleTap={0.96}>
+                    <Link
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-teal-700 transition hover:text-teal-800"
+                      href="/services"
+                    >
+                      Book Service
+                      <ArrowRight size={16} />
+                    </Link>
+                  </Pressable>
+                </article>
+              </HoverCard>
             </StaggerItem>
           ))}
         </StaggerGroup>

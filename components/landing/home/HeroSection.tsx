@@ -1,8 +1,17 @@
+"use client";
+
 import { ArrowRight, House, PackageCheck, Wrench } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
-import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
+import {
+  FadeIn,
+  HoverCard,
+  Pressable,
+  StaggerGroup,
+  StaggerItem,
+  motion,
+} from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
 import heroVacuum from "@/public/landing/home/vaccum.png";
 
@@ -44,7 +53,7 @@ export function HeroSection() {
 
           <FadeIn animateOnLoad delay={0.14} duration={0.65} y={24}>
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
-              <Pressable>
+              <Pressable scaleHover={1.04} scaleTap={0.95}>
                 <Button asChild size="pill">
                   <Link href="/store">
                     Shop Products
@@ -52,7 +61,7 @@ export function HeroSection() {
                   </Link>
                 </Button>
               </Pressable>
-              <Pressable>
+              <Pressable scaleHover={1.04} scaleTap={0.95}>
                 <Button asChild size="pill" variant="outline">
                   <Link href="/services">Request Service</Link>
                 </Button>
@@ -63,12 +72,14 @@ export function HeroSection() {
           <StaggerGroup className="mt-8 grid auto-rows-fr gap-3 text-left sm:grid-cols-3" delay={0.18} once>
             {highlights.map(({ icon: Icon, label }) => (
               <StaggerItem key={label}>
-                <article className="landing-card flex h-full flex-col p-4 backdrop-blur">
-                  <div className="landing-icon-tile flex size-10 items-center justify-center bg-teal-50 text-teal-700">
-                    <Icon size={18} />
-                  </div>
-                  <p className="mt-4 text-sm leading-7 text-slate-600">{label}</p>
-                </article>
+                <HoverCard className="h-full" yOffset={-4}>
+                  <article className="landing-card flex h-full flex-col p-4 backdrop-blur transition-shadow hover:shadow-md">
+                    <div className="landing-icon-tile flex size-10 items-center justify-center bg-teal-50 text-teal-700">
+                      <Icon size={18} />
+                    </div>
+                    <p className="mt-4 text-sm leading-7 text-slate-600">{label}</p>
+                  </article>
+                </HoverCard>
               </StaggerItem>
             ))}
           </StaggerGroup>
@@ -81,15 +92,19 @@ export function HeroSection() {
           className="relative mx-auto w-full max-w-xl sm:max-w-2xl 2xl:max-w-[34rem]"
         >
           <div className="absolute inset-x-12 bottom-6 h-16 rounded-full bg-teal-200/50 blur-3xl" />
-          <div className="relative overflow-hidden px-4 py-4 sm:px-6 sm:py-6">
+          <motion.div
+            className="relative overflow-hidden px-4 py-4 sm:px-6 sm:py-6"
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          >
             <Image
               src={heroVacuum}
               alt="Elite central vacuum unit with hose and floor attachment"
               priority
               sizes="(max-width: 1279px) 100vw, 42vw"
-              className="relative mx-auto h-auto w-full max-w-[34rem] object-contain"
+              className="relative mx-auto h-auto w-full max-w-[34rem] object-contain drop-shadow-xl"
             />
-          </div>
+          </motion.div>
         </FadeIn>
       </div>
     </section>

@@ -1,5 +1,7 @@
-import type { PropsWithChildren } from "react";
+"use client";
 
+import type { PropsWithChildren } from "react";
+import { motion, type Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface FadeInProps extends PropsWithChildren {
@@ -15,53 +17,147 @@ interface FadeInProps extends PropsWithChildren {
 
 interface PressableProps extends PropsWithChildren {
   className?: string;
+  scaleHover?: number;
+  scaleTap?: number;
 }
+
+interface HoverCardProps extends PropsWithChildren {
+  className?: string;
+  yOffset?: number;
+}
+
+const staggerContainerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: (delay = 0) => ({
+    opacity: 1,
+    transition: {
+      delayChildren: delay,
+      staggerChildren: 0.1,
+    },
+  }),
+};
+
+const staggerItemVariants: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.55,
+      ease: [0.21, 0.47, 0.32, 0.98],
+    },
+  },
+};
 
 export function FadeIn({
   children,
   className,
-  delay: _delay = 0,
-  duration: _duration = 0.65,
-  amount: _amount = 0.2,
-  animateOnLoad: _animateOnLoad = false,
-  once: _once = true,
-  x: _x = 0,
-  y: _y = 24,
+  delay = 0,
+  duration = 0.65,
+  amount = 0.2,
+  animateOnLoad = false,
+  once = true,
+  x = 0,
+  y = 24,
 }: FadeInProps) {
-  void _delay;
-  void _duration;
-  void _amount;
-  void _animateOnLoad;
-  void _once;
-  void _x;
-  void _y;
-  return <div className={className}>{children}</div>;
+  if (animateOnLoad) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x, y }}
+        animate={{ opacity: 1, x: 0, y: 0 }}
+        transition={{
+          duration,
+          delay,
+          ease: [0.21, 0.47, 0.32, 0.98],
+        }}
+        className={className}
+      >
+        {children}
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x, y }}
+      whileInView={{ opacity: 1, x: 0, y: 0 }}
+      viewport={{ once, amount }}
+      transition={{
+        duration,
+        delay,
+        ease: [0.21, 0.47, 0.32, 0.98],
+      }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 export function StaggerGroup({
   children,
   className,
-  delay: _delay = 0,
-  amount: _amount = 0.2,
-  once: _once = true,
+  delay = 0,
+  amount = 0.15,
+  once = true,
 }: FadeInProps) {
-  void _delay;
-  void _amount;
-  void _once;
-  return <div className={className}>{children}</div>;
+  return (
+    <motion.div
+      variants={staggerContainerVariants}
+      custom={delay}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once, amount }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 export function StaggerItem({
   children,
   className,
-  duration: _duration = 0.6,
-  y: _y = 24,
 }: FadeInProps) {
-  void _duration;
-  void _y;
-  return <div className={className}>{children}</div>;
+  return (
+    <motion.div variants={staggerItemVariants} className={className}>
+      {children}
+    </motion.div>
+  );
 }
 
-export function Pressable({ children, className }: PressableProps) {
-  return <div className={cn("inline-flex", className)}>{children}</div>;
+export function Pressable({
+  children,
+  className,
+  scaleHover = 1.03,
+  scaleTap = 0.96,
+}: PressableProps) {
+  return (
+    <motion.div
+      whileHover={{ scale: scaleHover }}
+      whileTap={{ scale: scaleTap }}
+      transition={{ type: "spring", stiffness: 450, damping: 20 }}
+      className={cn("inline-flex", className)}
+    >
+      {children}
+    </motion.div>
+  );
 }
+
+export function HoverCard({
+  children,
+  className,
+  yOffset = -6,
+}: HoverCardProps) {
+  return (
+    <motion.div
+      whileHover={{ y: yOffset }}
+      transition={{ type: "spring", stiffness: 400, damping: 22 }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+export { motion };
