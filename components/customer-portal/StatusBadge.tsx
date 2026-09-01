@@ -48,11 +48,12 @@ export function StatusBadge({
   label,
   className,
 }: StatusBadgeProps) {
+  const norm = (status || "").toLowerCase().replace(/_/g, "-");
   return (
     <span
       className={cn(
         "inline-flex min-h-7 w-fit items-center justify-center whitespace-nowrap rounded-xl px-3 py-1 text-center text-xs font-semibold leading-none",
-        toneByStatus[status] ?? "bg-gray-100 text-gray-700",
+        toneByStatus[norm] ?? "bg-gray-100 text-gray-700",
         className,
       )}
     >

@@ -69,7 +69,13 @@ export function QuotationDecisionPanel({
   const [comments, setComments] = useState("");
   const [history, setHistory] = useState(initialRejectionHistory);
   const latestHistoryEntry = history[0];
-  const canDecide = quoteStatus === "sent" || quoteStatus === "viewed";
+  const normStatus = (quoteStatus || "").toLowerCase().replace(/_/g, "-");
+  const canDecide =
+    normStatus === "sent" ||
+    normStatus === "viewed" ||
+    normStatus === "quoted" ||
+    normStatus === "under-review" ||
+    normStatus === "draft";
 
   async function rejectQuotation() {
     if (!reason) return;
@@ -122,7 +128,7 @@ export function QuotationDecisionPanel({
         reschedules are displayed in the request timeline.
       </p>
 
-      {quoteStatus === "accepted" ? (
+      {normStatus === "accepted" ? (
         <div className="mt-5 rounded-[1rem] bg-white p-4 text-sm text-primary">
           <div className="flex items-center gap-2 font-semibold">
             <CheckCircle2 size={18} />
@@ -142,7 +148,7 @@ export function QuotationDecisionPanel({
         </div>
       ) : null}
 
-      {quoteStatus === "rejected" ? (
+      {normStatus === "rejected" ? (
         <div className="mt-5 rounded-[1rem] bg-white p-4 text-sm text-red-700">
           <div className="flex items-center gap-2 font-semibold">
             <XCircle size={18} />
