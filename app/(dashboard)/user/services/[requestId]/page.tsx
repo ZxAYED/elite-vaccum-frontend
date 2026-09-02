@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -27,7 +27,6 @@ import {
   Star,
   Tag,
   Truck,
-  UploadCloud,
   User,
   Volume2,
   Wind,
@@ -51,8 +50,6 @@ import {
 import {
   useGetServiceRequestByIdQuery,
   useUpdateServiceRequestStatusMutation,
-  useAppendServiceRequestAttachmentsMutation,
-  useDeleteServiceRequestAttachmentMutation,
 } from "@/redux/api/serviceRequestsApi";
 import {
   useGetMyQuotationsQuery,
@@ -89,7 +86,6 @@ export default function ServiceRequestDetailPage() {
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [rejectQuoteOpen, setRejectQuoteOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Live RTK Queries (Strictly API-driven, zero mock data)
   const { data: request, isLoading: isLoadingRequest } =
@@ -107,8 +103,6 @@ export default function ServiceRequestDetailPage() {
 
   // Mutations
   const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateServiceRequestStatusMutation();
-  const [appendAttachments, { isLoading: isUploadingAttachments }] = useAppendServiceRequestAttachmentsMutation();
-  const [deleteAttachment] = useDeleteServiceRequestAttachmentMutation();
   const [acceptQuoteMutation, { isLoading: isAcceptingQuote }] = useAcceptQuotationMutation();
   const [rejectQuoteMutation, { isLoading: isRejectingQuote }] = useRejectQuotationMutation();
 
@@ -171,46 +165,6 @@ export default function ServiceRequestDetailPage() {
       setCancelModalOpen(false);
     } catch {
       toast.error("Failed to cancel request. Please reach out to customer support.");
-    }
-  }
-
-  // Handle Attachment Upload Action
-  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = event.target.files;
-    if (!files || files.length === 0 || !requestId) return;
-
-    const toastId = toast.loading(`Uploading ${files.length} attachment(s)...`);
-    try {
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append("files", files[i]);
-      }
-
-      await appendAttachments({
-        id: requestId,
-        formData,
-      }).unwrap();
-
-      toast.success("Attachments uploaded successfully", { id: toastId });
-    } catch {
-      toast.error("Failed to upload attachments", { id: toastId });
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  // Handle Attachment Delete Action
-  async function handleDeleteAttachment(attachmentId: string) {
-    if (!requestId) return;
-    const toastId = toast.loading("Removing attachment...");
-    try {
-      await deleteAttachment({
-        id: requestId,
-        attachmentId,
-      }).unwrap();
-      toast.success("Attachment removed", { id: toastId });
-    } catch {
-      toast.error("Failed to remove attachment", { id: toastId });
     }
   }
 
@@ -365,16 +319,6 @@ export default function ServiceRequestDetailPage() {
 
   return (
     <div className="w-full space-y-6 sm:space-y-7 pb-16">
-      {/* Hidden file input for additional attachments */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileUpload}
-        multiple
-        accept="image/*,video/*"
-        className="hidden"
-      />
-
       {/* 1. TOP HEADER SECTION - CLEAN WHITE DASHBOARD STYLE (NO GRADIENT) */}
       <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -938,40 +882,21 @@ export default function ServiceRequestDetailPage() {
             </section>
           </div>
 
-          {/* D. INSPECTION MEDIA GALLERY (Reusable Component + Upload Button + Delete) */}
+          {/* D. INSPECTION MEDIA GALLERY (Clean Read-Only Display) */}
           <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-5">
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                  Customer Inspection Photos & Videos
-                </h3>
-                <p className="text-xs text-slate-500 font-normal">
-                  Visual evidence submitted with your central vacuum intake ticket.
-                </p>
-              </div>
-
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={isUploadingAttachments}
-                onClick={() => fileInputRef.current?.click()}
-                className="rounded-md border-teal-200 text-teal-800 hover:bg-teal-50 font-medium"
-              >
-                {isUploadingAttachments ? (
-                  <Loader2 size={14} className="animate-spin mr-1.5" />
-                ) : (
-                  <UploadCloud size={14} className="mr-1.5 text-teal-700" />
-                )}
-                Upload Additional Photos/Files
-              </Button>
+            <div className="border-b border-slate-100 pb-4 mb-5">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                Customer Inspection Photos & Videos
+              </h3>
+              <p className="text-xs text-slate-500 font-normal mt-0.5">
+                Visual evidence submitted with your central vacuum intake ticket.
+              </p>
             </div>
 
             <MediaGalleryPreview
               attachments={request.attachments || []}
-              onDelete={handleDeleteAttachment}
               emptyMessage="No customer media submitted"
-              emptyDescription="You can attach photos or videos of the vacuum motor, broken inlets, or problem areas to help our diagnostic technicians."
+              emptyDescription="No photos or videos were attached to this service request."
             />
           </section>
         </div>
