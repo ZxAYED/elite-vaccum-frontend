@@ -106,13 +106,13 @@ export default function UserDashboardSidebar({
                 <Link
                   href={item.href}
                   onClick={onClose}
-                  className={`flex items-center gap-3.5 rounded-xl px-3.5 py-3 text-[15px] font-medium transition ${
+                  className={`flex items-center gap-3 rounded-md px-3.5 py-2.5 text-sm font-medium transition ${
                     isActive
-                      ? "bg-[#E8EDEE] text-[#1C4F50] font-semibold border-l-4 border-[#1C4F50]"
+                      ? "bg-teal-50 text-teal-900 font-semibold border-l-4 border-teal-700"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <Icon size={20} className={isActive ? "text-[#1C4F50]" : "text-slate-500"} />
+                  <Icon size={18} className={isActive ? "text-teal-700" : "text-slate-500"} />
                   {item.label}
                 </Link>
               </motion.div>
@@ -120,20 +120,20 @@ export default function UserDashboardSidebar({
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+        <div className="p-3.5 border-t border-slate-100">
+          <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 shadow-xs">
             <Image
               src="/nav_profile.jpg"
               alt="User"
-              width={40}
-              height={40}
-              className="rounded-full object-cover"
+              width={36}
+              height={36}
+              className="rounded-full object-cover border border-slate-200"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">John Doe</p>
-              <p className="text-xs text-gray-500">Customer Portal</p>
+              <p className="text-xs font-bold text-slate-900 truncate">John Doe</p>
+              <p className="text-[11px] text-slate-500">Customer Portal</p>
             </div>
-            <Shield className="text-teal-700 shrink-0" size={18} />
+            <Shield className="text-teal-700 shrink-0" size={16} />
           </div>
 
           <motion.button
@@ -142,9 +142,9 @@ export default function UserDashboardSidebar({
             transition={{ type: "spring", stiffness: 400, damping: 22 }}
             type="button"
             onClick={handleLogout}
-            className="mt-3 flex w-full cursor-pointer items-center gap-3 rounded-xl bg-red-50/70 px-3.5 py-2.5 text-[15px] font-medium text-red-600 hover:bg-red-100 hover:text-red-700 transition-colors"
+            className="mt-2.5 flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-rose-50/70 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
           >
-            <LogOut size={19} className="text-red-500" />
+            <LogOut size={16} className="text-rose-500" />
             Logout
           </motion.button>
         </div>

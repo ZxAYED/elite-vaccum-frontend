@@ -23,80 +23,80 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <>
-            <Button asChild variant="outline">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="rounded-md">
               <Link href="/user/billing">Back to billing</Link>
             </Button>
-            <Button>
-              <Download size={16} />
-              Download Invoice
+            <Button size="sm" className="rounded-md bg-teal-600 hover:bg-teal-500 font-medium">
+              <Download size={14} className="mr-1.5" />
+              Download PDF
             </Button>
-          </>
+          </div>
         }
         description={`Related ${invoice.type.toLowerCase()} order ${invoice.relatedOrderId}.`}
         eyebrow={`${invoice.type} Invoice`}
-        title={invoice.id}
+        title={`Invoice #${invoice.id}`}
       />
 
-      <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
-        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center gap-3">
+      <div className="grid gap-6 lg:grid-cols-12">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs lg:col-span-8 space-y-6">
+          <div className="flex flex-wrap items-center gap-2">
             <TypeBadge type={invoice.type} />
             <StatusBadge status={invoice.status} />
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl bg-gray-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <div className="rounded-md bg-slate-50 border border-slate-200 p-3 text-xs">
+              <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
                 Invoice Date
               </p>
-              <p className="mt-2 font-semibold text-gray-900">
+              <p className="mt-1 font-semibold text-slate-900">
                 {formatLongDate(invoice.createdAt)}
               </p>
             </div>
-            <div className="rounded-2xl bg-gray-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+            <div className="rounded-md bg-slate-50 border border-slate-200 p-3 text-xs">
+              <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
                 Customer
               </p>
-              <p className="mt-2 font-semibold text-gray-900">{invoice.customerName}</p>
+              <p className="mt-1 font-semibold text-slate-900">{invoice.customerName}</p>
             </div>
-            <div className="rounded-2xl bg-gray-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                Payment
+            <div className="rounded-md bg-slate-50 border border-slate-200 p-3 text-xs">
+              <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
+                Payment Ref
               </p>
-              <p className="mt-2 font-semibold text-gray-900">
+              <p className="mt-1 font-semibold text-slate-900 font-mono">
                 {invoice.paymentReference ?? invoice.paymentId ?? "Pending"}
               </p>
             </div>
           </div>
 
-          <div className="mt-8">
-            <div className="flex items-center gap-3">
+          <div>
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               {invoice.type === "PRODUCT" ? (
-                <Package className="text-teal-700" size={22} />
+                <Package className="text-teal-700" size={18} />
               ) : (
-                <Wrench className="text-teal-700" size={22} />
+                <Wrench className="text-teal-700" size={18} />
               )}
-              <h2 className="text-xl font-semibold text-primary">Line Items</h2>
+              <h2 className="text-base font-bold text-slate-900">Itemized Breakdown</h2>
             </div>
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-2.5">
               {invoice.lineItems.map((lineItem) => (
                 <div
-                  className="flex flex-col gap-3 rounded-2xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-md border border-slate-200 p-3.5 sm:flex-row sm:items-center sm:justify-between hover:bg-slate-50/50 transition"
                   key={lineItem.id}
                 >
                   <div>
-                    <p className="font-semibold text-gray-900">{lineItem.label}</p>
+                    <p className="text-sm font-semibold text-slate-900">{lineItem.label}</p>
                     {lineItem.description ? (
-                      <p className="mt-1 text-sm text-gray-600">
+                      <p className="mt-0.5 text-xs text-slate-500">
                         {lineItem.description}
                       </p>
                     ) : null}
                     {lineItem.quantity ? (
-                      <p className="mt-2 text-xs font-semibold text-gray-500">
+                      <p className="mt-1 text-[11px] font-medium text-slate-600">
                         Qty {lineItem.quantity}
                         {lineItem.unitPriceUsd
                           ? ` · ${formatCurrencyUsd(lineItem.unitPriceUsd)} each`
@@ -104,7 +104,7 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
                       </p>
                     ) : null}
                   </div>
-                  <p className="text-lg font-semibold text-primary">
+                  <p className="text-base font-bold text-slate-900">
                     {formatCurrencyUsd(lineItem.amountUsd)}
                   </p>
                 </div>
@@ -113,10 +113,10 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
           </div>
         </section>
 
-        <aside className="space-y-6">
-          <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-primary">Billing Address</h2>
-            <p className="mt-4 text-sm leading-6 text-gray-700">
+        <aside className="space-y-6 lg:col-span-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+            <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2.5">Billing Address</h2>
+            <p className="mt-3 text-xs leading-relaxed text-slate-700">
               {invoice.billingAddress.line1}
               <br />
               {invoice.billingAddress.city}, {invoice.billingAddress.state}{" "}
@@ -126,17 +126,17 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
             </p>
           </section>
 
-          <section className="rounded-3xl bg-primary p-6 text-white shadow-sm">
-            <h2 className="text-xl font-semibold">Invoice Total</h2>
-            <div className="mt-5 space-y-3 text-sm text-white/75">
+          <section className="rounded-lg border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-5 sm:p-6 text-white shadow-xs">
+            <h2 className="text-base font-bold text-white">Invoice Summary</h2>
+            <div className="mt-4 space-y-2.5 text-xs sm:text-sm text-teal-100/80">
               <div className="flex justify-between">
                 <span>Subtotal</span>
-                <span>{formatCurrencyUsd(invoice.totals.subtotalUsd)}</span>
+                <span className="font-semibold text-white">{formatCurrencyUsd(invoice.totals.subtotalUsd)}</span>
               </div>
               {invoice.totals.shippingUsd !== undefined ? (
                 <div className="flex justify-between">
                   <span>Shipping</span>
-                  <span>
+                  <span className="font-semibold text-white">
                     {invoice.totals.shippingUsd
                       ? formatCurrencyUsd(invoice.totals.shippingUsd)
                       : "FREE"}
@@ -144,23 +144,23 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
                 </div>
               ) : null}
               <div className="flex justify-between">
-                <span>Tax</span>
-                <span>{formatCurrencyUsd(invoice.totals.taxUsd)}</span>
+                <span>Estimated Tax</span>
+                <span className="font-semibold text-white">{formatCurrencyUsd(invoice.totals.taxUsd)}</span>
               </div>
               {invoice.totals.discountUsd ? (
-                <div className="flex justify-between">
+                <div className="flex justify-between text-emerald-400 font-medium">
                   <span>Discount</span>
                   <span>-{formatCurrencyUsd(invoice.totals.discountUsd)}</span>
                 </div>
               ) : null}
             </div>
-            <div className="mt-5 flex justify-between border-t border-white/15 pt-5 text-2xl font-semibold">
-              <span>Total</span>
-              <span>{formatCurrencyUsd(invoice.totals.totalUsd)}</span>
+            <div className="mt-5 flex justify-between border-t border-white/15 pt-4 text-lg font-bold text-white">
+              <span>Total Due</span>
+              <span className="text-teal-200">{formatCurrencyUsd(invoice.totals.totalUsd)}</span>
             </div>
           </section>
 
-          <Button asChild className="w-full" variant="outline">
+          <Button asChild className="w-full rounded-md font-medium" variant="outline" size="sm">
             <Link href={`/user/orders/${invoice.relatedOrderId}`}>View Related Order</Link>
           </Button>
         </aside>
@@ -168,4 +168,3 @@ export default async function InvoiceDetailsPage({ params }: InvoiceDetailsPageP
     </div>
   );
 }
-

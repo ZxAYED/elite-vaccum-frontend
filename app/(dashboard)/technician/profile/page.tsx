@@ -96,7 +96,7 @@ export default function TechnicianProfilePage() {
         <AdminSurface>
           <div className="flex flex-col gap-6 md:flex-row md:items-start">
             <div className="relative">
-              <div className="flex size-28 items-center justify-center overflow-hidden rounded-3xl bg-teal-50 text-2xl font-semibold text-primary">
+              <div className="flex size-28 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-teal-50 text-2xl font-semibold text-primary shadow-xs">
                 {avatarPreview ? (
                   <Image
                     src={avatarPreview}

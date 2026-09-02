@@ -67,10 +67,10 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
   });
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <Button asChild>
+          <Button asChild size="sm" className="rounded-md font-medium">
             <Link href="/store">Continue shopping</Link>
           </Button>
         }
@@ -79,15 +79,16 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
         title="My Orders"
       />
 
-      <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-teal-100 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-1.5">
             {typeFilters.map((filter) => (
               <Button
                 asChild
                 key={filter.value}
                 size="sm"
-                variant={selectedType === filter.value ? "default" : "ghost"}
+                variant={selectedType === filter.value ? "default" : "outline"}
+                className="rounded-md text-xs font-medium"
               >
                 <Link href={`/user/orders?type=${filter.value}&status=${selectedStatus}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
                   {filter.label}
@@ -96,13 +97,14 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {statusFilters.map((filter) => (
               <Button
                 asChild
                 key={filter.value}
                 size="sm"
                 variant={selectedStatus === filter.value ? "soft" : "outline"}
+                className="rounded-md text-xs font-medium"
               >
                 <Link href={`/user/orders?type=${selectedType}&status=${filter.value}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
                   {filter.label}
@@ -115,35 +117,37 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
         <form method="GET" action="/user/orders" className="relative flex items-center">
           <input type="hidden" name="type" value={selectedType} />
           <input type="hidden" name="status" value={selectedStatus} />
-          <Search size={16} className="pointer-events-none absolute left-4 text-slate-400" />
+          <Search size={15} className="pointer-events-none absolute left-3.5 text-slate-400" />
           <Input
             name="q"
             defaultValue={params.q ?? ""}
             placeholder="Search by order ID, product name, or service..."
-            className="h-11 rounded-2xl border-teal-100 bg-slate-50/50 pl-11 pr-10 text-sm focus-visible:bg-white"
+            className="h-10 rounded-md border-slate-200 bg-slate-50/50 pl-10 pr-10 text-xs sm:text-sm focus-visible:bg-white"
           />
           {query ? (
             <Link
               href={`/user/orders?type=${selectedType}&status=${selectedStatus}`}
               aria-label="Clear search"
-              className="absolute right-3 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+              className="absolute right-3 flex size-5 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-600"
             >
-              <X size={14} />
+              <X size={13} />
             </Link>
           ) : null}
         </form>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
         {filteredOrders.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-            <Package size={32} className="mx-auto text-teal-700 opacity-60" />
-            <p className="mt-3 text-lg font-semibold text-slate-900">No matching orders</p>
-            <p className="mt-1 text-sm text-slate-500">
+          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+              <Package size={22} />
+            </div>
+            <p className="mt-3 text-base font-semibold text-slate-900">No matching orders</p>
+            <p className="mt-1 text-xs text-slate-500">
               Try adjusting your search query or filters.
             </p>
             {(query || selectedType !== "ALL" || selectedStatus !== "all") ? (
-              <Button asChild size="sm" variant="outline" className="mt-4">
+              <Button asChild size="sm" variant="outline" className="mt-4 rounded-md">
                 <Link href="/user/orders">Clear all filters</Link>
               </Button>
             ) : null}
@@ -151,57 +155,59 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
         ) : null}
         {filteredOrders.map((order) => (
           <article
-            className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm"
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs transition hover:border-teal-400 hover:shadow-sm"
             key={order.id}
           >
-            <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <TypeBadge type={order.type as CustomerRecordType} />
-                  <p className="text-sm font-semibold text-gray-500">Order #{order.id}</p>
+                  <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                    Order #{order.id}
+                  </span>
                   <StatusBadge status={order.status} />
                 </div>
 
                 {order.type === "PRODUCT" ? (
-                  <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="relative size-24 overflow-hidden rounded-2xl bg-teal-50">
+                  <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center">
+                    <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
                       <Image
                         src={order.items[0]?.imageSrc ?? "/product.png"}
                         alt={order.items[0]?.name ?? "Product order"}
                         fill
-                        className="object-contain p-3"
+                        className="object-contain p-2"
                       />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-primary">
+                      <h2 className="text-base font-bold text-slate-900">
                         {order.items[0]?.name ?? "Product order"}
                       </h2>
-                      <p className="mt-1 text-sm text-gray-600">
+                      <p className="mt-0.5 text-xs text-slate-600 font-medium">
                         {formatLongDate(order.placedAt)} · Qty{" "}
                         {order.items.reduce((sum, item) => sum + item.quantity, 0)}
                       </p>
-                      <p className="mt-2 text-sm text-gray-500">
+                      <p className="mt-1 text-xs text-slate-500">
                         {order.delivery.carrier}: {order.delivery.trackingNumber}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-5">
-                    <h2 className="text-xl font-semibold text-primary">
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">
                       {order.serviceName}
                     </h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+                    <p className="mt-1 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-600 font-normal">
                       {order.problemSummary}
                     </p>
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-gray-600">
-                      <span className="inline-flex items-center gap-2">
-                        <CalendarDays size={16} />
+                    <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
+                      <span className="inline-flex items-center gap-1.5 font-medium text-slate-800">
+                        <CalendarDays size={14} className="text-teal-600" />
                         {order.currentSchedule}
                       </span>
                       {order.technician ? (
-                        <span className="inline-flex items-center gap-2">
-                          <UserRound size={16} />
-                          Technician: {order.technician.name}
+                        <span className="inline-flex items-center gap-1.5">
+                          <UserRound size={14} className="text-slate-400" />
+                          Technician: <strong className="text-slate-800 font-medium">{order.technician.name}</strong>
                         </span>
                       ) : null}
                     </div>
@@ -209,15 +215,17 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
                 )}
               </div>
 
-              <div className="flex w-full flex-col gap-3 rounded-2xl bg-gray-50 p-4 lg:w-56">
-                <p className="text-sm text-gray-500">Total</p>
-                <p className="text-2xl font-semibold text-primary">
-                  {formatCurrencyUsd(order.total.totalUsd)}
-                </p>
-                <Button asChild>
+              <div className="flex w-full flex-col justify-between gap-2.5 rounded-md border border-slate-200 bg-slate-50/70 p-3.5 sm:w-52 lg:w-56">
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Amount</p>
+                  <p className="mt-0.5 text-lg font-bold text-slate-900">
+                    {formatCurrencyUsd(order.total.totalUsd)}
+                  </p>
+                </div>
+                <Button asChild size="sm" className="rounded-md w-full font-medium">
                   <Link href={`/user/orders/${order.id}`}>
                     View Details
-                    <ArrowRight size={16} />
+                    <ArrowRight size={14} className="ml-1.5" />
                   </Link>
                 </Button>
               </div>
@@ -225,18 +233,18 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
 
             <div
               className={cn(
-                "border-t border-gray-100 px-5 py-4 text-sm",
-                order.type === "SERVICE" ? "bg-teal-50/50" : "bg-white",
+                "border-t border-slate-100 px-5 py-3 text-xs",
+                order.type === "SERVICE" ? "bg-teal-50/40 text-teal-900" : "bg-slate-50/50 text-slate-600",
               )}
             >
               {order.type === "PRODUCT" ? (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <Package size={16} />
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Package size={14} className="text-teal-600" />
                   Estimated delivery: {formatShortDate(order.delivery.estimatedDelivery)}
                 </div>
               ) : (
-                <div className="text-gray-600">
-                  Request {order.serviceRequestId} · Invoice {order.invoiceId} · Payment{" "}
+                <div className="font-medium">
+                  Request Ref: {order.serviceRequestId} · Invoice {order.invoiceId} · Payment{" "}
                   {order.paymentId}
                 </div>
               )}

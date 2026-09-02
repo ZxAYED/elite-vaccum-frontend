@@ -106,18 +106,18 @@ export default function TechnicianDashboardSidebar({
                 <Link
                   href={item.href}
                   onClick={onClose}
-                  className={`flex items-center justify-between gap-3 rounded-xl px-3.5 py-3 text-[15px] font-medium transition ${
+                  className={`flex items-center justify-between gap-3 rounded-md px-3.5 py-2.5 text-sm font-medium transition ${
                     isActive
-                      ? "bg-teal-50 text-primary font-semibold ring-1 ring-teal-100"
+                      ? "bg-teal-50 text-teal-900 font-semibold border-l-4 border-teal-700"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <span className="flex items-center gap-3.5">
-                    <Icon size={20} className={isActive ? "text-teal-700" : "text-slate-500"} />
+                  <span className="flex items-center gap-3">
+                    <Icon size={18} className={isActive ? "text-teal-700" : "text-slate-500"} />
                     {item.label}
                   </span>
                   {item.href === "/technician/notifications" && unreadCount > 0 ? (
-                    <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-amber-100 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800">
                       {unreadCount}
                     </span>
                   ) : null}
@@ -127,22 +127,22 @@ export default function TechnicianDashboardSidebar({
           })}
         </nav>
 
-        <div className="border-t border-slate-100 p-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
+        <div className="border-t border-slate-100 p-3.5">
+          <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 shadow-xs">
             <Image
               src="/nav_profile.jpg"
               alt="Technician"
-              width={40}
-              height={40}
-              className="rounded-full object-cover"
+              width={36}
+              height={36}
+              className="rounded-full object-cover border border-slate-200"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-900">
+              <p className="truncate text-xs font-bold text-slate-900">
                 {technician.displayName}
               </p>
-              <p className="text-xs text-slate-500">Field Technician</p>
+              <p className="text-[11px] text-slate-500">Field Technician</p>
             </div>
-            <Shield className="text-teal-700 shrink-0" size={18} />
+            <Shield className="text-teal-700 shrink-0" size={16} />
           </div>
 
           <motion.button
@@ -151,9 +151,9 @@ export default function TechnicianDashboardSidebar({
             transition={{ type: "spring", stiffness: 400, damping: 22 }}
             type="button"
             onClick={handleLogout}
-            className="mt-3 flex w-full cursor-pointer items-center gap-3 rounded-xl bg-rose-50/70 px-3.5 py-2.5 text-[15px] font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+            className="mt-2.5 flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-rose-50/70 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
           >
-            <LogOut size={19} className="text-rose-500" />
+            <LogOut size={16} className="text-rose-500" />
             Logout
           </motion.button>
         </div>

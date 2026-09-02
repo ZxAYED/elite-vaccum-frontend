@@ -20,113 +20,122 @@ export default async function ScheduleDetailPage({ params }: ScheduleDetailPageP
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <>
-            <Button asChild variant="outline">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="rounded-md">
               <Link href="/user/schedule">Back to schedule</Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm" className="rounded-md bg-teal-600 hover:bg-teal-500 font-medium">
               <Link href={`/user/orders/${order.id}`}>View Service Order</Link>
             </Button>
-          </>
+          </div>
         }
         description={`Request ID: ${order.serviceRequestId}`}
         eyebrow="Service Schedule"
-        title="Service Schedule"
+        title="Service Schedule Details"
       />
 
-      <div className="mb-10 grid gap-5 md:grid-cols-4">
-        {order.timeline.map((step) => (
-          <div className="text-center" key={step.key}>
-            <div
-              className={cn(
-                "mx-auto flex size-12 items-center justify-center rounded-full border-4",
-                step.complete
-                  ? "border-teal-100 bg-primary text-white"
-                  : "border-gray-100 bg-gray-50 text-gray-400",
-              )}
-            >
-              <Check size={18} />
+      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+        <h2 className="text-sm font-bold text-slate-900 mb-5">Appointment Progress</h2>
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
+          {order.timeline.map((step) => (
+            <div className="text-center" key={step.key}>
+              <div
+                className={cn(
+                  "mx-auto flex size-10 items-center justify-center rounded-full border-2",
+                  step.complete
+                    ? "border-teal-500 bg-teal-600 text-white"
+                    : "border-slate-200 bg-slate-50 text-slate-400",
+                )}
+              >
+                <Check size={16} />
+              </div>
+              <p className="mt-2 text-xs font-bold text-slate-900">{step.label}</p>
+              <p className="mt-0.5 text-[11px] text-slate-500 font-normal">{step.detail}</p>
+              <p className="mt-1 text-[10px] text-slate-400 font-mono">{step.dateLabel}</p>
             </div>
-            <h2 className="mt-3 font-semibold text-gray-900">{step.label}</h2>
-            <p className="mt-1 text-sm text-gray-600">{step.detail}</p>
-            <p className="mt-2 text-xs text-gray-400">{step.dateLabel}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.3fr_0.9fr]">
-        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <CalendarDays className="text-teal-700" size={22} />
-            <h2 className="text-xl font-semibold text-primary">Appointment Details</h2>
+      <div className="grid gap-6 lg:grid-cols-12">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs lg:col-span-7 space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <CalendarDays className="text-teal-700" size={18} />
+            <h2 className="text-base font-bold text-slate-900">Appointment Details</h2>
           </div>
-          <div className="mt-5 grid gap-4 rounded-2xl bg-gray-50 p-5 md:grid-cols-2">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                Requested
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs">
+              <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
+                Requested Schedule
               </p>
-              <p className="mt-2 font-semibold text-primary">
+              <p className="mt-1 font-semibold text-slate-900">
                 {order.requestedSchedule}
               </p>
             </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                Current
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs">
+              <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
+                Confirmed Schedule
               </p>
-              <p className="mt-2 font-semibold text-primary">{order.currentSchedule}</p>
+              <p className="mt-1 font-semibold text-teal-950">{order.currentSchedule}</p>
             </div>
           </div>
           {order.technician ? (
-            <div className="mt-5 rounded-2xl bg-gray-50 p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                Technician
+            <div className="rounded-md border border-teal-200 bg-teal-50/60 p-4 space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-teal-800">
+                Assigned Technician
               </p>
-              <p className="mt-2 text-xl font-semibold text-primary">
+              <p className="text-base font-bold text-slate-900">
                 {order.technician.name}
               </p>
-              <p className="text-sm text-gray-600">{order.technician.phone}</p>
+              <p className="text-xs text-slate-600 font-mono">{order.technician.phone}</p>
             </div>
           ) : null}
         </section>
 
-        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <UserRound className="text-teal-700" size={22} />
-            <h2 className="text-xl font-semibold text-primary">Service Overview</h2>
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs lg:col-span-5 space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <UserRound className="text-teal-700" size={18} />
+            <h2 className="text-base font-bold text-slate-900">Service Overview</h2>
           </div>
-          <div className="mt-5 space-y-5">
+          <div className="space-y-3 text-xs">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+              <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
                 Service Type
               </p>
-              <p className="mt-2 text-gray-700">{order.serviceName}</p>
+              <p className="mt-0.5 font-semibold text-slate-900">{order.serviceName}</p>
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                Address
+              <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
+                Service Address
               </p>
-              <p className="mt-2 text-gray-700">
-                <MapPin className="mr-2 inline text-teal-700" size={16} />
+              <p className="mt-0.5 font-medium text-slate-800 flex items-center gap-1.5">
+                <MapPin className="text-teal-700 shrink-0" size={14} />
                 {order.location.line1}, {order.location.city}
               </p>
             </div>
-            <div className="rounded-2xl bg-primary p-5 text-white">
-              <CreditCard size={18} />
-              <p className="mt-2 font-semibold">Payment Status</p>
-              <p className="mt-1 text-sm text-white/75">
-                Billing is connected through invoice {order.invoiceId}.
+            <div className="rounded-md border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-4 text-white">
+              <div className="flex items-center gap-2 font-bold text-xs">
+                <CreditCard size={15} />
+                Payment Status
+              </div>
+              <p className="mt-1 text-xs text-teal-100/80 font-normal">
+                Billing connected through invoice {order.invoiceId}.
               </p>
             </div>
-            <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-              {order.customerNotes}
+            {order.customerNotes ? (
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                <span className="font-semibold text-slate-900">Notes:</span> {order.customerNotes}
+              </div>
+            ) : null}
+            <div className="pt-2 text-center">
+              <button className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700">
+                <XCircle size={14} />
+                Cancel Service Request
+              </button>
             </div>
-            <button className="mx-auto flex items-center gap-2 text-sm font-semibold text-red-600">
-              <XCircle size={16} />
-              Cancel Request
-            </button>
           </div>
         </section>
       </div>

@@ -32,51 +32,55 @@ export function UserScheduleClient() {
   }, [apiOrders, mockItems, activeTab]);
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         description="A live timeline for all scheduled technician visits, arrivals, and service orders."
         eyebrow="Schedule & Orders"
         title="My Service Schedule"
       />
 
-      <div className="mb-6 flex gap-2 rounded-3xl border border-teal-100 bg-white p-4 shadow-sm">
+      <div className="flex gap-2 rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
         <Button
-          variant={activeTab === "upcoming" ? "default" : "ghost"}
+          variant={activeTab === "upcoming" ? "default" : "outline"}
+          size="sm"
           onClick={() => setActiveTab("upcoming")}
-          className="rounded-full"
+          className="rounded-md text-xs font-medium"
         >
           Upcoming Visits
         </Button>
         <Button
-          variant={activeTab === "completed" ? "default" : "ghost"}
+          variant={activeTab === "completed" ? "default" : "outline"}
+          size="sm"
           onClick={() => setActiveTab("completed")}
-          className="rounded-full"
+          className="rounded-md text-xs font-medium"
         >
           Past & Completed
         </Button>
       </div>
 
       {isLoading && (
-        <div className="flex items-center justify-center py-16 text-teal-700">
-          <Loader2 size={32} className="animate-spin" />
-          <span className="ml-3 text-sm font-medium text-slate-600">Loading schedule...</span>
+        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-16 text-teal-700 shadow-xs">
+          <Loader2 size={24} className="animate-spin" />
+          <span className="ml-3 text-xs sm:text-sm font-medium text-slate-600">Loading schedule...</span>
         </div>
       )}
 
       {!isLoading && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {displayOrders.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-12 text-center">
-              <CalendarDays size={36} className="mx-auto text-teal-700 opacity-60" />
-              <h2 className="mt-4 text-lg font-semibold text-slate-900">
+            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+                <CalendarDays size={22} />
+              </div>
+              <h2 className="mt-3 text-base font-semibold text-slate-900">
                 {activeTab === "upcoming" ? "No upcoming appointments scheduled" : "No completed visits yet"}
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600">
                 {activeTab === "upcoming"
                   ? "When an admin approves and schedules your request, dispatch details will appear here."
                   : "Completed service orders and technician service reports will appear here."}
               </p>
-              <Button asChild size="pill" className="mt-6">
+              <Button asChild size="sm" className="mt-5 rounded-md font-medium">
                 <Link href="/services">Book a Service Visit</Link>
               </Button>
             </div>
@@ -122,41 +126,41 @@ export function UserScheduleClient() {
 
               return (
                 <article
-                  className="rounded-3xl border border-teal-100/80 bg-white p-6 shadow-[0_12px_36px_-24px_rgba(28,79,80,0.15)] transition hover:border-teal-300"
+                  className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition hover:border-teal-400 hover:shadow-sm"
                   key={String(order.id)}
                 >
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="font-mono text-sm font-bold text-teal-800">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-teal-900 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
                           {String(order.id)}
                         </span>
                         <StatusBadge status={String(order.status || "scheduled")} />
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                          <Clock3 size={14} className="text-teal-600" />
+                          <Clock3 size={13} className="text-teal-600" />
                           {scheduleDate}
                         </span>
                       </div>
-                      <h2 className="mt-4 text-xl font-bold text-slate-900">
+                      <h2 className="text-base sm:text-lg font-bold text-slate-900">
                         {serviceTitle}
                       </h2>
                       {problemSummary && (
-                        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
+                        <p className="line-clamp-2 text-xs sm:text-sm leading-relaxed text-slate-600 font-normal">
                           {problemSummary}
                         </p>
                       )}
                       {techName ? (
-                        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-teal-50 px-3.5 py-1.5 text-xs font-semibold text-teal-800">
-                          <UserRound size={14} />
+                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800">
+                          <UserRound size={13} />
                           Tech: {techName}
                         </div>
                       ) : null}
                     </div>
 
-                    <Button asChild size="pill" variant="outline">
+                    <Button asChild size="sm" variant="outline" className="rounded-md font-medium shrink-0">
                       <Link href={targetLink}>
                         View Details
-                        <ArrowRight size={16} />
+                        <ArrowRight size={14} className="ml-1.5" />
                       </Link>
                     </Button>
                   </div>
@@ -167,13 +171,13 @@ export function UserScheduleClient() {
         </div>
       )}
 
-      <section className="mt-8 rounded-3xl bg-[linear-gradient(135deg,#134E48_0%,#0D9488_100%)] p-8 text-center text-white shadow-lg">
-        <CalendarDays className="mx-auto text-teal-200" size={32} />
-        <h2 className="mt-4 text-2xl font-bold">Need additional system maintenance?</h2>
-        <p className="mx-auto mt-2 max-w-xl text-sm text-teal-50/80">
+      <section className="rounded-lg border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-6 text-center text-white shadow-xs">
+        <CalendarDays className="mx-auto text-teal-300" size={28} />
+        <h2 className="mt-3 text-lg font-bold">Need additional system maintenance?</h2>
+        <p className="mx-auto mt-1.5 max-w-lg text-xs sm:text-sm text-teal-100/80 font-normal">
           Easily book specialized pipe diagnostics, motor checkups, or inlet replacement with Elite certified technicians.
         </p>
-        <Button asChild size="pill" className="mt-6 bg-white text-teal-950 hover:bg-white/90">
+        <Button asChild size="sm" className="mt-4 rounded-md bg-white text-teal-950 hover:bg-teal-50 font-semibold">
           <Link href="/services">Request a Service</Link>
         </Button>
       </section>

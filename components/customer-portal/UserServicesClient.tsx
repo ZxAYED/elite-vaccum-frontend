@@ -90,30 +90,30 @@ export function UserServicesClient() {
   }, [allRequests, selectedFilter, searchQuery]);
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         eyebrow="Customer Portal"
         title="My Service Requests"
         description="Track all submitted intake requests, diagnostics, and quotation updates in real-time."
         actions={
-          <Button asChild size="pill">
+          <Button asChild size="sm" className="rounded-md bg-teal-600 hover:bg-teal-500 text-white font-medium">
             <Link href="/services">
-              <Wrench size={18} />
+              <Wrench size={14} className="mr-1.5" />
               Request New Service
             </Link>
           </Button>
         }
       />
 
-      <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-teal-100 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="flex flex-wrap gap-1.5">
           {filters.map((filter) => (
             <Button
               key={filter.value}
               size="sm"
-              variant={selectedFilter === filter.value ? "default" : "ghost"}
+              variant={selectedFilter === filter.value ? "default" : "outline"}
               onClick={() => setSelectedFilter(filter.value)}
-              className="rounded-full"
+              className="rounded-md text-xs font-medium"
             >
               {filter.label}
             </Button>
@@ -121,47 +121,49 @@ export function UserServicesClient() {
         </div>
 
         <div className="relative flex items-center">
-          <Search size={16} className="pointer-events-none absolute left-4 text-slate-400" />
+          <Search size={15} className="pointer-events-none absolute left-3.5 text-slate-400" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by request ID, description, or address..."
-            className="h-11 rounded-2xl border-teal-100 bg-slate-50/50 pl-11 pr-10 text-sm focus-visible:bg-white"
+            className="h-10 rounded-md border-slate-200 bg-slate-50/50 pl-10 pr-10 text-xs sm:text-sm focus-visible:bg-white"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
               aria-label="Clear search"
-              className="absolute right-3 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+              className="absolute right-3 flex size-5 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-600"
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           ) : null}
         </div>
       </div>
 
       {isLoading && (
-        <div className="flex items-center justify-center py-16 text-teal-700">
-          <Loader2 size={32} className="animate-spin" />
-          <span className="ml-3 text-sm font-medium text-slate-600">Loading service requests...</span>
+        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-16 text-teal-700 shadow-xs">
+          <Loader2 size={24} className="animate-spin" />
+          <span className="ml-3 text-xs sm:text-sm font-medium text-slate-600">Loading service requests...</span>
         </div>
       )}
 
       {!isLoading && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {filteredRequests.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-12 text-center">
-              <Wrench size={36} className="mx-auto text-teal-700 opacity-60" />
-              <h2 className="mt-4 text-lg font-semibold text-slate-900">
+            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+                <Wrench size={22} />
+              </div>
+              <h2 className="mt-3 text-base font-semibold text-slate-900">
                 {searchQuery ? "No matching requests found" : "No service requests yet"}
               </h2>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600">
                 {searchQuery
                   ? "Try searching for a different keyword or resetting your filter."
                   : "Submit a new service request to schedule central vacuum repair or maintenance."}
               </p>
-              <Button asChild size="pill" className="mt-6">
+              <Button asChild size="sm" className="mt-5 rounded-md font-medium">
                 <Link href="/services">Start a Service Request</Link>
               </Button>
             </div>
@@ -187,36 +189,38 @@ export function UserServicesClient() {
               return (
                 <article
                   key={request.id}
-                  className="rounded-3xl border border-teal-100/80 bg-white p-6 shadow-[0_12px_36px_-24px_rgba(28,79,80,0.15)] transition hover:border-teal-300"
+                  className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition hover:border-teal-400 hover:shadow-sm"
                 >
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="font-mono text-sm font-bold text-teal-800">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs font-semibold text-teal-900 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
                           {request.id}
                         </span>
                         <StatusBadge status={request.status} />
                         {request.urgency && (
-                          <StatusBadge label={request.urgency} status={request.urgency} />
+                          <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/30 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                            {request.urgency}
+                          </span>
                         )}
                       </div>
 
-                      <h2 className="text-xl font-bold text-slate-900">
+                      <h2 className="text-base sm:text-lg font-bold text-slate-900">
                         {request.title || "Central Vacuum Service Request"}
                       </h2>
 
-                      <p className="line-clamp-2 text-sm leading-relaxed text-slate-600">
+                      <p className="line-clamp-2 text-xs sm:text-sm leading-relaxed text-slate-600 font-normal">
                         {request.description || reqAny.problemDescription}
                       </p>
 
-                      <div className="flex flex-wrap items-center gap-y-2 gap-x-5 text-xs text-slate-500">
+                      <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-slate-500 pt-1">
                         <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
-                          <Clock3 size={14} className="text-teal-600" />
+                          <Clock3 size={13} className="text-teal-600" />
                           {displayDate}
                         </span>
                         {(request.serviceAddress?.line1 || reqAny.address) && (
                           <span className="inline-flex items-center gap-1.5">
-                            <MapPin size={14} className="text-slate-400" />
+                            <MapPin size={13} className="text-slate-400" />
                             {request.serviceAddress?.line1 || reqAny.address},{" "}
                             {request.serviceAddress?.city || reqAny.city}
                           </span>
@@ -226,7 +230,7 @@ export function UserServicesClient() {
                             {reqAny.symptoms.slice(0, 3).map((sym: string, idx: number) => (
                               <span
                                 key={idx}
-                                className="rounded-md bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-700"
+                                className="rounded-md bg-teal-50 border border-teal-200 px-2 py-0.5 text-[11px] font-medium text-teal-800"
                               >
                                 {sym.replace(/_/g, " ")}
                               </span>
@@ -241,19 +245,19 @@ export function UserServicesClient() {
                       </div>
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap items-center gap-3">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 pt-2 lg:pt-0">
                       {isQuoted && (
-                        <Button asChild size="pill" className="bg-amber-600 text-white hover:bg-amber-700">
+                        <Button asChild size="sm" className="rounded-md bg-amber-600 text-white hover:bg-amber-700 font-medium">
                           <Link href={`/user/quotations/${request.id}`}>
-                            <FileText size={16} />
+                            <FileText size={14} className="mr-1.5" />
                             Review Quotation
                           </Link>
                         </Button>
                       )}
-                      <Button asChild variant="outline" size="pill">
+                      <Button asChild variant="outline" size="sm" className="rounded-md font-medium">
                         <Link href={`/user/services/${request.id}`}>
                           View Details
-                          <ArrowRight size={16} />
+                          <ArrowRight size={14} className="ml-1.5" />
                         </Link>
                       </Button>
                     </div>

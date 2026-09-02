@@ -121,10 +121,10 @@ export function ReviewsExperience({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm" className="rounded-md font-medium">
             <Link href="/user/orders">Open orders</Link>
           </Button>
         }
@@ -133,22 +133,23 @@ export function ReviewsExperience({
         title="Reviews"
       />
 
-      {(eligibleProductOrders.length || eligibleServiceOrders.length) && (
-        <section className="mb-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      {(eligibleProductOrders.length || eligibleServiceOrders.length) ? (
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-xl font-semibold text-primary">Write a review</h2>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                Reviews are available only once a product order is delivered or a service
-                order is completed. Each order can be reviewed once.
+              <h2 className="text-base font-bold text-slate-900">Write a review</h2>
+              <p className="mt-0.5 text-xs text-slate-500 font-normal">
+                Reviews are available once a product order is delivered or a service visit is completed.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {eligibleProductOrders.map((order) => (
                 <Button
                   key={order.id}
                   type="button"
+                  size="sm"
                   variant="outline"
+                  className="rounded-md text-xs font-medium"
                   onClick={() => startReview("product", order.id)}
                 >
                   Review {order.items[0]?.name ?? order.id}
@@ -158,7 +159,9 @@ export function ReviewsExperience({
                 <Button
                   key={order.id}
                   type="button"
+                  size="sm"
                   variant="outline"
+                  className="rounded-md text-xs font-medium"
                   onClick={() => startReview("service", order.id)}
                 >
                   Review {order.serviceName}
@@ -169,26 +172,23 @@ export function ReviewsExperience({
 
           {(composeType === "product" && selectedProductOrder) ||
           (composeType === "service" && selectedServiceOrder) ? (
-            <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-md border border-slate-200 bg-slate-50/70 p-4 sm:p-5 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <TypeBadge type={composeType === "product" ? "PRODUCT" : "SERVICE"} />
-                <p className="text-sm text-gray-600">
+                <p className="text-xs text-slate-600 font-medium">
                   Reviewing{" "}
-                  <span className="font-semibold text-primary">
+                  <strong className="text-slate-900">
                     {composeType === "product"
                       ? selectedProductOrder?.items[0]?.name
                       : selectedServiceOrder?.serviceName}
-                  </span>{" "}
-                  for order{" "}
-                  {composeType === "product"
-                    ? selectedProductOrder?.id
-                    : selectedServiceOrder?.id}
+                  </strong>{" "}
+                  (Order: {composeType === "product" ? selectedProductOrder?.id : selectedServiceOrder?.id})
                 </p>
               </div>
 
-              <div className="mt-5">
-                <p className="text-sm font-semibold text-primary">Rating</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+              <div>
+                <p className="text-xs font-semibold text-slate-700">Rating</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {[1, 2, 3, 4, 5].map((value) => (
                     <button
                       key={value}
@@ -200,28 +200,28 @@ export function ReviewsExperience({
                           rating: value as DraftState["rating"],
                         }))
                       }
-                      className={`inline-flex size-11 items-center justify-center rounded-2xl border text-sm font-semibold transition ${
-                        draft.rating === value
-                          ? "border-teal-700 bg-teal-700 text-white"
-                          : "border-gray-200 bg-white text-gray-700"
+                      className={`inline-flex size-9 items-center justify-center rounded-md border text-xs font-semibold transition ${
+                        draft.rating >= value
+                          ? "border-amber-400 bg-amber-50 text-amber-600"
+                          : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50"
                       }`}
                     >
                       <Star
-                        size={16}
-                        className={draft.rating >= value ? "fill-current" : ""}
+                        size={14}
+                        className={draft.rating >= value ? "fill-amber-400" : ""}
                       />
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-5">
+              <div className="grid gap-3">
                 <div>
                   <label
                     htmlFor="review-title"
-                    className="mb-2 block text-sm font-semibold text-primary"
+                    className="mb-1 block text-xs font-semibold text-slate-700"
                   >
-                    Review title
+                    Review headline
                   </label>
                   <Input
                     id="review-title"
@@ -230,12 +230,13 @@ export function ReviewsExperience({
                       setDraft((current) => ({ ...current, title: event.target.value }))
                     }
                     placeholder="Summarize your experience"
+                    className="h-9 rounded-md text-xs"
                   />
                 </div>
                 <div>
                   <label
                     htmlFor="review-body"
-                    className="mb-2 block text-sm font-semibold text-primary"
+                    className="mb-1 block text-xs font-semibold text-slate-700"
                   >
                     Review details
                   </label>
@@ -246,14 +247,17 @@ export function ReviewsExperience({
                       setDraft((current) => ({ ...current, body: event.target.value }))
                     }
                     placeholder="Share what went well, what could improve, and whether you would recommend it."
+                    className="min-h-20 rounded-md text-xs"
                   />
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-1 text-[11px] text-slate-400">
                     Minimum 20 characters.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Button
                     type="button"
+                    size="sm"
+                    className="rounded-md font-medium"
                     onClick={submitReview}
                     disabled={!draft.title.trim() || draft.body.trim().length < 20}
                   >
@@ -262,6 +266,8 @@ export function ReviewsExperience({
                   <Button
                     type="button"
                     variant="outline"
+                    size="sm"
+                    className="rounded-md font-medium"
                     onClick={() => {
                       setComposeType(null);
                       setSelectedOrderId("");
@@ -276,32 +282,33 @@ export function ReviewsExperience({
           ) : null}
 
           {submitMessage ? (
-            <div className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-800">
               {submitMessage}
             </div>
           ) : null}
         </section>
-      )}
+      ) : null}
 
       {!customerReviews.length ? (
-        <section className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm">
-          <MessageSquareQuote className="mx-auto text-teal-700" size={28} />
-          <h2 className="mt-4 text-xl font-semibold text-primary">No reviews yet</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Once you review a delivered product order or completed service visit, it
-            will appear here.
+        <section className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center shadow-xs">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+            <MessageSquareQuote size={22} />
+          </div>
+          <h2 className="mt-3 text-base font-semibold text-slate-900">No reviews submitted yet</h2>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600 font-normal">
+            Once you review a delivered product order or completed service visit, your verified feedback will appear here.
           </p>
         </section>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {customerReviews.map((review) => (
             <article
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+              className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition hover:border-teal-400 hover:shadow-sm"
               key={review.id}
             >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="space-y-2 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <TypeBadge type={review.type} />
                     <StatusBadge
                       label={
@@ -314,29 +321,29 @@ export function ReviewsExperience({
                       status={review.status.toLowerCase()}
                     />
                   </div>
-                  <h2 className="mt-4 text-xl font-semibold text-primary">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     {review.title}
                   </h2>
-                  <p className="mt-2 text-sm text-gray-600">
-                    Related to {review.relatedName} · {review.relatedOrderId}
+                  <p className="text-xs text-slate-500">
+                    Related to <strong className="text-slate-700">{review.relatedName}</strong> · Order {review.relatedOrderId}
                   </p>
 
-                  <div className="mt-4 rounded-2xl bg-gray-50 px-4 py-4 text-sm leading-6 text-gray-700">
+                  <div className="rounded-md border border-slate-200 bg-slate-50/60 p-3 text-xs leading-relaxed text-slate-700">
                     {review.body}
                   </div>
 
-                  <p className="mt-4 text-sm text-gray-500">
+                  <p className="text-[11px] text-slate-400">
                     Submitted on {formatLongDate(review.submittedAt)}
                   </p>
                 </div>
 
-                <div className="w-full max-w-sm rounded-2xl bg-teal-50 p-5">
-                  <div className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-amber-600">
-                    <Star className="fill-current" size={16} />
-                    {review.rating}/5
+                <div className="w-full lg:max-w-xs rounded-md border border-teal-200/80 bg-teal-50/50 p-4 space-y-3 shrink-0">
+                  <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-white px-2.5 py-1 text-xs font-bold text-amber-700 shadow-xs">
+                    <Star className="fill-amber-400 text-amber-500" size={13} />
+                    {review.rating} / 5 Stars
                   </div>
 
-                  <Button asChild className="mt-5 w-full">
+                  <Button asChild size="sm" variant="outline" className="w-full rounded-md font-medium text-xs">
                     <Link
                       href={
                         review.type === "SERVICE"
@@ -344,7 +351,7 @@ export function ReviewsExperience({
                           : `/user/orders/${review.relatedOrderId}`
                       }
                     >
-                      View related order
+                      View Related Order
                     </Link>
                   </Button>
                 </div>

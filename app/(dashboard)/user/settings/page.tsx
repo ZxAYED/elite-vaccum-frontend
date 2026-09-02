@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  AlertTriangle,
   Bell,
   Clock,
   CreditCard,
@@ -144,56 +143,56 @@ export default function UserSettingsPage() {
   };
 
   return (
-    <div className="w-full space-y-8 pb-16 pt-2">
+    <div className="space-y-6 pb-8">
       <PageHeader
         title="Settings & Preferences"
         eyebrow="Customer Portal"
         description="Configure your notifications and account security controls."
       />
 
-      <div className="w-full space-y-8">
+      <div className="space-y-6">
         {/* SECTION 1: NOTIFICATIONS */}
-        <section className="w-full rounded-3xl border border-teal-100/90 bg-white p-6 shadow-sm transition-shadow hover:shadow-md md:p-8">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-100">
-                <Bell size={22} />
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-9 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800">
+                <Bell size={16} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-900">Notification Alerts</h2>
-                <p className="text-sm text-slate-500">
+                <h2 className="text-base font-bold text-slate-900">Notification Alerts</h2>
+                <p className="text-xs text-slate-500 font-normal">
                   Select which events trigger email and SMS notifications.
                 </p>
               </div>
             </div>
 
-            <div className="hidden items-center gap-8 pr-4 text-xs font-bold uppercase tracking-wider text-slate-400 sm:flex">
+            <div className="hidden items-center gap-8 pr-2 text-xs font-bold uppercase tracking-wider text-slate-400 sm:flex">
               <span className="w-12 text-center">Email</span>
               <span className="w-12 text-center">SMS</span>
             </div>
           </div>
 
-          <div className="mt-8 divide-y divide-slate-100">
+          <div className="mt-4 divide-y divide-slate-100">
             {notifications.map((item) => {
               const Icon = item.icon;
               return (
                 <div
                   key={item.id}
-                  className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 py-4 first:pt-1 last:pb-1 sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
-                      <Icon size={18} />
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                      <Icon size={15} />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-slate-900">{item.label}</h3>
-                      <p className="mt-0.5 max-w-2xl text-sm leading-relaxed text-slate-500">
+                      <h3 className="text-sm font-semibold text-slate-900">{item.label}</h3>
+                      <p className="text-xs text-slate-500 font-normal">
                         {item.description}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between gap-8 pt-2 sm:justify-end sm:pt-0">
+                  <div className="flex items-center justify-between gap-8 pt-1 sm:justify-end sm:pt-0">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-500 sm:hidden">Email</span>
                       <Switch
@@ -223,27 +222,27 @@ export default function UserSettingsPage() {
         </section>
 
         {/* SECTION 2: ACCOUNT & SECURITY */}
-        <section className="w-full rounded-3xl border border-teal-100/90 bg-white p-6 shadow-sm transition-shadow hover:shadow-md md:p-8">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-100">
-              <ShieldCheck size={22} />
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
+            <div className="flex size-9 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800">
+              <ShieldCheck size={16} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Security & Sessions</h2>
-              <p className="text-sm text-slate-500">
+              <h2 className="text-base font-bold text-slate-900">Security & Sessions</h2>
+              <p className="text-xs text-slate-500 font-normal">
                 Manage your active login sessions and authorized device security.
               </p>
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-white text-slate-700 shadow-sm ring-1 ring-slate-200/60">
-                <Laptop size={20} />
+              <div className="flex size-9 items-center justify-center rounded-md bg-white text-slate-700 shadow-xs border border-slate-200">
+                <Laptop size={16} />
               </div>
               <div>
-                <p className="font-semibold text-slate-900">Active Devices & Browsers</p>
-                <p className="text-xs text-slate-500">
+                <p className="font-bold text-xs text-slate-900">Active Devices & Browsers</p>
+                <p className="text-[11px] text-slate-500 font-normal">
                   Signed in on 1 current device and 2 other sessions.
                 </p>
               </div>
@@ -253,33 +252,33 @@ export default function UserSettingsPage() {
               variant="outline"
               size="sm"
               onClick={() => setLogoutModalOpen(true)}
-              className="gap-2 rounded-xl text-slate-700 hover:bg-white hover:text-slate-900"
+              className="rounded-md text-xs font-medium"
             >
-              <LogOut size={15} />
+              <LogOut size={13} className="mr-1.5" />
               Log Out All Other Devices
             </Button>
           </div>
         </section>
 
         {/* SECTION 3: DANGER ZONE */}
-        <section className="w-full rounded-3xl border border-rose-200/80 bg-rose-50/30 p-6 shadow-sm md:p-8">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-800 ring-1 ring-rose-200">
-              <ShieldAlert size={22} />
+        <section className="rounded-lg border border-rose-200 bg-rose-50/20 p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center gap-2.5 border-b border-rose-100 pb-3">
+            <div className="flex size-9 items-center justify-center rounded-md bg-rose-100 text-rose-800 border border-rose-200">
+              <ShieldAlert size={16} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-rose-950">Danger Zone</h2>
-              <p className="text-sm text-rose-700/80">
+              <h2 className="text-base font-bold text-rose-950">Danger Zone</h2>
+              <p className="text-xs text-rose-700/80 font-normal">
                 Irreversible account changes and data removal options.
               </p>
             </div>
           </div>
 
-          <div className="mt-6 divide-y divide-rose-100 rounded-2xl border border-rose-100 bg-white p-5">
-            <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-4 divide-y divide-rose-100 rounded-md border border-rose-100 bg-white p-4">
+            <div className="flex flex-col gap-3 pb-3.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="font-semibold text-slate-900">Deactivate Customer Account</h3>
-                <p className="text-xs text-slate-500">
+                <h3 className="text-xs font-bold text-slate-900">Deactivate Customer Account</h3>
+                <p className="text-[11px] text-slate-500 font-normal">
                   Temporarily pause active service contracts and hide portal access.
                 </p>
               </div>
@@ -287,25 +286,25 @@ export default function UserSettingsPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setDeactivateModalOpen(true)}
-                className="w-fit rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50"
+                className="rounded-md border-slate-200 text-xs font-medium"
               >
                 Deactivate Account
               </Button>
             </div>
 
-            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 pt-3.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="font-semibold text-rose-950">Delete Account & Stored Data</h3>
-                <p className="text-xs text-slate-500">
+                <h3 className="text-xs font-bold text-rose-950">Delete Account & Stored Data</h3>
+                <p className="text-[11px] text-slate-500 font-normal">
                   Permanently erase your central vacuum equipment records, warranties, and profile.
                 </p>
               </div>
               <Button
                 size="sm"
                 onClick={() => setDeleteModalOpen(true)}
-                className="w-fit gap-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+                className="rounded-md bg-rose-600 text-white hover:bg-rose-700 text-xs font-medium"
               >
-                <Trash2 size={15} />
+                <Trash2 size={13} className="mr-1.5" />
                 Delete Account
               </Button>
             </div>
@@ -315,30 +314,29 @@ export default function UserSettingsPage() {
 
       {/* MODAL: LOG OUT ALL DEVICES */}
       <Dialog open={logoutModalOpen} onOpenChange={setLogoutModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-lg">
           <DialogHeader>
-            <div className="mb-2 flex size-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-200">
-              <LogOut size={20} />
-            </div>
-            <DialogTitle className="text-lg font-bold text-slate-950">
+            <DialogTitle className="text-base font-bold text-slate-900">
               Log out of all devices?
             </DialogTitle>
-            <DialogDescription className="text-sm text-slate-600">
+            <DialogDescription className="text-xs text-slate-600">
               This will immediately invalidate all active access tokens on your other phones,
               tablets, and computers. You will remain logged in on this current browser.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-4 gap-2">
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setLogoutModalOpen(false)}
-              className="rounded-xl"
+              className="rounded-md"
             >
               Cancel
             </Button>
             <Button
+              size="sm"
               onClick={handleLogoutAllDevices}
-              className="rounded-xl bg-primary text-white hover:bg-teal-900"
+              className="rounded-md bg-teal-700 text-white hover:bg-teal-800"
             >
               Confirm Logout
             </Button>
@@ -348,30 +346,29 @@ export default function UserSettingsPage() {
 
       {/* MODAL: DEACTIVATE ACCOUNT */}
       <Dialog open={deactivateModalOpen} onOpenChange={setDeactivateModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-lg">
           <DialogHeader>
-            <div className="mb-2 flex size-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-200">
-              <AlertTriangle size={20} />
-            </div>
-            <DialogTitle className="text-lg font-bold text-slate-950">
+            <DialogTitle className="text-base font-bold text-slate-900">
               Deactivate your account?
             </DialogTitle>
-            <DialogDescription className="text-sm text-slate-600">
+            <DialogDescription className="text-xs text-slate-600">
               Your service history and vacuum warranties will be frozen. You can reactivate anytime
               by contacting Elite Central Vacuum support.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-4 gap-2">
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => setDeactivateModalOpen(false)}
-              className="rounded-xl"
+              className="rounded-md"
             >
               Cancel
             </Button>
             <Button
+              size="sm"
               onClick={handleDeactivateAccount}
-              className="rounded-xl bg-amber-600 text-white hover:bg-amber-700"
+              className="rounded-md bg-amber-600 text-white hover:bg-amber-700"
             >
               Deactivate
             </Button>
@@ -381,21 +378,18 @@ export default function UserSettingsPage() {
 
       {/* MODAL: DELETE ACCOUNT */}
       <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-lg">
           <DialogHeader>
-            <div className="mb-2 flex size-11 items-center justify-center rounded-2xl bg-rose-100 text-rose-700 ring-1 ring-rose-200">
-              <Trash2 size={20} />
-            </div>
-            <DialogTitle className="text-lg font-bold text-rose-950">
+            <DialogTitle className="text-base font-bold text-rose-950">
               Delete account permanently?
             </DialogTitle>
-            <DialogDescription className="text-sm text-slate-600">
+            <DialogDescription className="text-xs text-slate-600">
               This action cannot be undone. All central vacuum records, invoices, service
               appointments, and address books will be irreversibly erased.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 py-2">
+          <div className="space-y-1.5 py-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-600">
               Type <span className="font-bold text-rose-600">DELETE</span> to confirm:
             </label>
@@ -403,25 +397,27 @@ export default function UserSettingsPage() {
               value={deleteConfirmText}
               onChange={(e) => setDeleteConfirmText(e.target.value)}
               placeholder="DELETE"
-              className="h-11 rounded-xl border-rose-200 bg-rose-50/40 text-sm font-semibold focus-visible:bg-white"
+              className="h-9 rounded-md border-rose-200 bg-rose-50/40 text-xs font-semibold focus-visible:bg-white"
             />
           </div>
 
-          <DialogFooter className="mt-4 gap-2">
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
               variant="outline"
+              size="sm"
               onClick={() => {
                 setDeleteModalOpen(false);
                 setDeleteConfirmText("");
               }}
-              className="rounded-xl"
+              className="rounded-md"
             >
               Cancel
             </Button>
             <Button
+              size="sm"
               onClick={handleDeleteAccount}
               disabled={deleteConfirmText.trim().toUpperCase() !== "DELETE"}
-              className="rounded-xl bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
+              className="rounded-md bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50"
             >
               Permanently Delete
             </Button>

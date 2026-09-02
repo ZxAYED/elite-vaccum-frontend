@@ -142,9 +142,9 @@ export function MediaGalleryPreview({
 
       {/* Media Gallery Grid */}
       {mediaItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-teal-100 bg-teal-50/20 p-8 text-center">
-          <div className="flex size-11 items-center justify-center rounded-2xl bg-white text-teal-700 shadow-xs border border-teal-100">
-            <Sparkles size={20} />
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-teal-200 bg-teal-50/20 p-8 text-center">
+          <div className="flex size-10 items-center justify-center rounded-md bg-white text-teal-700 shadow-xs border border-teal-200">
+            <Sparkles size={18} />
           </div>
           <p className="mt-3 text-sm font-bold text-slate-800">
             {emptyMessage}
@@ -252,7 +252,7 @@ export function MediaGalleryPreview({
         open={Boolean(activeMedia)}
         onOpenChange={(open) => !open && setActiveMedia(null)}
       >
-        <DialogContent className="max-w-3xl overflow-hidden rounded-3xl border-teal-100 p-0 shadow-2xl">
+        <DialogContent className="max-w-3xl overflow-hidden rounded-lg border-slate-700 p-0 shadow-2xl">
           {activeMedia && (
             <div className="flex flex-col bg-slate-950 text-white">
               {/* Header Bar */}

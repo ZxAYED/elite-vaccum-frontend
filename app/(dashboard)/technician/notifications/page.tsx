@@ -62,8 +62,8 @@ export default function TechnicianNotificationsPage() {
             <AdminSurface key={notification.id}>
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div className="flex gap-4">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#E8EDEE] text-primary">
-                    <Icon size={22} />
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800 shadow-xs">
+                    <Icon size={18} />
                   </div>
 
                   <div className="min-w-0">

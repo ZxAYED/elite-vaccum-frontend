@@ -42,35 +42,37 @@ export default function UserQuotationsPage() {
   }, [apiQuotes, mockQuotations]);
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         eyebrow="Quotations"
         title="Service Quotations"
         description="Review itemized pricing prepared by admin technicians. Quotations stay connected to the original service request and schedule."
         actions={
-          <Button asChild size="pill">
+          <Button asChild size="sm" className="rounded-md font-medium">
             <Link href="/services">Start new request</Link>
           </Button>
         }
       />
 
       {isLoading && (
-        <div className="flex items-center justify-center py-16 text-teal-700">
-          <Loader2 size={32} className="animate-spin" />
-          <span className="ml-3 text-sm font-medium text-slate-600">Loading quotations...</span>
+        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-16 text-teal-700 shadow-xs">
+          <Loader2 size={24} className="animate-spin" />
+          <span className="ml-3 text-xs sm:text-sm font-medium text-slate-600">Loading quotations...</span>
         </div>
       )}
 
       {!isLoading && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {displayQuotations.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-12 text-center">
-              <FileText size={36} className="mx-auto text-teal-700 opacity-60" />
-              <h2 className="mt-4 text-lg font-semibold text-slate-900">No quotations received yet</h2>
-              <p className="mt-2 text-sm text-slate-600">
+            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+                <FileText size={22} />
+              </div>
+              <h2 className="mt-3 text-base font-semibold text-slate-900">No quotations received yet</h2>
+              <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600">
                 Once our team reviews your service request, custom quotations will appear here for your approval.
               </p>
-              <Button asChild size="pill" className="mt-6">
+              <Button asChild size="sm" className="mt-5 rounded-md font-medium">
                 <Link href="/services">Request a Service</Link>
               </Button>
             </div>
@@ -81,31 +83,32 @@ export default function UserQuotationsPage() {
               return (
                 <article
                   key={quote.id}
-                  className="rounded-3xl border border-teal-100/80 bg-white p-6 shadow-[0_12px_36px_-24px_rgba(28,79,80,0.15)] transition hover:border-teal-300"
+                  className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition hover:border-teal-400 hover:shadow-sm"
                 >
-                  <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
-                          <FileText size={20} />
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex size-8 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800 shadow-xs">
+                          <FileText size={15} />
                         </div>
-                        <div>
-                          <p className="font-mono text-sm font-bold text-teal-800">
-                            {request.id}
-                          </p>
-                          <h2 className="text-2xl font-bold text-slate-900">
-                            {service?.name ?? request.title}
-                          </h2>
-                        </div>
+                        <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                          {request.id}
+                        </span>
                         <StatusBadge status={quote.status} />
                       </div>
-                      <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-600">
+
+                      <h2 className="text-base sm:text-lg font-bold text-slate-900">
+                        {service?.name ?? request.title}
+                      </h2>
+
+                      <p className="line-clamp-2 text-xs sm:text-sm leading-relaxed text-slate-600 font-normal">
                         {request.description}
                       </p>
+
                       {request.requestedSchedule?.label || request.preferredDate ? (
-                        <p className="mt-3 text-sm text-slate-500">
+                        <p className="text-xs text-slate-500 pt-1">
                           Requested schedule:{" "}
-                          <span className="font-semibold text-slate-900">
+                          <span className="font-semibold text-slate-800">
                             {request.requestedSchedule?.label ??
                               `${formatMonthDay(request.preferredDate!)} at ${request.preferredTime}`}
                           </span>
@@ -113,20 +116,20 @@ export default function UserQuotationsPage() {
                       ) : null}
                     </div>
 
-                    <div className="w-full rounded-2xl bg-teal-50/70 p-5 lg:max-w-xs">
-                      <p className="text-sm font-medium text-teal-800">Quote total</p>
-                      <p className="mt-2 text-3xl font-bold tracking-[-0.04em] text-teal-900">
+                    <div className="w-full rounded-md border border-amber-200/80 bg-amber-50/40 p-4 lg:max-w-xs space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-amber-900">Quote Total</p>
+                      <p className="text-2xl font-bold tracking-tight text-teal-950">
                         {formatCurrencyUsd(quote.totalUsd)}
                       </p>
                       {quote.expiresAt ? (
-                        <p className="mt-2 text-xs text-slate-500">
-                          Expires {formatMonthDay(quote.expiresAt)}
+                        <p className="text-[11px] text-slate-500">
+                          Guaranteed through {formatMonthDay(quote.expiresAt)}
                         </p>
                       ) : null}
-                      <Button asChild size="pill" className="mt-5 w-full">
+                      <Button asChild size="sm" className="mt-3 w-full rounded-md font-medium">
                         <Link href={`/user/quotations/${request.id}`}>
                           Review Quotation
-                          <ArrowRight size={16} />
+                          <ArrowRight size={14} className="ml-1.5" />
                         </Link>
                       </Button>
                     </div>

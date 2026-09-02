@@ -119,76 +119,79 @@ export function QuotationDecisionPanel({
   }
 
   return (
-    <div className="rounded-[1.25rem] bg-teal-50 p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-700">
-        Quotation Decision
+    <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-4 sm:p-5">
+      <p className="text-xs font-bold uppercase tracking-wider text-teal-800">
+        Quotation Decision Panel
       </p>
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        Accepting keeps the current schedule connected to this request. Admin
-        reschedules are displayed in the request timeline.
+      <p className="mt-1 text-xs text-slate-600 leading-relaxed font-normal">
+        Accepting locks your appointment schedule and generates an active dispatch work order.
       </p>
 
       {normStatus === "accepted" ? (
-        <div className="mt-5 rounded-[1rem] bg-white p-4 text-sm text-primary">
-          <div className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 size={18} />
+        <div className="mt-4 rounded-md border border-emerald-200 bg-white p-3.5 text-xs sm:text-sm text-slate-800 shadow-xs">
+          <div className="flex items-center gap-2 font-bold text-emerald-800">
+            <CheckCircle2 size={16} />
             Quotation Accepted
           </div>
-          <p className="mt-2 text-slate-600">
-            Current schedule: {currentScheduleLabel}
+          <p className="mt-1 text-xs text-slate-600">
+            Confirmed schedule: <span className="font-semibold text-slate-900">{currentScheduleLabel}</span>
           </p>
           {serviceOrderHref ? (
             <Link
-              className="mt-3 inline-flex font-semibold text-primary underline-offset-4 hover:underline"
+              className="mt-2.5 inline-flex font-semibold text-teal-800 underline-offset-4 hover:underline text-xs"
               href={serviceOrderHref}
             >
-              View Service Order
+              View Service Order &rarr;
             </Link>
           ) : null}
         </div>
       ) : null}
 
       {normStatus === "rejected" ? (
-        <div className="mt-5 rounded-[1rem] bg-white p-4 text-sm text-red-700">
-          <div className="flex items-center gap-2 font-semibold">
-            <XCircle size={18} />
-            Quotation Rejected
+        <div className="mt-4 rounded-md border border-rose-200 bg-white p-3.5 text-xs sm:text-sm text-rose-800 shadow-xs">
+          <div className="flex items-center gap-2 font-bold">
+            <XCircle size={16} />
+            Quotation Declined
           </div>
           {latestHistoryEntry ? (
-            <p className="mt-2 text-slate-600">
-              Latest reason: {latestHistoryEntry.reason}
+            <p className="mt-1 text-xs text-slate-600">
+              Reason: {latestHistoryEntry.reason}
             </p>
           ) : null}
         </div>
       ) : null}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
         <Button
           type="button"
+          size="sm"
           disabled={!canDecide}
           onClick={acceptQuotation}
+          className="rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
         >
           Accept Quotation
         </Button>
         <Button
           type="button"
           variant="outline"
+          size="sm"
           disabled={!canDecide}
           onClick={() => setRejectOpen(true)}
+          className="rounded-md border-rose-300 text-rose-700 hover:bg-rose-50 font-medium"
         >
-          Reject Quotation
+          Decline Quotation
         </Button>
       </div>
 
       {history.length ? (
-        <div className="mt-5 space-y-2">
-          <p className="text-sm font-semibold text-slate-900">
+        <div className="mt-4 space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Quotation rejection history
           </p>
           {history.map((entry) => (
             <div
               key={entry.id}
-              className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600"
+              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
             >
               <span className="font-semibold text-slate-900">
                 {entry.reason}
@@ -200,19 +203,19 @@ export function QuotationDecisionPanel({
       ) : null}
 
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-lg">
           <DialogHeader>
-            <DialogTitle>Reject quotation</DialogTitle>
+            <DialogTitle>Decline quotation</DialogTitle>
             <DialogDescription>
-              Select a reason so the team understands what should happen next.
+              Select a reason so our technical diagnostic team can prepare an updated estimate.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-5 space-y-4">
+          <div className="mt-3 space-y-3">
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-md">
                 <SelectValue placeholder="Choose a reason..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-md">
                 {rejectionReasons.map((item) => (
                   <SelectItem key={item} value={item}>
                     {item}
@@ -224,18 +227,28 @@ export function QuotationDecisionPanel({
               value={comments}
               onChange={(event) => setComments(event.target.value)}
               placeholder="Optional comments..."
+              className="rounded-md"
             />
           </div>
-          <DialogFooter>
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
               type="button"
               variant="outline"
+              size="sm"
+              className="rounded-md"
               onClick={() => setRejectOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="button" disabled={!reason} onClick={rejectQuotation}>
-              Confirm Rejection
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="rounded-md"
+              disabled={!reason}
+              onClick={rejectQuotation}
+            >
+              Confirm Decline
             </Button>
           </DialogFooter>
         </DialogContent>

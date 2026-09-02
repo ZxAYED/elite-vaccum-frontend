@@ -51,39 +51,39 @@ function LocationCard({ property }: { property: SavedProperty }) {
   const isPrimary = property.type === "PRIMARY";
 
   return (
-    <article className="rounded-3xl bg-white p-5 shadow-[0_18px_50px_-40px_rgba(28,79,80,0.45)] ring-1 ring-teal-100">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex gap-4">
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
-            <MapPin size={22} />
+    <article className="rounded-md border border-slate-200 bg-slate-50/50 p-4 shadow-xs transition hover:bg-white hover:border-teal-300">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800">
+            <MapPin size={16} />
           </div>
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-semibold text-primary">{property.name}</h3>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h3 className="text-sm font-bold text-slate-900">{property.name}</h3>
               {isPrimary ? (
-                <span className="rounded-full bg-teal-100 px-3 py-1 text-xs font-semibold text-teal-800">
+                <span className="rounded-md bg-teal-100 border border-teal-200 px-2 py-0.2 text-[10px] font-semibold text-teal-800">
                   Primary
                 </span>
               ) : null}
             </div>
-            <p className="mt-2 text-sm leading-6 text-gray-600">{property.address}</p>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-xs text-slate-600 font-medium">{property.address}</p>
+            <p className="mt-0.5 text-[11px] text-slate-500">
               Avg response: {property.avgResponse}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-3">
-        <Button size="sm" variant="soft">
-          <Edit size={15} />
+      <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-slate-200/60">
+        <Button size="sm" variant="outline" className="rounded-md h-7 text-xs font-medium">
+          <Edit size={12} className="mr-1" />
           Edit
         </Button>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="ghost" className="rounded-md h-7 text-xs font-medium text-slate-700">
           {isPrimary ? "Default location" : "Set primary"}
         </Button>
-        <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700">
-          <Trash2 size={15} />
+        <Button size="sm" variant="ghost" className="rounded-md h-7 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-medium">
+          <Trash2 size={12} className="mr-1" />
           Remove
         </Button>
       </div>
@@ -97,51 +97,50 @@ function LocationModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus size={18} />
+        <Button size="sm" className="rounded-md font-medium">
+          <Plus size={14} className="mr-1.5" />
           Add Location
         </Button>
       </DialogTrigger>
-      <DialogContent className="w-[min(94vw,48rem)]">
+      <DialogContent className="w-[min(94vw,48rem)] rounded-lg">
         <DialogHeader>
           <DialogTitle>Add service location</DialogTitle>
           <DialogDescription>
-            Save a property for future service requests. This is frontend-only mock
-            behavior for now.
+            Save a property for future service requests and dispatch routing.
           </DialogDescription>
         </DialogHeader>
 
-        <form className="mt-6 space-y-5">
-          <div className="grid gap-4 md:grid-cols-2">
+        <form className="mt-4 space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
             {locationFields.map((field) => (
               <label
                 className={field.wide ? "md:col-span-2" : undefined}
                 key={field.label}
               >
-                <span className="text-sm font-semibold text-slate-900">
+                <span className="text-xs font-semibold text-slate-700">
                   {field.label}
                 </span>
-                <Input className="mt-2" placeholder={field.placeholder} />
+                <Input className="mt-1 h-9 rounded-md text-xs" placeholder={field.placeholder} />
               </label>
             ))}
           </div>
 
           <label>
-            <span className="text-sm font-semibold text-slate-900">
+            <span className="text-xs font-semibold text-slate-700">
               Service access notes
             </span>
             <Textarea
-              className="mt-2 min-h-28"
+              className="mt-1 min-h-24 rounded-md text-xs"
               placeholder="Gate code, parking instructions, power unit location, pets, or technician notes..."
             />
           </label>
         </form>
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+        <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+          <Button type="button" variant="outline" size="sm" className="rounded-md" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => setOpen(false)}>
+          <Button type="button" size="sm" className="rounded-md" onClick={() => setOpen(false)}>
             Save Location
           </Button>
         </DialogFooter>
@@ -152,84 +151,85 @@ function LocationModal() {
 
 export default function AccountProfile() {
   return (
-    <div className="min-h-screen">
-      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-6 pb-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
-            Profile
+          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">
+            Account Profile
           </p>
-          <h1 className="mt-2 text-3xl font-bold text-primary">Account Profile</h1>
-          <p className="mt-2 max-w-2xl text-gray-600">
-            Manage contact details, service locations, and authorized sessions.
+          <h1 className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">User Profile & Addresses</h1>
+          <p className="mt-1 text-xs sm:text-sm text-slate-600">
+            Manage your personal details, service locations, and authorized sessions.
           </p>
         </div>
-        <div className="inline-flex w-fit items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-teal-800 shadow-sm ring-1 ring-teal-100">
-          <ShieldCheck size={16} />
-          Account secure
+        <div className="inline-flex w-fit items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800 shadow-xs">
+          <ShieldCheck size={14} className="text-teal-700" />
+          Account verified
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <section className="rounded-3xl bg-white p-6 shadow-[0_18px_50px_-42px_rgba(28,79,80,0.5)] ring-1 ring-teal-100">
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+      <div className="grid gap-6 lg:grid-cols-12">
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs lg:col-span-6 space-y-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <Image
               alt="Customer profile avatar"
-              className="size-24 rounded-3xl object-cover"
+              className="size-20 rounded-md object-cover border border-slate-200"
               src={image}
             />
             <div>
-              <h2 className="text-2xl font-semibold text-primary">
+              <h2 className="text-lg font-bold text-slate-900">
                 {mockCurrentCustomer.displayName}
               </h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="text-xs text-slate-500 mt-0.5">
                 Member since {formatLongDate(mockCurrentUser.createdAt)}
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800">
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                <span className="rounded-md bg-teal-50 border border-teal-200 px-2.5 py-0.5 text-xs font-semibold text-teal-800">
                   Customer Portal
                 </span>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                <span className="rounded-md bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                   Verified phone
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="mt-6 grid gap-3">
-            <div className="flex items-center gap-3 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
-              <Mail className="text-teal-700" size={18} />
+          <div className="space-y-2 text-xs">
+            <div className="flex items-center gap-2.5 rounded-md border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 font-medium text-slate-800">
+              <Mail className="text-teal-700" size={15} />
               {mockCurrentUser.email}
             </div>
-            <div className="flex items-center gap-3 rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
-              <Phone className="text-teal-700" size={18} />
+            <div className="flex items-center gap-2.5 rounded-md border border-slate-200 bg-slate-50/60 px-3.5 py-2.5 font-medium text-slate-800">
+              <Phone className="text-teal-700" size={15} />
               {mockCurrentUser.phone}
             </div>
           </div>
 
-          <Button className="mt-6 w-full" variant="outline">
-            <Edit size={18} />
-            Edit Profile
+          <Button className="w-full rounded-md font-medium" size="sm" variant="outline">
+            <Edit size={14} className="mr-1.5" />
+            Edit Profile Info
           </Button>
         </section>
 
-        <section className="rounded-3xl bg-primary p-6 text-white shadow-[0_24px_70px_-48px_rgba(28,79,80,0.7)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-100">
-            Concierge Support
-          </p>
-          <h2 className="mt-3 text-2xl font-semibold">Priority service context</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75">
-            Saved locations and access notes help the team route service requests
-            faster, especially when a technician needs power-unit or inlet access.
-          </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <section className="rounded-lg border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-5 sm:p-6 text-white shadow-xs lg:col-span-6 flex flex-col justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-teal-300">
+              Concierge Priority Support
+            </p>
+            <h2 className="mt-1 text-lg font-bold">Priority Service Context</h2>
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-teal-100/80 font-normal">
+              Saved property locations and access notes help our technical dispatch team route service calls faster, ensuring technicians arrive equipped for your unit.
+            </p>
+          </div>
+          <div className="mt-5 grid gap-2.5 grid-cols-3 pt-4 border-t border-white/10">
             {[
               ["Locations", mockSavedProperties.length],
               ["Orders", mockCurrentCustomer.totalOrders],
               ["Response", "under 1h"],
             ].map(([label, value]) => (
-              <div className="rounded-2xl bg-white/10 p-4" key={label}>
-                <p className="text-2xl font-semibold">{value}</p>
-                <p className="mt-1 text-xs uppercase tracking-[0.16em] text-white/60">
+              <div className="rounded-md bg-white/10 p-3 text-center" key={label}>
+                <p className="text-lg font-bold text-white">{value}</p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-wider text-teal-200/80 font-medium">
                   {label}
                 </p>
               </div>
@@ -238,63 +238,60 @@ export default function AccountProfile() {
         </section>
       </div>
 
-      <section className="mt-6 rounded-3xl bg-white p-6 shadow-[0_18px_50px_-42px_rgba(28,79,80,0.5)] ring-1 ring-teal-100">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
-              Locations
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-primary">
-              Managed service locations
+            <h2 className="text-base font-bold text-slate-900">
+              Managed Service Properties
             </h2>
-            <p className="mt-1 text-sm text-gray-600">
+            <p className="text-xs text-slate-500 font-normal">
               Dispatch addresses, access notes, and preferred service locations.
             </p>
           </div>
           <LocationModal />
         </div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3.5 sm:grid-cols-2">
           {mockSavedProperties.map((property) => (
             <LocationCard key={property.id} property={property} />
           ))}
         </div>
       </section>
 
-      <section className="mt-6 rounded-3xl bg-white p-6 shadow-[0_18px_50px_-42px_rgba(28,79,80,0.5)] ring-1 ring-teal-100">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-3">
           <div>
-            <h2 className="text-2xl font-semibold text-primary">Safety & Sessions</h2>
-            <p className="mt-1 text-sm text-gray-600">
-              Monitor authorized devices and account access.
+            <h2 className="text-base font-bold text-slate-900">Active Sessions & Security</h2>
+            <p className="text-xs text-slate-500 font-normal">
+              Monitor authorized devices and active browser sessions.
             </p>
           </div>
-          <Button variant="outline">
-            <LogOut size={18} />
+          <Button variant="outline" size="sm" className="rounded-md text-xs font-medium">
+            <LogOut size={13} className="mr-1.5" />
             Sign out other devices
           </Button>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {mockAuthorizedDevices.map((device) => {
             const Icon = device.icon ?? Laptop;
 
             return (
               <article
-                className="rounded-3xl bg-gray-50 p-5 ring-1 ring-gray-100"
+                className="rounded-md border border-slate-200 bg-slate-50/50 p-3.5"
                 key={device.name}
               >
-                <div className="flex items-center gap-4">
-                  <div className="flex size-12 items-center justify-center rounded-2xl bg-white text-teal-700">
-                    <Icon size={22} />
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-md border border-teal-200 bg-white text-teal-800 shadow-xs">
+                    <Icon size={16} />
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900">{device.name}</p>
-                    <p className="text-sm text-gray-500">{device.location}</p>
+                    <p className="font-bold text-xs text-slate-900">{device.name}</p>
+                    <p className="text-[11px] text-slate-500">{device.location}</p>
                   </div>
                 </div>
-                <p className="mt-4 text-sm text-gray-600">
-                  {device.isCurrent ? "Current session" : device.lastActiveLabel}
+                <p className="mt-2 text-xs text-slate-600 font-medium">
+                  {device.isCurrent ? "Current active session" : device.lastActiveLabel}
                 </p>
               </article>
             );

@@ -28,10 +28,10 @@ import { mockCurrentUser } from "@/data/mock/user";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 const cardToneClasses = {
-  white: "bg-white ring-teal-100",
-  amber: "bg-[linear-gradient(135deg,#fff8df_0%,#fffdf4_100%)] ring-amber-200",
-  teal: "bg-[linear-gradient(135deg,#e8fbf7_0%,#f8fffd_100%)] ring-teal-200",
-  blue: "bg-[linear-gradient(135deg,#edf7ff_0%,#ffffff_100%)] ring-sky-100",
+  white: "bg-white border-slate-200",
+  amber: "bg-amber-50/40 border-amber-200/80",
+  teal: "bg-teal-50/40 border-teal-200/80",
+  blue: "bg-sky-50/40 border-sky-200/80",
 } as const;
 
 export default function DashboardOverview() {
@@ -153,17 +153,17 @@ export default function DashboardOverview() {
   }>;
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <>
-            <Button asChild variant="outline">
+          <div className="flex gap-2.5">
+            <Button asChild variant="outline" size="sm" className="rounded-md">
               <Link href="/store">Browse store</Link>
             </Button>
-            <Button asChild>
+            <Button asChild size="sm" className="rounded-md bg-teal-600 hover:bg-teal-500 text-white font-medium">
               <Link href="/services">Request Service</Link>
             </Button>
-          </>
+          </div>
         }
         description="Track requests, quotes, orders, invoices, schedules, reviews, and notifications from one dashboard."
         eyebrow="Customer Dashboard"
@@ -176,75 +176,85 @@ export default function DashboardOverview() {
 
           return (
             <section
-              className={`group relative flex min-h-56 flex-col overflow-hidden rounded-3xl p-6 shadow-[0_22px_70px_-58px_rgba(28,79,80,0.62)] ring-1 transition-transform hover:-translate-y-0.5 ${cardToneClasses[card.tone]}`}
+              className={`group relative flex min-h-52 flex-col justify-between rounded-lg border p-5 shadow-xs transition hover:border-teal-400 hover:shadow-sm ${cardToneClasses[card.tone]}`}
               key={card.title}
             >
-              <div className="pointer-events-none absolute -right-8 -top-8 size-28 rounded-full bg-white/60" />
-
-              <div className="relative flex items-start justify-between gap-4">
-                <div className="flex size-12 items-center justify-center rounded-2xl bg-white text-teal-700 shadow-[0_16px_40px_-28px_rgba(28,79,80,0.55)] ring-1 ring-teal-100">
-                  <Icon size={22} aria-hidden="true" />
+              <div>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex size-10 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800 shadow-xs">
+                    <Icon size={18} aria-hidden="true" />
+                  </div>
+                  <span className="rounded-md border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-slate-700">
+                    {card.badge}
+                  </span>
                 </div>
-                <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-primary ring-1 ring-teal-100">
-                  {card.badge}
-                </span>
+
+                <div className="mt-4">
+                  <h2 className="text-sm font-semibold text-slate-900">{card.title}</h2>
+                  <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">
+                    {card.description}
+                  </p>
+                  <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+                    {card.value}
+                  </p>
+                </div>
               </div>
 
-              <div className="relative mt-6 flex-1">
-                <h2 className="text-lg font-semibold text-primary">{card.title}</h2>
-                <p className="mt-2 min-h-10 overflow-hidden text-sm leading-5 text-slate-600">
-                  {card.description}
-                </p>
-                <p className="mt-4 text-3xl font-bold tabular-nums text-primary">
-                  {card.value}
-                </p>
+              <div className="mt-4 pt-3 border-t border-slate-100">
+                <Button
+                  asChild
+                  size="sm"
+                  className="rounded-md w-full font-medium"
+                  variant={
+                    card.tone === "teal" || card.tone === "amber"
+                      ? "default"
+                      : "outline"
+                  }
+                >
+                  <Link href={card.href} className="flex items-center justify-center gap-1.5">
+                    {card.action}
+                    <ArrowRight size={14} />
+                  </Link>
+                </Button>
               </div>
-
-              <Button
-                asChild
-                className="relative mt-5 w-fit rounded-full"
-                variant={
-                  card.tone === "teal" || card.tone === "amber"
-                    ? "default"
-                    : "outline"
-                }
-              >
-                <Link href={card.href}>
-                  {card.action}
-                  <ArrowRight size={16} />
-                </Link>
-              </Button>
             </section>
           );
         })}
       </div>
 
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-3xl bg-white p-6 shadow-[0_22px_70px_-58px_rgba(28,79,80,0.62)] ring-1 ring-teal-100">
-          <div className="flex items-center gap-3">
-            <Package className="text-teal-700" size={22} />
-            <h2 className="text-xl font-semibold text-primary">Latest Orders</h2>
+      <div className="grid gap-6 lg:grid-cols-12">
+        <section className="lg:col-span-7 rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 items-center justify-center rounded-md bg-teal-50 border border-teal-200 text-teal-800">
+                <Package size={16} />
+              </div>
+              <h2 className="text-base font-bold text-slate-900">Latest Orders</h2>
+            </div>
+            <Button asChild variant="ghost" size="sm" className="rounded-md text-xs text-teal-800 hover:text-teal-900 font-medium">
+              <Link href="/user/orders">View All</Link>
+            </Button>
           </div>
 
-          <div className="mt-5 space-y-4">
+          <div className="mt-4 space-y-3">
             {allOrders.slice(0, 3).map((order) => (
               <Link
-                className="flex flex-col gap-3 rounded-2xl bg-slate-50/60 p-4 ring-1 ring-slate-100 transition hover:bg-teal-50 hover:ring-teal-200 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50/50 p-3.5 transition hover:border-teal-300 hover:bg-teal-50/40 sm:flex-row sm:items-center sm:justify-between"
                 href={`/user/orders/${order.id}`}
                 key={order.id}
               >
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <TypeBadge type={order.type} />
                     <StatusBadge status={order.status} />
                   </div>
-                  <p className="mt-3 font-semibold text-primary">
+                  <p className="text-sm font-semibold text-slate-900">
                     {order.type === "PRODUCT"
                       ? order.items[0]?.name
                       : order.serviceName}
                   </p>
                 </div>
-                <p className="font-semibold tabular-nums text-primary">
+                <p className="text-sm font-bold text-slate-900">
                   {formatCurrencyUsd(order.total.totalUsd)}
                 </p>
               </Link>
@@ -252,34 +262,49 @@ export default function DashboardOverview() {
           </div>
         </section>
 
-        <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(145deg,#0c4b4c_0%,#1c5b5b_100%)] p-6 text-white shadow-[0_24px_80px_-54px_rgba(28,79,80,0.72)]">
-          <div className="pointer-events-none absolute -right-12 -top-12 size-44 rounded-full bg-white/10" />
-          <div className="relative flex items-center gap-3">
-            <CalendarDays size={22} />
-            <h2 className="text-xl font-semibold">Upcoming Schedule</h2>
+        <section className="lg:col-span-5 rounded-lg border border-teal-900/40 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-5 sm:p-6 text-white shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2.5 border-b border-white/10 pb-4">
+              <div className="flex size-8 items-center justify-center rounded-md bg-teal-800/60 border border-teal-500/30 text-teal-200">
+                <CalendarDays size={16} />
+              </div>
+              <h2 className="text-base font-bold text-white">Upcoming Schedule</h2>
+            </div>
+            {upcomingServiceOrder ? (
+              <div className="mt-4 space-y-2">
+                <span className="inline-block rounded-md bg-teal-800/80 px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-teal-200">
+                  Confirmed Dispatch
+                </span>
+                <p className="text-lg font-bold text-white">
+                  {upcomingServiceOrder.serviceName}
+                </p>
+                <p className="text-xs text-teal-100/80">
+                  {upcomingServiceOrder.currentSchedule}
+                </p>
+                <p className="text-xs text-teal-200/60">
+                  Created {formatLongDate(upcomingServiceOrder.createdAt)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-4 text-xs text-teal-100/70">
+                No active service appointments are scheduled at this time.
+              </p>
+            )}
           </div>
-          {upcomingServiceOrder ? (
-            <div className="relative">
-              <p className="mt-8 text-2xl font-semibold">
-                {upcomingServiceOrder.serviceName}
-              </p>
-              <p className="mt-2 text-sm text-white/75">
-                {upcomingServiceOrder.currentSchedule}
-              </p>
-              <p className="mt-2 text-sm text-white/75">
-                Created {formatLongDate(upcomingServiceOrder.createdAt)}
-              </p>
-              <Button asChild className="mt-7 bg-white text-primary hover:bg-white/90">
+
+          <div className="mt-6 pt-4 border-t border-white/10">
+            {upcomingServiceOrder ? (
+              <Button asChild size="sm" className="w-full rounded-md bg-white text-teal-950 hover:bg-teal-50 font-semibold">
                 <Link href={`/user/schedule/${upcomingServiceOrder.serviceRequestId}`}>
-                  View Schedule
+                  View Schedule Details
                 </Link>
               </Button>
-            </div>
-          ) : (
-            <p className="relative mt-5 text-sm text-white/75">
-              No active service appointments are scheduled.
-            </p>
-          )}
+            ) : (
+              <Button asChild size="sm" variant="outline" className="w-full rounded-md border-teal-500/40 text-teal-100 hover:bg-teal-800">
+                <Link href="/services">Request Service</Link>
+              </Button>
+            )}
+          </div>
         </section>
       </div>
     </div>

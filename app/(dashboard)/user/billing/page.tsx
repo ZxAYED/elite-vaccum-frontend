@@ -49,37 +49,48 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   });
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         description="Invoices and payments for product purchases and service orders share one financial center."
         eyebrow="Billing"
         title="Billing"
       />
 
-      <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-teal-100 bg-white p-4 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex gap-2">
-            <Button asChild variant={tab === "invoices" ? "default" : "ghost"}>
+      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex gap-1.5">
+            <Button
+              asChild
+              size="sm"
+              variant={tab === "invoices" ? "default" : "outline"}
+              className="rounded-md text-xs font-medium"
+            >
               <Link href={`/user/billing?tab=invoices&type=${type}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
-                <FileText size={16} />
+                <FileText size={14} className="mr-1.5" />
                 Invoices
               </Link>
             </Button>
-            <Button asChild variant={tab === "payments" ? "default" : "ghost"}>
+            <Button
+              asChild
+              size="sm"
+              variant={tab === "payments" ? "default" : "outline"}
+              className="rounded-md text-xs font-medium"
+            >
               <Link href={`/user/billing?tab=payments&type=${type}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
-                <CreditCard size={16} />
+                <CreditCard size={14} className="mr-1.5" />
                 Payments
               </Link>
             </Button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {typeFilters.map((filter) => (
               <Button
                 asChild
                 key={filter}
                 size="sm"
                 variant={type === filter ? "soft" : "outline"}
+                className="rounded-md text-xs font-medium"
               >
                 <Link href={`/user/billing?tab=${tab}&type=${filter}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
                   {filter === "ALL" ? "All" : filter}
@@ -92,20 +103,20 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         <form method="GET" action="/user/billing" className="relative flex items-center">
           <input type="hidden" name="tab" value={tab} />
           <input type="hidden" name="type" value={type} />
-          <Search size={16} className="pointer-events-none absolute left-4 text-slate-400" />
+          <Search size={15} className="pointer-events-none absolute left-3.5 text-slate-400" />
           <Input
             name="q"
             defaultValue={params.q ?? ""}
             placeholder={tab === "invoices" ? "Search invoices by ID, description, or order..." : "Search payments by ID, order, or invoice..."}
-            className="h-11 rounded-2xl border-teal-100 bg-slate-50/50 pl-11 pr-10 text-sm focus-visible:bg-white"
+            className="h-10 rounded-md border-slate-200 bg-slate-50/50 pl-10 pr-10 text-xs sm:text-sm focus-visible:bg-white"
           />
           {query ? (
             <Link
               href={`/user/billing?tab=${tab}&type=${type}`}
               aria-label="Clear search"
-              className="absolute right-3 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+              className="absolute right-3 flex size-5 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-600"
             >
-              <X size={14} />
+              <X size={13} />
             </Link>
           ) : null}
         </form>
@@ -114,14 +125,16 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       {tab === "invoices" ? (
         <div className="space-y-4">
           {invoices.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-              <FileText size={32} className="mx-auto text-teal-700 opacity-60" />
-              <p className="mt-3 text-lg font-semibold text-slate-900">No matching invoices</p>
-              <p className="mt-1 text-sm text-slate-500">
+            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+                <FileText size={22} />
+              </div>
+              <p className="mt-3 text-base font-semibold text-slate-900">No matching invoices</p>
+              <p className="mt-1 text-xs text-slate-500">
                 Try adjusting your search query or type filter.
               </p>
               {(query || type !== "ALL") ? (
-                <Button asChild size="sm" variant="outline" className="mt-4">
+                <Button asChild size="sm" variant="outline" className="mt-4 rounded-md">
                   <Link href="/user/billing?tab=invoices">Clear all filters</Link>
                 </Button>
               ) : null}
@@ -129,32 +142,34 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           ) : null}
           {invoices.map((invoice) => (
             <article
-              className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"
+              className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition hover:border-teal-400 hover:shadow-sm"
               key={invoice.id}
             >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <TypeBadge type={invoice.type} />
                     <StatusBadge status={invoice.status} />
-                    <p className="text-sm font-semibold text-gray-500">{invoice.id}</p>
+                    <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                      {invoice.id}
+                    </span>
                   </div>
-                  <h2 className="mt-4 text-xl font-semibold text-primary">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     {invoice.description}
                   </h2>
-                  <p className="mt-2 text-sm text-gray-600">
-                    Related order {invoice.relatedOrderId} · {formatLongDate(invoice.createdAt)}
+                  <p className="text-xs text-slate-500">
+                    Related order: <strong className="font-mono text-slate-700">{invoice.relatedOrderId}</strong> · {formatLongDate(invoice.createdAt)}
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <p className="text-2xl font-semibold text-primary">
+                  <p className="text-xl font-bold text-slate-900">
                     {formatCurrencyUsd(invoice.totals.totalUsd)}
                   </p>
-                  <Button asChild>
+                  <Button asChild size="sm" className="rounded-md font-medium">
                     <Link href={`/user/billing/invoices/${invoice.id}`}>
                       View Invoice
-                      <ArrowRight size={16} />
+                      <ArrowRight size={14} className="ml-1.5" />
                     </Link>
                   </Button>
                 </div>
@@ -165,14 +180,16 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       ) : (
         <div className="space-y-4">
           {payments.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-              <CreditCard size={32} className="mx-auto text-teal-700 opacity-60" />
-              <p className="mt-3 text-lg font-semibold text-slate-900">No matching payments</p>
-              <p className="mt-1 text-sm text-slate-500">
+            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
+              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+                <CreditCard size={22} />
+              </div>
+              <p className="mt-3 text-base font-semibold text-slate-900">No matching payments</p>
+              <p className="mt-1 text-xs text-slate-500">
                 Try adjusting your search query or type filter.
               </p>
               {(query || type !== "ALL") ? (
-                <Button asChild size="sm" variant="outline" className="mt-4">
+                <Button asChild size="sm" variant="outline" className="mt-4 rounded-md">
                   <Link href="/user/billing?tab=payments">Clear all filters</Link>
                 </Button>
               ) : null}
@@ -180,34 +197,36 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           ) : null}
           {payments.map((payment) => (
             <article
-              className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"
+              className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition hover:border-teal-400 hover:shadow-sm"
               key={payment.id}
             >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <TypeBadge type={payment.type} />
                     <StatusBadge status={payment.status} />
-                    <p className="text-sm font-semibold text-gray-500">{payment.id}</p>
+                    <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                      {payment.id}
+                    </span>
                   </div>
-                  <h2 className="mt-4 text-xl font-semibold text-primary">
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
                     {payment.title}
                   </h2>
-                  <p className="mt-2 text-sm text-gray-600">
+                  <p className="text-xs text-slate-500">
                     Order {payment.orderId} · Invoice {payment.invoiceId} · {payment.methodLabel}
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <p className="text-2xl font-semibold text-primary">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                  <p className="text-xl font-bold text-slate-900">
                     {formatCurrencyUsd(payment.amountUsd)}
                   </p>
-                  <Button asChild variant="outline">
+                  <Button asChild size="sm" variant="outline" className="rounded-md font-medium">
                     <Link href={`/user/billing/invoices/${payment.invoiceId}`}>
                       View Invoice
                     </Link>
                   </Button>
-                  <Button asChild>
+                  <Button asChild size="sm" className="rounded-md font-medium">
                     <Link href={`/user/orders/${payment.orderId}`}>
                       View Order
                     </Link>
@@ -221,4 +240,3 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     </div>
   );
 }
-

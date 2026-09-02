@@ -70,13 +70,14 @@ export default async function TechnicianJobsPage({
         <CompactCount label="Completed" value={counts.completed} />
       </div>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap gap-2">
           {filters.map((filter) => (
             <Button
               asChild
               key={filter.value}
               size="sm"
+              className="rounded-md"
               variant={filter.value === activeFilter ? "default" : "outline"}
             >
               <Link href={`/technician/jobs?filter=${filter.value}${query ? `&q=${encodeURIComponent(query)}` : ""}`}>
@@ -88,20 +89,20 @@ export default async function TechnicianJobsPage({
 
         <form method="GET" action="/technician/jobs" className="relative flex items-center">
           <input type="hidden" name="filter" value={activeFilter} />
-          <Search size={16} className="pointer-events-none absolute left-4 text-slate-400" />
+          <Search size={16} className="pointer-events-none absolute left-3.5 text-slate-400" />
           <Input
             name="q"
             defaultValue={resolved?.q ?? ""}
             placeholder="Search jobs by ID, customer name, service, or address..."
-            className="h-11 rounded-xl border-slate-200 bg-slate-50/50 pl-11 pr-10 text-sm focus-visible:bg-white"
+            className="h-10 rounded-md border-slate-200 bg-slate-50/50 pl-10 pr-10 text-xs sm:text-sm focus-visible:bg-white"
           />
           {query ? (
             <Link
               href={`/technician/jobs?filter=${activeFilter}`}
               aria-label="Clear search"
-              className="absolute right-3 flex size-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
+              className="absolute right-3 flex size-5 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-600"
             >
-              <X size={14} />
+              <X size={13} />
             </Link>
           ) : null}
         </form>

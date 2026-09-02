@@ -39,31 +39,31 @@ function TotalSummary({
   totalUsd: number;
 }) {
   return (
-    <section className="rounded-3xl bg-primary p-6 text-white shadow-sm">
-      <h2 className="text-xl font-semibold">Order Summary</h2>
-      <div className="mt-5 space-y-3 text-sm text-white/75">
+    <section className="rounded-lg border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-5 sm:p-6 text-white shadow-xs">
+      <h2 className="text-base font-bold text-white">Order Summary</h2>
+      <div className="mt-4 space-y-2.5 text-xs sm:text-sm text-teal-100/80">
         <div className="flex justify-between">
           <span>Subtotal</span>
-          <span>{formatCurrencyUsd(subtotalUsd)}</span>
+          <span className="font-semibold text-white">{formatCurrencyUsd(subtotalUsd)}</span>
         </div>
         <div className="flex justify-between">
           <span>Shipping</span>
-          <span>{shippingUsd ? formatCurrencyUsd(shippingUsd) : "FREE"}</span>
+          <span className="font-semibold text-white">{shippingUsd ? formatCurrencyUsd(shippingUsd) : "FREE"}</span>
         </div>
         <div className="flex justify-between">
-          <span>Tax</span>
-          <span>{formatCurrencyUsd(taxUsd)}</span>
+          <span>Estimated Tax</span>
+          <span className="font-semibold text-white">{formatCurrencyUsd(taxUsd)}</span>
         </div>
         {discountUsd ? (
-          <div className="flex justify-between">
-            <span>Discount</span>
+          <div className="flex justify-between text-emerald-400 font-medium">
+            <span>Special Discount</span>
             <span>-{formatCurrencyUsd(discountUsd)}</span>
           </div>
         ) : null}
       </div>
-      <div className="mt-5 flex justify-between border-t border-white/15 pt-5 text-2xl font-semibold">
+      <div className="mt-5 flex justify-between border-t border-white/15 pt-4 text-lg font-bold text-white">
         <span>Total</span>
-        <span>{formatCurrencyUsd(totalUsd)}</span>
+        <span className="text-teal-200">{formatCurrencyUsd(totalUsd)}</span>
       </div>
     </section>
   );
@@ -87,25 +87,25 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
       : `/user/reviews?compose=service&orderId=${order.id}`;
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <>
-            <Button asChild variant="outline">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm" className="rounded-md">
               <Link href="/user/orders">Back to orders</Link>
             </Button>
             {canWriteReview ? (
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" size="sm" className="rounded-md">
                 <Link href={reviewHref}>Write Review</Link>
               </Button>
             ) : null}
-            <Button asChild>
+            <Button asChild size="sm" className="rounded-md bg-teal-600 hover:bg-teal-500 font-medium">
               <Link href={`/user/billing/invoices/${order.invoiceId}`}>
-                <FileText size={16} />
+                <FileText size={14} className="mr-1.5" />
                 View Invoice
               </Link>
             </Button>
-          </>
+          </div>
         }
         description={
           order.type === "PRODUCT"
@@ -116,87 +116,87 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         title={`Order Details ${order.id}`}
       />
 
-      <div className="mb-8 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <TypeBadge type={order.type} />
         <StatusBadge status={order.status} />
       </div>
 
       {order.type === "PRODUCT" ? (
-        <div className="grid gap-6 xl:grid-cols-[1fr_0.95fr]">
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-primary">Delivery Status</h2>
-              <div className="mt-8 grid gap-5 sm:grid-cols-5">
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-8">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+              <h2 className="text-base font-bold text-slate-900">Delivery Status</h2>
+              <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-5">
                 {order.delivery.timeline.map((step) => (
                   <div key={step.key} className="relative text-center">
                     <div
                       className={cn(
-                        "mx-auto flex size-12 items-center justify-center rounded-full border-4",
+                        "mx-auto flex size-10 items-center justify-center rounded-full border-2",
                         step.complete
-                          ? "border-teal-100 bg-primary text-white"
-                          : "border-gray-100 bg-gray-50 text-gray-400",
+                          ? "border-teal-500 bg-teal-600 text-white"
+                          : "border-slate-200 bg-slate-50 text-slate-400",
                       )}
                     >
-                      <Check size={18} />
+                      <Check size={16} />
                     </div>
-                    <p className="mt-3 text-sm font-semibold text-primary">{step.label}</p>
-                    <p className="mt-1 text-xs text-gray-500">{step.detail}</p>
+                    <p className="mt-2 text-xs font-bold text-slate-900">{step.label}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{step.detail}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
-                Order Items
+            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">
+                Order Items ({order.items.length})
               </p>
-              <div className="mt-5 space-y-4">
+              <div className="space-y-3">
                 {order.items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex flex-col gap-4 rounded-2xl border border-gray-200 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-md border border-slate-200 p-3.5 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex gap-4">
-                      <div className="relative size-24 shrink-0 overflow-hidden rounded-2xl bg-teal-50">
+                    <div className="flex items-center gap-3.5">
+                      <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50">
                         <Image
                           src={item.imageSrc}
                           alt={item.name}
                           fill
-                          className="object-contain p-3"
+                          className="object-contain p-2"
                         />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-primary">{item.name}</h3>
-                        <p className="mt-1 text-sm text-gray-600">{item.summary}</p>
-                        <p className="mt-2 text-xs font-semibold text-gray-500">
+                        <h3 className="text-sm font-bold text-slate-900">{item.name}</h3>
+                        <p className="mt-0.5 text-xs text-slate-600">{item.summary}</p>
+                        <p className="mt-1 text-[11px] font-medium text-slate-500">
                           Qty: {item.quantity} · SKU: {item.sku}
                         </p>
                       </div>
                     </div>
-                    <p className="text-2xl font-semibold text-primary">
+                    <p className="text-base font-bold text-slate-900">
                       {formatCurrencyUsd(item.quantity * item.unitPriceUsd)}
                     </p>
                   </div>
                 ))}
               </div>
-              <Button className="mt-6" asChild>
-                <Link href="/user/orders">Track Order</Link>
+              <Button className="mt-5 rounded-md" size="sm" asChild>
+                <Link href="/user/orders">Track Order Shipment</Link>
               </Button>
             </section>
           </div>
 
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <Truck className="text-teal-700" size={22} />
-                <h2 className="text-xl font-semibold text-primary">Shipping Info</h2>
+          <div className="space-y-6 lg:col-span-4">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <Truck className="text-teal-700" size={18} />
+                <h2 className="text-sm font-bold text-slate-900">Shipping Info</h2>
               </div>
-              <div className="mt-6 grid gap-5 md:grid-cols-3">
+              <div className="mt-4 space-y-3 text-xs">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     Delivery Address
                   </p>
-                  <p className="mt-3 text-sm text-gray-700">
+                  <p className="mt-1 font-medium text-slate-800">
                     {order.delivery.address.line1}
                     <br />
                     {order.delivery.address.city}, {order.delivery.address.state}{" "}
@@ -204,141 +204,145 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     Tracking Number
                   </p>
-                  <p className="mt-3 text-sm font-semibold text-primary">
+                  <p className="mt-1 font-mono font-bold text-teal-900">
                     {order.delivery.trackingNumber}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     Estimated Delivery
                   </p>
-                  <p className="mt-3 text-sm font-semibold text-gray-900">
+                  <p className="mt-1 font-semibold text-slate-900">
                     {formatShortDate(order.delivery.estimatedDelivery)}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-8 flex items-center gap-3">
-                <CreditCard className="text-teal-700" size={22} />
-                <h2 className="text-xl font-semibold text-primary">Payment Details</h2>
+              <div className="mt-5 border-t border-slate-100 pt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <CreditCard className="text-teal-700" size={16} />
+                  <h3 className="text-xs font-bold text-slate-900">Payment Details</h3>
+                </div>
+                <StatusBadge status={order.paymentStatus} />
               </div>
-              <StatusBadge className="mt-4" status={order.paymentStatus} />
             </section>
 
             <TotalSummary {...order.total} />
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.9fr]">
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-primary">Service Timeline</h2>
-              <div className="mt-8 grid gap-5 md:grid-cols-4">
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="space-y-6 lg:col-span-8">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+              <h2 className="text-base font-bold text-slate-900">Service Timeline</h2>
+              <div className="mt-6 grid gap-4 grid-cols-2 sm:grid-cols-4">
                 {order.timeline.map((step) => (
                   <div key={step.key} className="text-center">
                     <div
                       className={cn(
-                        "mx-auto flex size-12 items-center justify-center rounded-full border-4",
+                        "mx-auto flex size-10 items-center justify-center rounded-full border-2",
                         step.complete
-                          ? "border-teal-100 bg-primary text-white"
-                          : "border-gray-100 bg-gray-50 text-gray-400",
+                          ? "border-teal-500 bg-teal-600 text-white"
+                          : "border-slate-200 bg-slate-50 text-slate-400",
                       )}
                     >
-                      <Check size={18} />
+                      <Check size={16} />
                     </div>
-                    <p className="mt-3 font-semibold text-gray-900">{step.label}</p>
-                    <p className="mt-1 text-sm text-gray-600">{step.detail}</p>
-                    <p className="mt-2 text-xs text-gray-400">{step.dateLabel}</p>
+                    <p className="mt-2 text-xs font-bold text-slate-900">{step.label}</p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">{step.detail}</p>
+                    <p className="mt-1 text-[10px] text-slate-400 font-mono">{step.dateLabel}</p>
                   </div>
                 ))}
               </div>
             </section>
 
-            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <CalendarDays className="text-teal-700" size={22} />
-                <h2 className="text-xl font-semibold text-primary">Appointment Details</h2>
+            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <CalendarDays className="text-teal-700" size={18} />
+                <h2 className="text-sm font-bold text-slate-900">Appointment Details</h2>
               </div>
-              <div className="mt-5 grid gap-4 rounded-2xl bg-gray-50 p-5 md:grid-cols-2">
+              <div className="mt-4 grid gap-3 rounded-md bg-slate-50 p-3.5 sm:grid-cols-2 text-xs">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+                  <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
                     Requested Schedule
                   </p>
-                  <p className="mt-2 font-semibold text-primary">
+                  <p className="mt-1 font-semibold text-slate-900">
                     {order.requestedSchedule}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                    Current Schedule
+                  <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
+                    Confirmed Schedule
                   </p>
-                  <p className="mt-2 font-semibold text-primary">
+                  <p className="mt-1 font-semibold text-teal-950">
                     {order.currentSchedule}
                   </p>
                 </div>
               </div>
               {order.technician ? (
-                <div className="mt-5 flex items-center gap-4 rounded-2xl bg-gray-50 p-5">
+                <div className="mt-4 flex items-center gap-3.5 rounded-md border border-slate-200 bg-slate-50/70 p-3.5">
                   <Image
                     src={order.technician.avatarSrc}
                     alt={order.technician.name}
-                    width={56}
-                    height={56}
-                    className="rounded-full object-cover"
+                    width={44}
+                    height={44}
+                    className="rounded-full object-cover border border-teal-200"
                   />
                   <div>
-                    <p className="font-bold uppercase tracking-[0.12em] text-gray-900">
+                    <p className="font-bold text-xs uppercase tracking-wider text-slate-900">
                       {order.technician.name}
                     </p>
-                    <p className="text-sm text-gray-500">{order.technician.role}</p>
+                    <p className="text-xs text-slate-500">{order.technician.role}</p>
                   </div>
                 </div>
               ) : null}
             </section>
           </div>
 
-          <div className="space-y-6">
-            <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3">
-                <Package className="text-teal-700" size={22} />
-                <h2 className="text-xl font-semibold text-primary">Service Overview</h2>
+          <div className="space-y-6 lg:col-span-4">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <Package className="text-teal-700" size={18} />
+                <h2 className="text-sm font-bold text-slate-900">Service Overview</h2>
               </div>
-              <div className="mt-5 space-y-5">
-                <div className="flex items-start gap-3">
-                  <UserRound className="mt-1 text-teal-700" size={18} />
+              <div className="mt-4 space-y-3.5 text-xs">
+                <div className="flex items-start gap-2.5">
+                  <UserRound className="mt-0.5 text-teal-700" size={16} />
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+                    <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
                       Service Type
                     </p>
-                    <p className="mt-2 text-gray-700">{order.serviceName}</p>
+                    <p className="mt-0.5 font-semibold text-slate-900">{order.serviceName}</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-1 text-teal-700" size={18} />
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="mt-0.5 text-teal-700" size={16} />
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
+                    <p className="font-semibold uppercase tracking-wider text-slate-400 text-[10px]">
                       Address
                     </p>
-                    <p className="mt-2 text-gray-700">
+                    <p className="mt-0.5 font-medium text-slate-800">
                       {order.location.line1}, {order.location.city},{" "}
                       {order.location.state} {order.location.postalCode}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="mt-6 rounded-2xl bg-primary p-5 text-white">
-                <p className="font-semibold">Payment Status</p>
-                <p className="mt-2 text-sm text-white/80">
+              <div className="mt-4 rounded-md bg-teal-900 p-3.5 text-white text-xs">
+                <p className="font-bold">Payment Status</p>
+                <p className="mt-1 text-teal-100/80">
                   Final payment is connected to invoice {order.invoiceId}.
                 </p>
               </div>
-              <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                <span className="font-semibold text-primary">Customer Notes:</span>{" "}
-                {order.customerNotes}
-              </div>
+              {order.customerNotes && (
+                <div className="mt-3 rounded-md bg-slate-50 border border-slate-200 p-3 text-xs text-slate-700">
+                  <span className="font-semibold text-slate-900">Notes:</span>{" "}
+                  {order.customerNotes}
+                </div>
+              )}
             </section>
 
             <TotalSummary {...order.total} />
