@@ -204,17 +204,17 @@ export default function ServiceRequestDetailPage() {
     return (
       <div className="w-full space-y-6 px-2 py-6 sm:px-4">
         {/* Skeleton Header */}
-        <div className="h-36 w-full animate-pulse rounded-lg border border-slate-200 bg-white" />
+        <div className="h-36 w-full animate-pulse rounded-lg bg-white" />
         {/* Skeleton Metrics */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="h-24 animate-pulse rounded-lg border border-slate-200 bg-white" />
+            <div key={n} className="h-24 animate-pulse rounded-lg bg-white" />
           ))}
         </div>
         {/* Skeleton Body */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="h-96 animate-pulse rounded-lg border border-slate-200 bg-white lg:col-span-8" />
-          <div className="h-96 animate-pulse rounded-lg border border-slate-200 bg-white lg:col-span-4" />
+          <div className="h-96 animate-pulse rounded-lg bg-white lg:col-span-8" />
+          <div className="h-96 animate-pulse rounded-lg bg-white lg:col-span-4" />
         </div>
       </div>
     );
@@ -230,7 +230,7 @@ export default function ServiceRequestDetailPage() {
             Back to Service Requests
           </Link>
         </Button>
-        <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 p-10 text-center shadow-xs">
+        <div className="rounded-lg bg-teal-50/60 p-10 text-center shadow-xs">
           <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
             <Wrench size={22} />
           </div>
@@ -319,17 +319,17 @@ export default function ServiceRequestDetailPage() {
 
   return (
     <div className="w-full space-y-6 sm:space-y-7 pb-16">
-      {/* 1. TOP HEADER SECTION - CLEAN WHITE DASHBOARD STYLE (NO GRADIENT) */}
-      <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+      {/* 1. TOP HEADER SECTION - CLEAN WHITE CARD (NO NESTED SUB-BORDERS) */}
+      <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-3">
-            {/* Badges Bar */}
+            {/* Badges Bar - Clean borderless badge pills */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleCopyId}
                 title="Click to copy Request ID"
-                className="group inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                className="group inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
               >
                 <span>ID: {displayId}</span>
                 {copiedId ? (
@@ -342,20 +342,20 @@ export default function ServiceRequestDetailPage() {
               <StatusBadge status={request.status} />
 
               {request.urgency && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-800">
-                  <Zap size={12} className="text-amber-600" />
+                <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/80 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-900">
+                  <Zap size={12} className="text-amber-700" />
                   {request.urgency} Priority
                 </span>
               )}
 
               {request.service?.category && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-800">
+                <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-900">
                   {request.service.category.replace(/_/g, " ")}
                 </span>
               )}
             </div>
 
-            {/* Main Title - Clean Dark Text on White */}
+            {/* Main Title */}
             <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
               {cleanTitle}
             </h1>
@@ -397,7 +397,7 @@ export default function ServiceRequestDetailPage() {
               asChild
               variant="outline"
               size="sm"
-              className="rounded-md border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-xs sm:text-sm"
+              className="rounded-md font-medium text-xs sm:text-sm"
             >
               <Link href="/user/services">
                 <ArrowLeft size={14} className="mr-1.5" />
@@ -422,7 +422,7 @@ export default function ServiceRequestDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setCancelModalOpen(true)}
-                className="rounded-md border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs sm:text-sm font-medium"
+                className="rounded-md border-rose-200 bg-rose-50/80 text-rose-700 hover:bg-rose-100 text-xs sm:text-sm font-medium"
               >
                 <XCircle size={14} className="mr-1.5 text-rose-600" />
                 Cancel Request
@@ -440,10 +440,10 @@ export default function ServiceRequestDetailPage() {
         const soTotal = soAny?.totalUsd ?? soAny?.totalAmountUsd;
 
         return (
-          <section className="rounded-lg border border-purple-200 bg-purple-50/60 p-5 sm:p-6 shadow-xs">
+          <section className="rounded-lg border border-purple-200/80 bg-purple-50/60 p-5 sm:p-6 shadow-xs">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="flex size-11 items-center justify-center rounded-md border border-purple-200 bg-purple-100 text-purple-800 shadow-xs">
+                <div className="flex size-11 items-center justify-center rounded-lg bg-purple-100 text-purple-800 shadow-xs">
                   <Truck size={22} />
                 </div>
                 <div>
@@ -474,15 +474,15 @@ export default function ServiceRequestDetailPage() {
         );
       })()}
 
-      {/* 3. KEY METRICS HIGHLIGHT BAR */}
+      {/* 3. KEY METRICS HIGHLIGHT BAR - CLEAN (NO NESTED ICON BORDERS) */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Requested Window */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
             <Clock size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Requested Window
             </p>
             <p className="mt-0.5 text-sm sm:text-base font-bold text-slate-900 truncate">
@@ -492,12 +492,12 @@ export default function ServiceRequestDetailPage() {
         </div>
 
         {/* Card 2: Confirmed Schedule */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800">
             <Calendar size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
               Confirmed Schedule
             </p>
             <p className="mt-0.5 text-sm sm:text-base font-bold text-teal-950 truncate">
@@ -507,12 +507,12 @@ export default function ServiceRequestDetailPage() {
         </div>
 
         {/* Card 3: Service Type */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-800">
             <Wrench size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Service Type
             </p>
             <p className="mt-0.5 text-sm sm:text-base font-bold text-slate-900 truncate" title={cleanTitle}>
@@ -522,12 +522,12 @@ export default function ServiceRequestDetailPage() {
         </div>
 
         {/* Card 4: Quotation Status */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-800">
             <FileCheck2 size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Quotation Status
             </p>
             <p className="mt-0.5 text-sm sm:text-base font-bold text-teal-950">
@@ -545,14 +545,14 @@ export default function ServiceRequestDetailPage() {
         <div className="space-y-6 sm:space-y-7 lg:col-span-8">
           
           {/* A. DIAGNOSTIC PIPELINE / QUOTATIONS SECTION */}
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
+          <section className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-xs">
             {quotation ? (
               /* ACTIVE QUOTATION PANEL */
               <div className="p-5 sm:p-6 bg-white">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-amber-200/80 pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 border border-amber-200 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-900">
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-900">
                         <FileText size={13} />
                         Official Quotation
                       </span>
@@ -590,14 +590,14 @@ export default function ServiceRequestDetailPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => setRejectQuoteOpen(true)}
-                          className="rounded-md border-rose-300 text-rose-700 hover:bg-rose-50 font-medium"
+                          className="rounded-md border-rose-200 text-rose-700 hover:bg-rose-50 font-medium"
                         >
                           <XCircle size={14} className="mr-1.5" />
                           Decline
                         </Button>
                       </>
                     )}
-                    <Button asChild variant="outline" size="sm" className="rounded-md border-amber-300 bg-white text-amber-900 hover:bg-amber-50 font-medium">
+                    <Button asChild variant="outline" size="sm" className="rounded-md text-slate-800 hover:bg-slate-50 font-medium">
                       <Link href={`/user/quotations/${quotation.id}`}>
                         <FileText size={14} className="mr-1.5" />
                         View Full Breakdown
@@ -612,7 +612,7 @@ export default function ServiceRequestDetailPage() {
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Itemized Diagnostics, Genuine Parts & Certified Labor
                     </p>
-                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white overflow-hidden shadow-xs">
+                    <div className="divide-y divide-slate-100 rounded-lg bg-slate-50/60 overflow-hidden">
                       {quotation.lineItems.map((item, idx) => {
                         const lineAny = item as unknown as Record<string, unknown>;
                         const label = String(lineAny.label || lineAny.description || `Service Item #${idx + 1}`);
@@ -625,7 +625,7 @@ export default function ServiceRequestDetailPage() {
                         return (
                           <div
                             key={String(lineAny.id || idx)}
-                            className="flex items-center justify-between p-4 hover:bg-slate-50/50 transition"
+                            className="flex items-center justify-between p-4 hover:bg-slate-100/60 transition"
                           >
                             <div className="space-y-0.5">
                               <p className="text-sm font-semibold text-slate-900">{label}</p>
@@ -654,7 +654,7 @@ export default function ServiceRequestDetailPage() {
                   const taxVal = quoteAny.taxUsd ? Number(quoteAny.taxUsd) : undefined;
 
                   return (
-                    <div className="mt-5 rounded-lg bg-slate-50/80 p-4 sm:p-5 border border-slate-200 space-y-2.5 text-xs sm:text-sm">
+                    <div className="mt-5 rounded-lg bg-slate-50/80 p-4 sm:p-5 space-y-2.5 text-xs sm:text-sm">
                       {quotation.subtotalUsd && (
                         <div className="flex justify-between text-slate-600 font-medium">
                           <span>Subtotal Parts & Labor</span>
@@ -682,7 +682,7 @@ export default function ServiceRequestDetailPage() {
                 })()}
 
                 {quotation.notes && (
-                  <div className="mt-4 rounded-md border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-950 font-medium">
+                  <div className="mt-4 rounded-md bg-amber-50/80 p-3.5 text-xs text-amber-950 font-medium">
                     <strong className="text-amber-900 font-semibold">Estimator Note:</strong> {quotation.notes}
                   </div>
                 )}
@@ -704,7 +704,7 @@ export default function ServiceRequestDetailPage() {
               /* DIAGNOSTIC PROGRESS STEPPER (When Quotation is Under Review) */
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-3.5">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-teal-200 bg-teal-100 text-teal-800 shadow-xs">
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
                     <Sparkles size={22} />
                   </div>
                   <div>
@@ -720,14 +720,14 @@ export default function ServiceRequestDetailPage() {
                   </div>
                 </div>
 
-                {/* Step Tracker - Increased typography & generous whitespace */}
+                {/* Step Tracker - Clean borderless background tints */}
                 <div className="mt-6 border-t border-slate-100 pt-5">
                   <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500 mb-3.5">
                     Service Progression Workflow
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {/* Step 1 */}
-                    <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-4">
+                    <div className="rounded-lg bg-teal-50/80 p-4">
                       <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-teal-950">
                         <CheckCircle2 size={18} className="text-teal-700 shrink-0" />
                         1. Intake Received
@@ -738,7 +738,7 @@ export default function ServiceRequestDetailPage() {
                     </div>
 
                     {/* Step 2 */}
-                    <div className="rounded-lg border-2 border-teal-500 bg-teal-50 p-4 shadow-xs relative overflow-hidden">
+                    <div className="rounded-lg bg-teal-100/70 p-4 shadow-xs relative overflow-hidden">
                       <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-teal-950">
                         <Loader2 size={18} className="animate-spin text-teal-700 shrink-0" />
                         2. Triage & Review
@@ -749,7 +749,7 @@ export default function ServiceRequestDetailPage() {
                     </div>
 
                     {/* Step 3 */}
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 opacity-75">
+                    <div className="rounded-lg bg-slate-50/80 p-4 opacity-75">
                       <div className="flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-600">
                         <FileText size={18} className="shrink-0 text-slate-400" />
                         3. Itemized Quote
@@ -760,7 +760,7 @@ export default function ServiceRequestDetailPage() {
                     </div>
 
                     {/* Step 4 */}
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 opacity-75">
+                    <div className="rounded-lg bg-slate-50/80 p-4 opacity-75">
                       <div className="flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-600">
                         <Calendar size={18} className="shrink-0 text-slate-400" />
                         4. On-Site Dispatch
@@ -775,15 +775,15 @@ export default function ServiceRequestDetailPage() {
             )}
           </section>
 
-          {/* B. REPORTED ISSUE & SYMPTOMS */}
-          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+          {/* B. REPORTED ISSUE & SYMPTOMS - CLEAN (NO NESTED BOX BORDERS) */}
+          <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs space-y-4">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-800">
               <MessageSquare size={16} className="text-teal-600" />
               Customer Issue Description & Malfunction Notes
             </div>
 
             {/* Narrative description */}
-            <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
+            <div className="rounded-lg bg-slate-50 p-4 sm:p-5">
               <p className="text-xs sm:text-sm font-medium leading-relaxed text-slate-800">
                 &ldquo;{problemDesc}&rdquo;
               </p>
@@ -801,7 +801,7 @@ export default function ServiceRequestDetailPage() {
                     return (
                       <span
                         key={idx}
-                        className="inline-flex items-center gap-1.5 rounded-md border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-950 shadow-xs"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-950"
                       >
                         <SymptomIcon size={13} className="text-teal-700" />
                         {symptom.replace(/_/g, " ")}
@@ -814,7 +814,7 @@ export default function ServiceRequestDetailPage() {
 
             {/* Access notes */}
             {request.additionalNotes && (
-              <div className="rounded-md border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-700">
+              <div className="rounded-md bg-slate-50 p-3.5 text-xs text-slate-700">
                 <strong className="font-semibold text-slate-900">Access & Property Notes:</strong> {request.additionalNotes}
               </div>
             )}
@@ -823,7 +823,7 @@ export default function ServiceRequestDetailPage() {
           {/* C. SYSTEM HARDWARE PROFILE & PROPERTY SPECS (2 Side-by-Side Cards) */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {/* Card 1: Equipment Profile */}
-            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+            <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
                 <Cpu size={15} className="text-teal-600" />
                 Central Vacuum Equipment Specs
@@ -853,7 +853,7 @@ export default function ServiceRequestDetailPage() {
             </section>
 
             {/* Card 2: Property & Problem Location */}
-            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+            <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
                 <MapPin size={15} className="text-teal-600" />
                 Service Location & Contact Info
@@ -883,7 +883,7 @@ export default function ServiceRequestDetailPage() {
           </div>
 
           {/* D. INSPECTION MEDIA GALLERY (Clean Read-Only Display) */}
-          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
             <div className="border-b border-slate-100 pb-4 mb-5">
               <h3 className="text-sm sm:text-base font-bold text-slate-900">
                 Customer Inspection Photos & Videos
@@ -904,16 +904,16 @@ export default function ServiceRequestDetailPage() {
         {/* RIGHT COLUMN: Sidebar Hub & Concierge (4 Cols) */}
         <div className="space-y-6 sm:space-y-7 lg:col-span-4">
           {/* 1. APPOINTMENT & DISPATCH SUMMARY */}
-          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-800">
               <CalendarDays size={15} className="text-teal-600" />
               Service Appointment Status
             </div>
 
-            <div className="mt-4 rounded-md bg-teal-50/70 border border-teal-100 p-4">
+            <div className="mt-4 rounded-lg bg-teal-50/70 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-600">Preferred Window</span>
-                <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-teal-900 shadow-xs border border-teal-200/50">
+                <span className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-teal-900 shadow-xs">
                   {request.preferredTime || requestedSchedule.split(" · ")[1] || "Flexible"}
                 </span>
               </div>
@@ -928,7 +928,7 @@ export default function ServiceRequestDetailPage() {
 
           {/* 2. ASSIGNED TECHNICIAN CARD (if appointments[0].technician exists) */}
           {assignedTech && (
-            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+            <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-700 mb-3.5">
                 <User size={14} className="text-teal-600" />
                 Assigned Service Technician
@@ -964,7 +964,7 @@ export default function ServiceRequestDetailPage() {
           )}
 
           {/* 3. ACTIVITY LIFECYCLE TIMELINE */}
-          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+          <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Request Activity Timeline
             </h3>
@@ -1026,7 +1026,7 @@ export default function ServiceRequestDetailPage() {
           </section>
 
           {/* 4. CONCIERGE & SUPPORT CARD - CLEAN SOLID CARD (NO GRADIENT) */}
-          <section className="rounded-lg border border-teal-800 bg-teal-900 p-5 sm:p-6 text-white shadow-xs">
+          <section className="rounded-lg bg-teal-900 p-5 sm:p-6 text-white shadow-xs">
             <div className="flex items-center gap-2">
               <HelpCircle size={17} className="text-teal-300" />
               <h3 className="text-sm sm:text-base font-bold text-white">Need Dedicated Assistance?</h3>

@@ -144,9 +144,9 @@ export function UserServicesClient() {
         title="My Service Requests"
         description="Track all submitted intake requests, diagnostics, and quotation updates in real-time."
         actions={
-          <Button asChild size="sm" className="rounded-md bg-teal-600 hover:bg-teal-500 text-white font-semibold shadow-xs">
+          <Button asChild className="rounded-md bg-teal-600 hover:bg-teal-500 text-white font-semibold shadow-xs">
             <Link href="/services">
-              <Wrench size={14} className="mr-1.5" />
+              <Wrench size={15} className="mr-1.5" />
               Request New Service
             </Link>
           </Button>
@@ -154,7 +154,7 @@ export function UserServicesClient() {
       />
 
       {/* SEARCH AND FILTER BAR */}
-      <div className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:p-5 shadow-xs">
+      <div className="flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs">
         <div className="flex flex-wrap items-center gap-2">
           {filters.map((filter) => {
             const count = filterCounts[filter.value] || 0;
@@ -165,10 +165,10 @@ export function UserServicesClient() {
                 size="sm"
                 variant={isSelected ? "default" : "outline"}
                 onClick={() => setSelectedFilter(filter.value)}
-                className={`rounded-md text-xs font-semibold h-8 px-3 transition-colors ${
+                className={`rounded-md text-xs font-semibold h-9 px-3.5 transition-colors ${
                   isSelected
                     ? "bg-teal-700 text-white hover:bg-teal-800"
-                    : "border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                    : "border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 {filter.label}
@@ -192,7 +192,7 @@ export function UserServicesClient() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by request ID, title, reported issue, or address..."
-            className="h-10 rounded-md border-slate-200 bg-slate-50/60 pl-10 pr-10 text-xs sm:text-sm focus-visible:bg-white focus-visible:ring-teal-600"
+            className="h-11 rounded-md border-slate-200/80 bg-slate-50/60 pl-10 pr-10 text-xs sm:text-sm focus-visible:bg-white focus-visible:ring-teal-600"
           />
           {searchQuery ? (
             <button
@@ -208,7 +208,7 @@ export function UserServicesClient() {
       </div>
 
       {isLoadingRequests && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white py-20 text-teal-700 shadow-xs">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200/80 bg-white py-20 text-teal-700 shadow-xs">
           <Loader2 size={28} className="animate-spin text-teal-600" />
           <span className="mt-3 text-xs sm:text-sm font-semibold text-slate-700">Loading service requests...</span>
         </div>
@@ -217,7 +217,7 @@ export function UserServicesClient() {
       {!isLoadingRequests && (
         <div className="space-y-4 sm:space-y-5">
           {filteredRequests.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-12 text-center">
+            <div className="rounded-lg bg-teal-50/40 p-12 text-center">
               <div className="mx-auto flex size-14 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
                 <Wrench size={26} />
               </div>
@@ -296,25 +296,25 @@ export function UserServicesClient() {
               return (
                 <article
                   key={request.id}
-                  className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition-all hover:border-teal-300 hover:shadow-sm"
+                  className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs transition-all hover:border-teal-300 hover:shadow-sm"
                 >
-                  {/* CARD TOP HEADER: ID, Badges, Submitted Time */}
+                  {/* CARD TOP HEADER: ID, Badges, Submitted Time (Borderless child pills) */}
                   <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-100 pb-3.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-md">
+                      <span className="font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md">
                         ID: {displayId}
                       </span>
                       <StatusBadge status={request.status} />
 
                       {request.urgency && (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                          <Zap size={11} className="text-amber-600" />
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/80 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
+                          <Zap size={11} className="text-amber-700" />
                           {request.urgency} Priority
                         </span>
                       )}
 
                       {request.service?.category && (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800">
+                        <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-800">
                           {request.service.category.replace(/_/g, " ")}
                         </span>
                       )}
@@ -345,7 +345,7 @@ export function UserServicesClient() {
                       &ldquo;{description}&rdquo;
                     </p>
 
-                    {/* Symptoms Chips */}
+                    {/* Symptoms Chips - Borderless soft pills */}
                     {symptoms.length > 0 && (
                       <div className="flex flex-wrap items-center gap-1.5 pt-1">
                         <span className="text-xs font-semibold text-slate-400 mr-0.5">Symptoms:</span>
@@ -354,7 +354,7 @@ export function UserServicesClient() {
                           return (
                             <span
                               key={idx}
-                              className="inline-flex items-center gap-1 rounded-md bg-teal-50 border border-teal-200/70 px-2 py-0.5 text-[11px] font-semibold text-teal-950"
+                              className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-950"
                             >
                               <SymptomIcon size={11} className="text-teal-700" />
                               {sym.replace(/_/g, " ")}
@@ -376,7 +376,7 @@ export function UserServicesClient() {
                     <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
                       {/* Schedule */}
                       <div className="flex items-center gap-2">
-                        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-teal-50 text-teal-700 border border-teal-200/60">
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-teal-50 text-teal-700">
                           <CalendarDays size={14} />
                         </div>
                         <div>
@@ -391,7 +391,7 @@ export function UserServicesClient() {
 
                       {/* Location */}
                       <div className="flex items-center gap-2">
-                        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600 border border-slate-200/60">
+                        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
                           <MapPin size={14} />
                         </div>
                         <div>
@@ -407,7 +407,7 @@ export function UserServicesClient() {
                       {/* Quotation preview if present */}
                       {quoteTotal ? (
                         <div className="flex items-center gap-2">
-                          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-800 border border-amber-200/60">
+                          <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-800">
                             <FileCheck2 size={14} />
                           </div>
                           <div>
@@ -441,7 +441,7 @@ export function UserServicesClient() {
                         asChild
                         variant="outline"
                         size="sm"
-                        className="rounded-md border-slate-200 text-slate-800 hover:bg-slate-50 font-semibold text-xs"
+                        className="rounded-md text-slate-800 hover:bg-slate-50 font-semibold text-xs"
                       >
                         <Link href={`/user/services/${request.id}`}>
                           View Details
