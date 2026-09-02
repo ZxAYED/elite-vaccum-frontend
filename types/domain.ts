@@ -383,6 +383,7 @@ export interface ScheduleCancellationEntry {
 
 export interface ServiceRequest {
   id: string;
+  businessId?: string;
   customerId: string;
   serviceId: string;
   title: string;
@@ -392,7 +393,16 @@ export interface ServiceRequest {
   preferredDate: string;
   preferredTime: string;
   propertyLabel: string;
-  serviceAddress: Address;
+  serviceAddress: Address & {
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    problemLocation?: string;
+  };
   estimatedAmountUsd?: number;
   assignedTechnicianId?: string;
   attachments: ServiceRequestAttachment[];
@@ -401,12 +411,42 @@ export interface ServiceRequest {
   currentSchedule?: ServiceScheduleWindow;
   equipment?: ServiceRequestEquipment;
   problemLocation?: string;
+  symptoms?: string[];
   additionalNotes?: string;
+  service?: {
+    id: string;
+    slug: string;
+    name: string;
+    category?: string;
+  };
+  appointments?: Array<{
+    id: string;
+    status: string;
+    startAt?: string;
+    endAt?: string;
+    technician?: {
+      id: string;
+      displayName: string;
+      phone?: string;
+      rating?: number;
+      completedJobs?: number;
+      specializations?: string[];
+    };
+  }>;
+  quotations?: Array<AdminQuotation>;
+  serviceOrder?: {
+    id: string;
+    businessId?: string;
+    status: string;
+    scheduledAt?: string;
+    totalUsd?: string | number;
+  };
   rejectionHistory?: RejectionHistoryEntry[];
 }
 
 export interface Quote {
   id: string;
+  businessId?: string;
   serviceRequestId: string;
   status: QuoteStatus;
   subtotalUsd: number;

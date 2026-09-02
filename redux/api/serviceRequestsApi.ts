@@ -224,6 +224,25 @@ export const serviceRequestsApi = baseApi.injectEndpoints({
         { type: "ServiceRequest", id: "ME" },
       ],
     }),
+    deleteServiceRequestAttachment: builder.mutation<
+      ServiceRequest,
+      { id: string; attachmentId: string }
+    >({
+      query: ({ id, attachmentId }) => ({
+        url: `/service-requests/${id}/attachments/${attachmentId}`,
+        method: "DELETE",
+      }),
+      transformResponse: (
+        response: ApiResponse<ServiceRequest> | ServiceRequest
+      ) => {
+        return unwrapData(response);
+      },
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "ServiceRequest", id },
+        { type: "ServiceRequest", id: "LIST" },
+        { type: "ServiceRequest", id: "ME" },
+      ],
+    }),
   }),
 });
 
@@ -235,4 +254,5 @@ export const {
   useUpdateServiceRequestStatusMutation,
   useRejectServiceRequestMutation,
   useAppendServiceRequestAttachmentsMutation,
+  useDeleteServiceRequestAttachmentMutation,
 } = serviceRequestsApi;

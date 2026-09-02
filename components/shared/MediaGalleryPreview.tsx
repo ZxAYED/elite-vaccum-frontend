@@ -8,6 +8,7 @@ import {
   Maximize2,
   Play,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -42,6 +43,7 @@ export interface MediaGalleryPreviewProps {
   className?: string;
   columnsClass?: string;
   compact?: boolean;
+  onDelete?: (attachmentId: string) => void;
 }
 
 export function resolveMediaUrl(att: { url?: string; fileName?: string }): string {
@@ -109,6 +111,7 @@ export function MediaGalleryPreview({
   className = "",
   columnsClass = "grid-cols-2 sm:grid-cols-3 md:grid-cols-3",
   compact = false,
+  onDelete,
 }: MediaGalleryPreviewProps) {
   const [activeMedia, setActiveMedia] = useState<MediaItem | null>(null);
 
@@ -160,43 +163,47 @@ export function MediaGalleryPreview({
             return (
               <motion.div
                 key={key}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveMedia(item)}
-                className={`group relative ${compact ? "aspect-square" : "aspect-[4/3]"} cursor-pointer overflow-hidden rounded-2xl border border-teal-100/90 bg-slate-900 shadow-xs transition hover:border-teal-400 hover:shadow-md`}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                className={`group relative ${compact ? "aspect-square" : "aspect-[4/3]"} overflow-hidden rounded-lg border border-slate-200 bg-slate-900 shadow-xs transition hover:border-teal-500 hover:shadow-md`}
               >
                 {/* Visual Media Rendering */}
-                {isVid ? (
-                  <div className="relative size-full bg-slate-950 flex items-center justify-center">
-                    <video
-                      src={mediaSrc}
-                      className="size-full object-cover opacity-75"
-                      preload="metadata"
-                      muted
-                      playsInline
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[1px] transition group-hover:bg-black/10">
-                      <div className="flex size-10 items-center justify-center rounded-full bg-white/90 text-teal-900 shadow-lg transition group-hover:scale-110 group-hover:bg-white">
-                        <Play size={18} className="translate-x-0.5 fill-current" />
+                <div
+                  onClick={() => setActiveMedia(item)}
+                  className="size-full cursor-pointer"
+                >
+                  {isVid ? (
+                    <div className="relative size-full bg-slate-950 flex items-center justify-center">
+                      <video
+                        src={mediaSrc}
+                        className="size-full object-cover opacity-75"
+                        preload="metadata"
+                        muted
+                        playsInline
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-[1px] transition group-hover:bg-black/10">
+                        <div className="flex size-10 items-center justify-center rounded-full bg-white/90 text-teal-900 shadow-lg transition group-hover:scale-110 group-hover:bg-white">
+                          <Play size={18} className="translate-x-0.5 fill-current" />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="relative size-full bg-slate-100">
-                    <img
-                      src={mediaSrc}
-                      alt={item.fileName || "Inspection attachment"}
-                      className="size-full object-cover transition duration-300 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80";
-                      }}
-                    />
-                  </div>
-                )}
+                  ) : (
+                    <div className="relative size-full bg-slate-100">
+                      <img
+                        src={mediaSrc}
+                        alt={item.fileName || "Inspection attachment"}
+                        className="size-full object-cover transition duration-300 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80";
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
 
                 {/* Glass Badge (Type & Size) */}
-                <div className="absolute top-2 left-2 flex items-center gap-1 rounded-lg bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md">
+                <div className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-md">
                   {isVid ? <Film size={10} /> : <ImageIcon size={10} />}
                   <span>{isVid ? "Video" : "Photo"}</span>
                   {item.sizeBytes ? (
@@ -204,14 +211,32 @@ export function MediaGalleryPreview({
                   ) : null}
                 </div>
 
+                {/* Delete button (if onDelete enabled) */}
+                {onDelete && item.id && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (item.id) onDelete(item.id);
+                    }}
+                    title="Delete attachment"
+                    className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-md bg-black/60 text-white backdrop-blur-md transition hover:bg-rose-600 hover:text-white"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+
                 {/* Bottom Overlay with Filename */}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 pt-6 text-white opacity-90 transition group-hover:opacity-100">
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2.5 pt-6 text-white opacity-90 transition group-hover:opacity-100 pointer-events-none">
                   <p className="truncate text-xs font-medium">{item.fileName || "Inspection File"}</p>
                 </div>
 
                 {/* Hover Action Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center bg-teal-950/40 opacity-0 backdrop-blur-[1px] transition group-hover:opacity-100">
-                  <div className="inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-teal-950 shadow-lg">
+                <div
+                  onClick={() => setActiveMedia(item)}
+                  className="absolute inset-0 flex items-center justify-center bg-teal-950/40 opacity-0 backdrop-blur-[1px] transition group-hover:opacity-100 cursor-pointer pointer-events-none"
+                >
+                  <div className="inline-flex items-center gap-1.5 rounded-md bg-white/95 px-3 py-1.5 text-xs font-bold text-teal-950 shadow-lg">
                     {isVid ? <Play size={12} className="fill-current" /> : <Maximize2 size={12} />}
                     <span>{isVid ? "Watch" : "Preview"}</span>
                   </div>

@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
   Calendar,
   CalendarDays,
@@ -12,28 +13,54 @@ import {
   Clock,
   Copy,
   Cpu,
+  ExternalLink,
   FileCheck2,
   FileText,
   HelpCircle,
   Loader2,
+  Mail,
   MapPin,
   MessageSquare,
+  Phone,
   PowerOff,
   ShieldAlert,
   Sparkles,
+  Star,
   Tag,
+  Truck,
+  UploadCloud,
+  User,
   Volume2,
   Wind,
   Wrench,
+  XCircle,
   Zap,
 } from "lucide-react";
 
 import { QuotationDecisionPanel } from "@/components/customer-portal/QuotationDecisionPanel";
-import { ServiceMediaGallery } from "@/components/customer-portal/ServiceMediaGallery";
+import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
-import { useGetServiceRequestByIdQuery } from "@/redux/api/serviceRequestsApi";
-import { useGetMyQuotationsQuery, useGetQuotationByIdQuery } from "@/redux/api/quotationsApi";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/Dialog";
+import {
+  useGetServiceRequestByIdQuery,
+  useUpdateServiceRequestStatusMutation,
+  useAppendServiceRequestAttachmentsMutation,
+  useDeleteServiceRequestAttachmentMutation,
+} from "@/redux/api/serviceRequestsApi";
+import {
+  useGetMyQuotationsQuery,
+  useGetQuotationByIdQuery,
+  useAcceptQuotationMutation,
+  useRejectQuotationMutation,
+} from "@/redux/api/quotationsApi";
 import { useGetMyServiceOrdersQuery } from "@/redux/api/serviceOrdersApi";
 import {
   formatCurrencyUsd,
@@ -42,7 +69,7 @@ import {
   formatShortDateTime,
 } from "@/lib/formatters";
 import { toast } from "sonner";
-import type { AdminQuotation, QuoteStatus } from "@/types/domain";
+import type { AdminQuotation, QuoteStatus, ServiceRequestStatus } from "@/types/domain";
 
 // Helper to get an icon for common central vacuum symptoms
 function getSymptomIcon(symptom: string) {
@@ -60,6 +87,10 @@ export default function ServiceRequestDetailPage() {
   const requestId = params.requestId;
 
   const [copiedId, setCopiedId] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [rejectQuoteOpen, setRejectQuoteOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 1. Live RTK Queries (Strictly API-driven, zero mock data)
   const { data: request, isLoading: isLoadingRequest } =
@@ -75,8 +106,18 @@ export default function ServiceRequestDetailPage() {
 
   const { data: myOrdersResponse } = useGetMyServiceOrdersQuery();
 
-  // 2. Resolve Active Quotation
+  // Mutations
+  const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateServiceRequestStatusMutation();
+  const [appendAttachments, { isLoading: isUploadingAttachments }] = useAppendServiceRequestAttachmentsMutation();
+  const [deleteAttachment] = useDeleteServiceRequestAttachmentMutation();
+  const [acceptQuoteMutation, { isLoading: isAcceptingQuote }] = useAcceptQuotationMutation();
+  const [rejectQuoteMutation, { isLoading: isRejectingQuote }] = useRejectQuotationMutation();
+
+  // 2. Resolve Active Quotation from request relation or standalone APIs
   const quotation: AdminQuotation | undefined = useMemo(() => {
+    if (request?.quotations && request.quotations.length > 0) {
+      return request.quotations[0];
+    }
     const reqAny = request as unknown as Record<string, unknown>;
     if (reqAny?.quotation) return reqAny.quotation as AdminQuotation;
     if (singleQuote) return singleQuote;
@@ -92,25 +133,101 @@ export default function ServiceRequestDetailPage() {
     return undefined;
   }, [request, singleQuote, myQuotations, requestId]);
 
-  // 3. Resolve Matching Service Order
+  // 3. Resolve Matching Service Order from request relation or standalone APIs
   const serviceOrder = useMemo(() => {
+    if (request?.serviceOrder) {
+      return request.serviceOrder;
+    }
     const orders = myOrdersResponse?.items || [];
     return orders.find(
       (o) => o.serviceRequestId === requestId || o.id === requestId,
     );
-  }, [myOrdersResponse, requestId]);
+  }, [request, myOrdersResponse, requestId]);
+
+  // 4. Resolve Primary Assigned Technician from appointments
+  const primaryAppointment = request?.appointments?.[0];
+  const assignedTech = primaryAppointment?.technician;
 
   const isLoading = isLoadingRequest || (isLoadingQuotes && !request);
 
+  const displayId = request?.businessId || request?.id || requestId;
+
   function handleCopyId() {
-    if (!requestId) return;
-    navigator.clipboard.writeText(requestId);
+    if (!displayId) return;
+    navigator.clipboard.writeText(displayId);
     setCopiedId(true);
     toast.success("Request ID copied to clipboard");
     setTimeout(() => setCopiedId(false), 2000);
   }
 
-  // 4. Loading Skeleton
+  async function handleCancelRequest() {
+    if (!request?.id) return;
+    try {
+      await updateStatus({
+        id: request.id,
+        status: "cancelled" as ServiceRequestStatus,
+        adminNote: "Cancelled by customer via portal.",
+      }).unwrap();
+      toast.success("Service request cancelled successfully.");
+      setCancelModalOpen(false);
+    } catch {
+      toast.error("Failed to cancel service request. Please contact support.");
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !request?.id) return;
+
+    const formData = new FormData();
+    Array.from(files).forEach((file) => {
+      formData.append("files", file);
+      formData.append("attachments", file);
+    });
+
+    try {
+      await appendAttachments({ id: request.id, formData }).unwrap();
+      toast.success(`${files.length} attachment(s) uploaded successfully.`);
+    } catch {
+      toast.error("Failed to upload attachments. Please try again.");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleDeleteAttachment(attachmentId: string) {
+    if (!request?.id) return;
+    try {
+      await deleteAttachment({ id: request.id, attachmentId }).unwrap();
+      toast.success("Attachment removed.");
+    } catch {
+      toast.error("Failed to remove attachment.");
+    }
+  }
+
+  async function handleAcceptQuoteDirect() {
+    if (!quotation?.id) return;
+    try {
+      await acceptQuoteMutation({ id: quotation.id }).unwrap();
+      toast.success("Quotation accepted! Your service appointment is confirmed.");
+    } catch {
+      toast.error("Failed to accept quotation. Please try again.");
+    }
+  }
+
+  async function handleRejectQuoteDirect() {
+    if (!quotation?.id || !rejectReason) return;
+    try {
+      await rejectQuoteMutation({ id: quotation.id, reason: rejectReason }).unwrap();
+      toast.success("Quotation declined.");
+      setRejectQuoteOpen(false);
+      setRejectReason("");
+    } catch {
+      toast.error("Failed to decline quotation.");
+    }
+  }
+
+  // 5. Loading Skeleton
   if (isLoading) {
     return (
       <div className="w-full space-y-6 px-4 py-8 sm:px-6">
@@ -126,14 +243,14 @@ export default function ServiceRequestDetailPage() {
         <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white py-20 shadow-xs">
           <Loader2 size={32} className="animate-spin text-teal-600" />
           <p className="mt-3 text-sm font-medium text-slate-600">
-            Loading Service Request #{requestId}...
+            Loading Service Request #{displayId}...
           </p>
         </div>
       </div>
     );
   }
 
-  // 5. Not Found Fallback
+  // 6. Not Found Fallback
   if (!request) {
     return (
       <div className="w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
@@ -151,7 +268,7 @@ export default function ServiceRequestDetailPage() {
             Service Request Not Found
           </h2>
           <p className="mx-auto mt-1.5 max-w-md text-xs text-slate-600">
-            We couldn’t find record #{requestId}. It may have been archived or belongs to another customer account.
+            We couldn’t find record #{displayId}. It may have been archived or belongs to another customer account.
           </p>
           <div className="mt-5 flex justify-center gap-3">
             <Button asChild size="sm" className="rounded-md">
@@ -179,8 +296,9 @@ export default function ServiceRequestDetailPage() {
     serviceName?: string;
   };
 
-  // Clean Service Title (strip any appended address string)
-  const rawTitle = request.title || reqAny.serviceName || "Central Vacuum Service Request";
+  // Clean Service Title
+  const serviceName = request.service?.name || reqAny.serviceName || "Central Vacuum Maintenance & Troubleshooting";
+  const rawTitle = request.title || serviceName;
   const cleanTitle = rawTitle.includes(" - ") ? rawTitle.split(" - ")[0].trim() : rawTitle;
 
   // Clean Problem Description
@@ -199,25 +317,49 @@ export default function ServiceRequestDetailPage() {
   const currentSchedule =
     request.currentSchedule?.label ?? requestedSchedule;
 
-  // Clean Address (no "undefined" or weird placeholders)
-  const line1 = request.serviceAddress?.line1 || reqAny.address || "";
+  // Clean Address
+  const line1 = request.serviceAddress?.address || request.serviceAddress?.line1 || reqAny.address || "";
   const city = request.serviceAddress?.city || reqAny.city || "";
   const state = request.serviceAddress?.state || reqAny.state || "";
-  const zip = request.serviceAddress?.postalCode || reqAny.zipCode || "";
+  const zip = request.serviceAddress?.zipCode || request.serviceAddress?.postalCode || reqAny.zipCode || "";
   const cityStateZip = [city, state, zip].filter(Boolean).join(", ");
   const displayStreet = line1 || cityStateZip || "Address on file";
   const displayRegion = line1 && cityStateZip ? cityStateZip : "";
 
+  // Contact Info
+  const contactName = request.serviceAddress?.contactName || "";
+  const contactPhone = request.serviceAddress?.contactPhone || "";
+  const contactEmail = request.serviceAddress?.contactEmail || "";
+
   // Problem Location
   const problemLoc =
     request.problemLocation ||
+    request.serviceAddress?.problemLocation ||
     reqAny.problemLocation ||
     reqAny.otherProblemLocation ||
-    "Main Inlet Ports & Tubing Network";
+    "Basement / Main Unit Inlets";
+
+  // Check if cancellation is allowed
+  const normStatus = (request.status || "").toLowerCase().replace(/_/g, "-");
+  const canCancel = normStatus === "submitted" || normStatus === "under-review";
+
+  // Quote status checks
+  const quoteStatusNorm = (quotation?.status || "").toLowerCase().replace(/_/g, "-");
+  const isQuoteSent = quoteStatusNorm === "sent" || quoteStatusNorm === "under-review" || quoteStatusNorm === "draft" || quoteStatusNorm === "quoted";
 
   return (
     <div className="w-full space-y-6 pb-12">
-      {/* 1. TOP HERO BANNER */}
+      {/* Hidden file input for additional attachments */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        multiple
+        accept="image/*,video/*"
+        className="hidden"
+      />
+
+      {/* 1. TOP HERO HEADER SECTION */}
       <section className="relative overflow-hidden rounded-xl border border-teal-900/60 bg-gradient-to-r from-teal-950 via-teal-900 to-slate-900 p-6 text-white shadow-md">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2.5">
@@ -226,10 +368,10 @@ export default function ServiceRequestDetailPage() {
               <button
                 type="button"
                 onClick={handleCopyId}
-                title="Click to copy ID"
+                title="Click to copy Request ID"
                 className="group inline-flex items-center gap-1.5 rounded-md border border-teal-500/40 bg-teal-900/70 px-2.5 py-1 font-mono text-xs font-medium text-teal-200 backdrop-blur-sm transition hover:border-teal-300 hover:bg-teal-800"
               >
-                <span>ID: {request.id.slice(0, 18)}...</span>
+                <span>ID: {displayId}</span>
                 {copiedId ? (
                   <Check size={12} className="text-emerald-400" />
                 ) : (
@@ -243,6 +385,12 @@ export default function ServiceRequestDetailPage() {
                 <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/20 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wider text-amber-300">
                   <Zap size={12} />
                   {request.urgency} Priority
+                </span>
+              )}
+
+              {request.service?.category && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-teal-500/30 bg-teal-800/40 px-2.5 py-0.5 text-xs font-medium text-teal-200">
+                  {request.service.category.replace(/_/g, " ")}
                 </span>
               )}
             </div>
@@ -296,6 +444,7 @@ export default function ServiceRequestDetailPage() {
                 All Requests
               </Link>
             </Button>
+
             <Button
               asChild
               size="sm"
@@ -306,11 +455,66 @@ export default function ServiceRequestDetailPage() {
                 Related Invoices
               </Link>
             </Button>
+
+            {canCancel && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCancelModalOpen(true)}
+                className="rounded-md border-rose-500/50 bg-rose-950/40 text-rose-200 hover:bg-rose-900 hover:text-white"
+              >
+                <XCircle size={14} className="mr-1.5" />
+                Cancel Request
+              </Button>
+            )}
           </div>
         </div>
       </section>
 
-      {/* 2. KEY METRICS HIGHLIGHT BAR */}
+      {/* 2. ACTIVE SERVICE ORDER BANNER (If Converted / Scheduled) */}
+      {serviceOrder && (() => {
+        const soAny = serviceOrder as unknown as Record<string, unknown>;
+        const soBusinessId = (soAny?.businessId as string) || serviceOrder.id;
+        const soScheduledAt = (soAny?.scheduledAt as string) || (soAny?.scheduledFor as string) || currentSchedule;
+        const soTotal = soAny?.totalUsd ?? soAny?.totalAmountUsd;
+
+        return (
+          <section className="rounded-xl border-2 border-purple-300 bg-gradient-to-r from-purple-50 via-white to-purple-50/30 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3.5">
+                <div className="flex size-11 items-center justify-center rounded-lg border border-purple-200 bg-purple-100 text-purple-800 shadow-xs">
+                  <Truck size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-semibold text-purple-900 bg-purple-100 px-2 py-0.5 rounded">
+                      Order ID: {soBusinessId}
+                    </span>
+                    <StatusBadge status={serviceOrder.status} />
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 mt-1">
+                    Active Service Order Dispatched
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Scheduled for: <span className="font-semibold text-purple-950">{soScheduledAt ? formatShortDateTime(soScheduledAt) : currentSchedule}</span>
+                    {soTotal ? ` · Total: ${formatCurrencyUsd(Number(soTotal))}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <Button asChild size="sm" className="rounded-md bg-purple-700 text-white hover:bg-purple-800 font-medium">
+                <Link href={`/user/orders/${serviceOrder.id}`}>
+                  View Service Order & Tracking
+                  <ExternalLink size={14} className="ml-1.5" />
+                </Link>
+              </Button>
+            </div>
+          </section>
+        );
+      })()}
+
+      {/* 3. KEY METRICS HIGHLIGHT BAR */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Requested Window */}
         <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
@@ -357,7 +561,7 @@ export default function ServiceRequestDetailPage() {
           </div>
         </div>
 
-        {/* Card 4: Quotation Amount */}
+        {/* Card 4: Quotation Status */}
         <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-amber-200 bg-amber-100 text-amber-800 shadow-xs">
             <FileCheck2 size={18} />
@@ -368,19 +572,19 @@ export default function ServiceRequestDetailPage() {
             </p>
             <p className="mt-0.5 text-sm font-semibold text-teal-900">
               {quotation
-                ? formatCurrencyUsd(quotation.totalUsd)
+                ? formatCurrencyUsd(Number(quotation.totalUsd))
                 : "Under Diagnostic Review"}
             </p>
           </div>
         </div>
       </section>
 
-      {/* 3. MAIN DASHBOARD GRID (8 Cols Left / 4 Cols Right) */}
+      {/* 4. MAIN DASHBOARD GRID (8 Cols Left / 4 Cols Right) */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* LEFT COLUMN: Main Case Details & Workflow (8 Cols) */}
         <div className="space-y-6 lg:col-span-8">
           
-          {/* A. DIAGNOSTIC PIPELINE / QUOTATION SECTION */}
+          {/* A. DIAGNOSTIC PIPELINE / QUOTATIONS SECTION */}
           <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
             {quotation ? (
               /* ACTIVE QUOTATION PANEL */
@@ -395,28 +599,59 @@ export default function ServiceRequestDetailPage() {
                       <StatusBadge status={quotation.status} />
                     </div>
                     <h2 className="text-2xl font-bold text-slate-900">
-                      {formatCurrencyUsd(quotation.totalUsd)}
+                      {formatCurrencyUsd(Number(quotation.totalUsd))}
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Quote Ref: <span className="font-mono font-semibold text-amber-950">{quotation.id}</span>
+                      Quote Ref: <span className="font-mono font-semibold text-amber-950">{quotation.businessId || quotation.id}</span>
                       {quotation.expiresAt ? ` · Guaranteed through ${formatLongDate(quotation.expiresAt)}` : ""}
                     </p>
                   </div>
 
-                  <Button asChild variant="outline" size="sm" className="rounded-md border-amber-300 bg-white text-amber-900 hover:bg-amber-50">
-                    <Link href={`/user/quotations/${quotation.id}`}>
-                      <FileText size={14} className="mr-1.5" />
-                      Detailed View
-                    </Link>
-                  </Button>
+                  {/* Top Action / Links */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isQuoteSent && (
+                      <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleAcceptQuoteDirect}
+                          disabled={isAcceptingQuote}
+                          className="rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 shadow-sm"
+                        >
+                          {isAcceptingQuote ? (
+                            <Loader2 size={14} className="animate-spin mr-1.5" />
+                          ) : (
+                            <CheckCircle2 size={14} className="mr-1.5" />
+                          )}
+                          Accept Quote
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRejectQuoteOpen(true)}
+                          className="rounded-md border-rose-300 text-rose-700 hover:bg-rose-50"
+                        >
+                          <XCircle size={14} className="mr-1.5" />
+                          Decline
+                        </Button>
+                      </>
+                    )}
+                    <Button asChild variant="outline" size="sm" className="rounded-md border-amber-300 bg-white text-amber-900 hover:bg-amber-50">
+                      <Link href={`/user/quotations/${quotation.id}`}>
+                        <FileText size={14} className="mr-1.5" />
+                        View Full Breakdown
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
 
-                {/* Line Items Table */}
-                <div className="mt-5 space-y-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Itemized Diagnostics, Genuine Parts & Certified Labor
-                  </p>
-                  {quotation.lineItems && quotation.lineItems.length > 0 ? (
+                {/* Line Items Table if present */}
+                {quotation.lineItems && quotation.lineItems.length > 0 && (
+                  <div className="mt-5 space-y-2.5">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                      Itemized Diagnostics, Genuine Parts & Certified Labor
+                    </p>
                     <div className="divide-y divide-amber-100 rounded-lg border border-amber-200/60 bg-white overflow-hidden">
                       {quotation.lineItems.map((item, idx) => {
                         const lineAny = item as unknown as Record<string, unknown>;
@@ -449,12 +684,10 @@ export default function ServiceRequestDetailPage() {
                         );
                       })}
                     </div>
-                  ) : (
-                    <p className="text-xs text-slate-500">Standard system diagnostic service package.</p>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Totals Calculation */}
+                {/* Totals Summary */}
                 {(() => {
                   const quoteAny = quotation as unknown as Record<string, unknown>;
                   const discountVal = quoteAny.discountUsd ? Number(quoteAny.discountUsd) : undefined;
@@ -465,7 +698,7 @@ export default function ServiceRequestDetailPage() {
                       {quotation.subtotalUsd && (
                         <div className="flex justify-between text-slate-600 font-medium">
                           <span>Subtotal Parts & Labor</span>
-                          <span className="font-semibold text-slate-800">{formatCurrencyUsd(quotation.subtotalUsd)}</span>
+                          <span className="font-semibold text-slate-800">{formatCurrencyUsd(Number(quotation.subtotalUsd))}</span>
                         </div>
                       )}
                       {discountVal ? (
@@ -482,7 +715,7 @@ export default function ServiceRequestDetailPage() {
                       ) : null}
                       <div className="border-t border-slate-200 pt-2.5 flex justify-between text-base font-bold text-slate-900">
                         <span>Total Quotation</span>
-                        <span className="text-teal-900">{formatCurrencyUsd(quotation.totalUsd)}</span>
+                        <span className="text-teal-900">{formatCurrencyUsd(Number(quotation.totalUsd))}</span>
                       </div>
                     </div>
                   );
@@ -494,7 +727,7 @@ export default function ServiceRequestDetailPage() {
                   </div>
                 )}
 
-                {/* Decision Panel */}
+                {/* Decision Panel (Interactive Accept/Reject) */}
                 <div className="mt-5">
                   <QuotationDecisionPanel
                     quotationId={quotation.id}
@@ -527,7 +760,7 @@ export default function ServiceRequestDetailPage() {
                   </div>
                 </div>
 
-                {/* High-Fidelity Step Tracker */}
+                {/* Step Tracker */}
                 <div className="mt-6 border-t border-slate-100 pt-5">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
                     Service Progression Workflow
@@ -597,13 +830,13 @@ export default function ServiceRequestDetailPage() {
             </div>
 
             {/* Observed Symptoms Chips */}
-            {reqAny.symptoms && reqAny.symptoms.length > 0 && (
+            {request.symptoms && request.symptoms.length > 0 && (
               <div className="mt-5 border-t border-slate-100 pt-4">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
-                  Reported Malfunction Symptoms ({reqAny.symptoms.length})
+                  Reported Malfunction Symptoms ({request.symptoms.length})
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {reqAny.symptoms.map((symptom: string, idx: number) => {
+                  {request.symptoms.map((symptom: string, idx: number) => {
                     const SymptomIcon = getSymptomIcon(symptom);
                     return (
                       <span
@@ -616,6 +849,13 @@ export default function ServiceRequestDetailPage() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* Access notes */}
+            {request.additionalNotes && (
+              <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                <span className="font-semibold text-slate-900">Access & Property Notes:</span> {request.additionalNotes}
               </div>
             )}
           </section>
@@ -656,7 +896,7 @@ export default function ServiceRequestDetailPage() {
             <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3.5">
                 <MapPin size={15} className="text-teal-600" />
-                Service Location & Problem Zone
+                Service Location & Contact Info
               </div>
 
               <div className="space-y-2.5">
@@ -667,18 +907,55 @@ export default function ServiceRequestDetailPage() {
                 </div>
 
                 <div className="rounded-md bg-slate-50 p-2.5 text-xs sm:text-sm">
-                  <span className="block font-medium text-slate-500 text-xs">Affected Inlet Ports / Zone</span>
+                  <span className="block font-medium text-slate-500 text-xs">Problem Location / Inlets</span>
                   <p className="mt-0.5 font-semibold text-teal-950">{problemLoc}</p>
-                  <p className="text-xs text-slate-500">Reported trouble area</p>
                 </div>
+
+                {(contactName || contactPhone || contactEmail) && (
+                  <div className="rounded-md bg-slate-50 p-2.5 text-xs space-y-1 text-slate-600">
+                    {contactName && <p className="font-medium text-slate-900">Contact: {contactName}</p>}
+                    {contactPhone && <p className="flex items-center gap-1.5"><Phone size={12} className="text-teal-600" /> {contactPhone}</p>}
+                    {contactEmail && <p className="flex items-center gap-1.5"><Mail size={12} className="text-teal-600" /> {contactEmail}</p>}
+                  </div>
+                )}
               </div>
             </section>
           </div>
 
-          {/* D. INSPECTION MEDIA GALLERY (Reusable Component) */}
+          {/* D. INSPECTION MEDIA GALLERY (Reusable Component + Upload Button + Delete) */}
           <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-            <ServiceMediaGallery
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-5">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  Customer Inspection Photos & Videos
+                </h3>
+                <p className="text-xs text-slate-500 font-normal">
+                  Visual evidence submitted with your central vacuum intake ticket.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isUploadingAttachments}
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded-md border-teal-200 text-teal-800 hover:bg-teal-50 font-medium"
+              >
+                {isUploadingAttachments ? (
+                  <Loader2 size={14} className="animate-spin mr-1.5" />
+                ) : (
+                  <UploadCloud size={14} className="mr-1.5 text-teal-700" />
+                )}
+                Upload Additional Photos/Files
+              </Button>
+            </div>
+
+            <MediaGalleryPreview
               attachments={request.attachments || []}
+              onDelete={handleDeleteAttachment}
+              emptyMessage="No customer media submitted"
+              emptyDescription="You can attach photos or videos of the vacuum motor, broken inlets, or problem areas to help our diagnostic technicians."
             />
           </section>
         </div>
@@ -694,13 +971,13 @@ export default function ServiceRequestDetailPage() {
 
             <div className="mt-3.5 rounded-md bg-teal-50/60 border border-teal-100 p-3.5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-600">Selected Window</span>
+                <span className="text-xs font-medium text-slate-600">Preferred Window</span>
                 <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-teal-900 shadow-xs border border-teal-200/50">
-                  {requestedSchedule.split(" · ")[1] || "Flexible"}
+                  {request.preferredTime || requestedSchedule.split(" · ")[1] || "Flexible"}
                 </span>
               </div>
               <p className="mt-2 text-base font-bold text-slate-900">
-                {requestedSchedule.split(" · ")[0] || requestedSchedule}
+                {request.preferredDate ? formatMonthDay(request.preferredDate) : requestedSchedule.split(" · ")[0]}
               </p>
               <p className="mt-1 text-xs text-slate-500 font-normal">
                 A technician will confirm dispatch 30 minutes prior to arrival.
@@ -708,7 +985,44 @@ export default function ServiceRequestDetailPage() {
             </div>
           </section>
 
-          {/* 2. ACTIVITY LIFECYCLE TIMELINE */}
+          {/* 2. ASSIGNED TECHNICIAN CARD (if appointments[0].technician exists) */}
+          {assignedTech && (
+            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-700 mb-3">
+                <User size={14} className="text-teal-600" />
+                Assigned Service Technician
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex size-11 items-center justify-center rounded-lg bg-teal-800 text-white font-bold text-base">
+                  {assignedTech.displayName.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {assignedTech.displayName}
+                  </h3>
+                  {assignedTech.rating ? (
+                    <div className="flex items-center gap-1 text-xs text-slate-600 mt-0.5 font-medium">
+                      <Star className="size-3.5 fill-amber-400 text-amber-500" />
+                      <strong className="text-slate-900">{assignedTech.rating}</strong>
+                      <span>rating</span>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              {assignedTech.phone && (
+                <div className="mt-3.5 border-t border-slate-100 pt-3 text-xs">
+                  <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                    <Phone size={13} className="text-teal-600" />
+                    <span>Direct: {assignedTech.phone}</span>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* 3. ACTIVITY LIFECYCLE TIMELINE */}
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Request Activity Timeline
@@ -739,7 +1053,7 @@ export default function ServiceRequestDetailPage() {
                   <div>
                     <p className="text-xs font-semibold text-slate-900">Quotation Issued</p>
                     <p className="text-[11px] text-slate-500">
-                      Total: {formatCurrencyUsd(quotation.totalUsd)} ({quotation.status})
+                      Total: {formatCurrencyUsd(Number(quotation.totalUsd))} ({quotation.status})
                     </p>
                   </div>
                 </div>
@@ -770,7 +1084,7 @@ export default function ServiceRequestDetailPage() {
             </div>
           </section>
 
-          {/* 3. CONCIERGE & SUPPORT CARD */}
+          {/* 4. CONCIERGE & SUPPORT CARD */}
           <section className="rounded-lg border border-teal-900/20 bg-gradient-to-br from-teal-900 to-slate-900 p-5 text-white shadow-sm">
             <div className="flex items-center gap-2">
               <HelpCircle size={16} className="text-emerald-400" />
@@ -805,6 +1119,88 @@ export default function ServiceRequestDetailPage() {
           </section>
         </div>
       </div>
+
+      {/* CANCEL REQUEST CONFIRMATION MODAL */}
+      <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-700">
+              <AlertTriangle size={18} />
+              Cancel Service Request?
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel request #{displayId}? This will release your reserved appointment slot.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCancelModalOpen(false)}
+            >
+              Keep Request
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isUpdatingStatus}
+              onClick={handleCancelRequest}
+            >
+              {isUpdatingStatus ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}
+              Confirm Cancellation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DECLINE QUOTATION MODAL */}
+      <Dialog open={rejectQuoteOpen} onOpenChange={setRejectQuoteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline Service Quotation</DialogTitle>
+            <DialogDescription>
+              Please let our estimation team know why you are declining this quotation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-3">
+            <label className="text-xs font-semibold text-slate-700">Reason</label>
+            <select
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              className="w-full rounded-md border border-slate-300 bg-white p-2 text-xs text-slate-800 focus:border-teal-600 focus:outline-none"
+            >
+              <option value="">Select a reason...</option>
+              <option value="Price too high">Price too high</option>
+              <option value="Service no longer needed">Service no longer needed</option>
+              <option value="Need clarification on parts/labor">Need clarification on parts/labor</option>
+              <option value="Scheduling conflict">Scheduling conflict</option>
+              <option value="Other">Other reason</option>
+            </select>
+          </div>
+          <DialogFooter className="flex gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRejectQuoteOpen(false)}
+            >
+              Back
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={!rejectReason || isRejectingQuote}
+              onClick={handleRejectQuoteDirect}
+            >
+              {isRejectingQuote ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}
+              Submit Decline
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
