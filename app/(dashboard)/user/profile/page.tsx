@@ -211,7 +211,7 @@ export default function AccountProfile() {
           </Button>
         </section>
 
-        <section className="rounded-lg border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-5 sm:p-6 text-white shadow-xs lg:col-span-6 flex flex-col justify-between">
+        <section className="rounded-lg border border-teal-800 bg-teal-900 p-5 sm:p-6 text-white shadow-xs lg:col-span-6 flex flex-col justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-teal-300">
               Concierge Priority Support

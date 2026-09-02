@@ -116,7 +116,7 @@ export default async function ScheduleDetailPage({ params }: ScheduleDetailPageP
                 {order.location.line1}, {order.location.city}
               </p>
             </div>
-            <div className="rounded-md border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-4 text-white">
+            <div className="rounded-md border border-teal-800 bg-teal-900 p-4 text-white">
               <div className="flex items-center gap-2 font-bold text-xs">
                 <CreditCard size={15} />
                 Payment Status

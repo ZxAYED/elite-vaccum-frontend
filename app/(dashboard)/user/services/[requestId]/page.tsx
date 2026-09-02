@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle,
   ArrowLeft,
   Calendar,
   CalendarDays,
@@ -160,66 +159,85 @@ export default function ServiceRequestDetailPage() {
     setTimeout(() => setCopiedId(false), 2000);
   }
 
-  async function handleCancelRequest() {
-    if (!request?.id) return;
+  // Handle Cancel Request Action
+  async function handleConfirmCancel() {
+    if (!requestId) return;
     try {
       await updateStatus({
-        id: request.id,
-        status: "cancelled" as ServiceRequestStatus,
-        adminNote: "Cancelled by customer via portal.",
+        id: requestId,
+        status: "CANCELLED" as ServiceRequestStatus,
       }).unwrap();
-      toast.success("Service request cancelled successfully.");
+      toast.success("Service request has been cancelled.");
       setCancelModalOpen(false);
     } catch {
-      toast.error("Failed to cancel service request. Please contact support.");
+      toast.error("Failed to cancel request. Please reach out to customer support.");
     }
   }
 
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0 || !request?.id) return;
+  // Handle Attachment Upload Action
+  async function handleFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !requestId) return;
 
-    const formData = new FormData();
-    Array.from(files).forEach((file) => {
-      formData.append("files", file);
-      formData.append("attachments", file);
-    });
-
+    const toastId = toast.loading(`Uploading ${files.length} attachment(s)...`);
     try {
-      await appendAttachments({ id: request.id, formData }).unwrap();
-      toast.success(`${files.length} attachment(s) uploaded successfully.`);
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append("files", files[i]);
+      }
+
+      await appendAttachments({
+        id: requestId,
+        formData,
+      }).unwrap();
+
+      toast.success("Attachments uploaded successfully", { id: toastId });
     } catch {
-      toast.error("Failed to upload attachments. Please try again.");
+      toast.error("Failed to upload attachments", { id: toastId });
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
+  // Handle Attachment Delete Action
   async function handleDeleteAttachment(attachmentId: string) {
-    if (!request?.id) return;
+    if (!requestId) return;
+    const toastId = toast.loading("Removing attachment...");
     try {
-      await deleteAttachment({ id: request.id, attachmentId }).unwrap();
-      toast.success("Attachment removed.");
+      await deleteAttachment({
+        id: requestId,
+        attachmentId,
+      }).unwrap();
+      toast.success("Attachment removed", { id: toastId });
     } catch {
-      toast.error("Failed to remove attachment.");
+      toast.error("Failed to remove attachment", { id: toastId });
     }
   }
 
+  // Handle Accept Quotation Direct Action
   async function handleAcceptQuoteDirect() {
-    if (!quotation?.id) return;
+    if (!quotation) return;
     try {
-      await acceptQuoteMutation({ id: quotation.id }).unwrap();
-      toast.success("Quotation accepted! Your service appointment is confirmed.");
+      const res = await acceptQuoteMutation({ id: quotation.id }).unwrap();
+      toast.success(res.message || "Quotation accepted!", {
+        description: "Your service order has been generated.",
+      });
     } catch {
       toast.error("Failed to accept quotation. Please try again.");
     }
   }
 
+  // Handle Reject Quotation Direct Action
   async function handleRejectQuoteDirect() {
-    if (!quotation?.id || !rejectReason) return;
+    if (!quotation || !rejectReason.trim()) return;
     try {
-      await rejectQuoteMutation({ id: quotation.id, reason: rejectReason }).unwrap();
-      toast.success("Quotation declined.");
+      await rejectQuoteMutation({
+        id: quotation.id,
+        reason: rejectReason.trim(),
+      }).unwrap();
+      toast.success("Quotation declined", {
+        description: "Our team will evaluate updated estimates.",
+      });
       setRejectQuoteOpen(false);
       setRejectReason("");
     } catch {
@@ -230,21 +248,19 @@ export default function ServiceRequestDetailPage() {
   // 5. Loading Skeleton
   if (isLoading) {
     return (
-      <div className="w-full space-y-6 px-4 py-8 sm:px-6">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="outline" size="sm" className="rounded-md">
-            <Link href="/user/services">
-              <ArrowLeft size={14} className="mr-1.5" />
-              Back
-            </Link>
-          </Button>
-          <div className="h-6 w-48 animate-pulse rounded-md bg-slate-200" />
+      <div className="w-full space-y-6 px-2 py-6 sm:px-4">
+        {/* Skeleton Header */}
+        <div className="h-36 w-full animate-pulse rounded-lg border border-slate-200 bg-white" />
+        {/* Skeleton Metrics */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="h-24 animate-pulse rounded-lg border border-slate-200 bg-white" />
+          ))}
         </div>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-white py-20 shadow-xs">
-          <Loader2 size={32} className="animate-spin text-teal-600" />
-          <p className="mt-3 text-sm font-medium text-slate-600">
-            Loading Service Request #{displayId}...
-          </p>
+        {/* Skeleton Body */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="h-96 animate-pulse rounded-lg border border-slate-200 bg-white lg:col-span-8" />
+          <div className="h-96 animate-pulse rounded-lg border border-slate-200 bg-white lg:col-span-4" />
         </div>
       </div>
     );
@@ -260,7 +276,7 @@ export default function ServiceRequestDetailPage() {
             Back to Service Requests
           </Link>
         </Button>
-        <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 p-10 text-center shadow-xs">
+        <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 p-10 text-center shadow-xs">
           <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
             <Wrench size={22} />
           </div>
@@ -348,7 +364,7 @@ export default function ServiceRequestDetailPage() {
   const isQuoteSent = quoteStatusNorm === "sent" || quoteStatusNorm === "under-review" || quoteStatusNorm === "draft" || quoteStatusNorm === "quoted";
 
   return (
-    <div className="w-full space-y-6 pb-12">
+    <div className="w-full space-y-6 sm:space-y-7 pb-16">
       {/* Hidden file input for additional attachments */}
       <input
         type="file"
@@ -359,85 +375,85 @@ export default function ServiceRequestDetailPage() {
         className="hidden"
       />
 
-      {/* 1. TOP HERO HEADER SECTION */}
-      <section className="relative overflow-hidden rounded-xl border border-teal-900/60 bg-gradient-to-r from-teal-950 via-teal-900 to-slate-900 p-6 text-white shadow-md">
+      {/* 1. TOP HEADER SECTION - CLEAN WHITE DASHBOARD STYLE (NO GRADIENT) */}
+      <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {/* Badges Bar */}
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={handleCopyId}
                 title="Click to copy Request ID"
-                className="group inline-flex items-center gap-1.5 rounded-md border border-teal-500/40 bg-teal-900/70 px-2.5 py-1 font-mono text-xs font-medium text-teal-200 backdrop-blur-sm transition hover:border-teal-300 hover:bg-teal-800"
+                className="group inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
               >
                 <span>ID: {displayId}</span>
                 {copiedId ? (
-                  <Check size={12} className="text-emerald-400" />
+                  <Check size={12} className="text-emerald-600" />
                 ) : (
-                  <Copy size={12} className="opacity-70 group-hover:opacity-100" />
+                  <Copy size={12} className="opacity-60 group-hover:opacity-100" />
                 )}
               </button>
 
               <StatusBadge status={request.status} />
 
               {request.urgency && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/20 px-2.5 py-0.5 text-xs font-medium uppercase tracking-wider text-amber-300">
-                  <Zap size={12} />
+                <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-800">
+                  <Zap size={12} className="text-amber-600" />
                   {request.urgency} Priority
                 </span>
               )}
 
               {request.service?.category && (
-                <span className="inline-flex items-center gap-1 rounded-md border border-teal-500/30 bg-teal-800/40 px-2.5 py-0.5 text-xs font-medium text-teal-200">
+                <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-800">
                   {request.service.category.replace(/_/g, " ")}
                 </span>
               )}
             </div>
 
-            {/* Main Title */}
-            <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl lg:text-3xl">
+            {/* Main Title - Clean Dark Text on White */}
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
               {cleanTitle}
             </h1>
 
             {/* Quick Metadata Strip */}
-            <div className="flex flex-wrap items-center gap-y-1.5 gap-x-5 text-xs text-teal-100/90 sm:text-sm">
+            <div className="flex flex-wrap items-center gap-y-2 gap-x-6 text-xs text-slate-500 sm:text-sm pt-0.5">
               <div className="flex items-center gap-1.5">
-                <CalendarDays size={14} className="text-teal-400" />
+                <CalendarDays size={15} className="text-teal-600 shrink-0" />
                 <span>
                   Submitted:{" "}
-                  <span className="font-semibold text-white">
+                  <strong className="font-semibold text-slate-900">
                     {request.submittedAt || reqAny.createdAt
                       ? formatShortDateTime(request.submittedAt || reqAny.createdAt || "")
                       : "Recently submitted"}
-                  </span>
+                  </strong>
                 </span>
               </div>
 
               <div className="flex items-center gap-1.5">
-                <Clock size={14} className="text-teal-400" />
+                <Clock size={15} className="text-teal-600 shrink-0" />
                 <span>
                   Preferred Slot:{" "}
-                  <span className="font-semibold text-white">{requestedSchedule}</span>
+                  <strong className="font-semibold text-slate-900">{requestedSchedule}</strong>
                 </span>
               </div>
 
               <div className="flex items-center gap-1.5">
-                <MapPin size={14} className="text-teal-400" />
+                <MapPin size={15} className="text-teal-600 shrink-0" />
                 <span className="truncate max-w-xs">
-                  Property: <span className="font-semibold text-white">{displayStreet}</span>
+                  Property: <strong className="font-semibold text-slate-900">{displayStreet}</strong>
                 </span>
               </div>
             </div>
           </div>
 
           {/* Action Toolbar */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
             <Button
               asChild
               variant="outline"
               size="sm"
-              className="rounded-md border-teal-500/50 bg-teal-900/50 text-white hover:bg-teal-800 hover:text-white"
+              className="rounded-md border-slate-200 text-slate-700 hover:bg-slate-50 font-medium text-xs sm:text-sm"
             >
               <Link href="/user/services">
                 <ArrowLeft size={14} className="mr-1.5" />
@@ -448,7 +464,7 @@ export default function ServiceRequestDetailPage() {
             <Button
               asChild
               size="sm"
-              className="rounded-md bg-teal-600 text-white font-medium hover:bg-teal-500 shadow-sm"
+              className="rounded-md bg-teal-600 text-white font-medium hover:bg-teal-500 shadow-xs text-xs sm:text-sm"
             >
               <Link href="/user/billing">
                 <FileText size={14} className="mr-1.5" />
@@ -462,9 +478,9 @@ export default function ServiceRequestDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setCancelModalOpen(true)}
-                className="rounded-md border-rose-500/50 bg-rose-950/40 text-rose-200 hover:bg-rose-900 hover:text-white"
+                className="rounded-md border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs sm:text-sm font-medium"
               >
-                <XCircle size={14} className="mr-1.5" />
+                <XCircle size={14} className="mr-1.5 text-rose-600" />
                 Cancel Request
               </Button>
             )}
@@ -480,15 +496,15 @@ export default function ServiceRequestDetailPage() {
         const soTotal = soAny?.totalUsd ?? soAny?.totalAmountUsd;
 
         return (
-          <section className="rounded-xl border-2 border-purple-300 bg-gradient-to-r from-purple-50 via-white to-purple-50/30 p-5 shadow-sm">
+          <section className="rounded-lg border border-purple-200 bg-purple-50/60 p-5 sm:p-6 shadow-xs">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3.5">
-                <div className="flex size-11 items-center justify-center rounded-lg border border-purple-200 bg-purple-100 text-purple-800 shadow-xs">
+                <div className="flex size-11 items-center justify-center rounded-md border border-purple-200 bg-purple-100 text-purple-800 shadow-xs">
                   <Truck size={22} />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-purple-900 bg-purple-100 px-2 py-0.5 rounded">
+                    <span className="font-mono text-xs font-semibold text-purple-900 bg-purple-100 px-2 py-0.5 rounded-md">
                       Order ID: {soBusinessId}
                     </span>
                     <StatusBadge status={serviceOrder.status} />
@@ -517,60 +533,60 @@ export default function ServiceRequestDetailPage() {
       {/* 3. KEY METRICS HIGHLIGHT BAR */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Card 1: Requested Window */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-teal-200 bg-teal-100 text-teal-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800 shadow-xs">
             <Clock size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Requested Window
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-slate-900 truncate">
+            <p className="mt-0.5 text-sm sm:text-base font-bold text-slate-900 truncate">
               {requestedSchedule}
             </p>
           </div>
         </div>
 
         {/* Card 2: Confirmed Schedule */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-100 text-emerald-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-800 shadow-xs">
             <Calendar size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wider text-emerald-700">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800">
               Confirmed Schedule
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-teal-950 truncate">
+            <p className="mt-0.5 text-sm sm:text-base font-bold text-teal-950 truncate">
               {currentSchedule}
             </p>
           </div>
         </div>
 
         {/* Card 3: Service Type */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-sky-200 bg-sky-100 text-sky-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-800 shadow-xs">
             <Wrench size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Service Type
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-slate-900 truncate" title={cleanTitle}>
+            <p className="mt-0.5 text-sm sm:text-base font-bold text-slate-900 truncate" title={cleanTitle}>
               {cleanTitle}
             </p>
           </div>
         </div>
 
         {/* Card 4: Quotation Status */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-amber-200 bg-amber-100 text-amber-800 shadow-xs">
+        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-800 shadow-xs">
             <FileCheck2 size={18} />
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
               Quotation Status
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-teal-900">
+            <p className="mt-0.5 text-sm sm:text-base font-bold text-teal-950">
               {quotation
                 ? formatCurrencyUsd(Number(quotation.totalUsd))
                 : "Under Diagnostic Review"}
@@ -580,29 +596,29 @@ export default function ServiceRequestDetailPage() {
       </section>
 
       {/* 4. MAIN DASHBOARD GRID (8 Cols Left / 4 Cols Right) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 sm:gap-7 lg:grid-cols-12">
         {/* LEFT COLUMN: Main Case Details & Workflow (8 Cols) */}
-        <div className="space-y-6 lg:col-span-8">
+        <div className="space-y-6 sm:space-y-7 lg:col-span-8">
           
           {/* A. DIAGNOSTIC PIPELINE / QUOTATIONS SECTION */}
           <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
             {quotation ? (
               /* ACTIVE QUOTATION PANEL */
-              <div className="p-5 sm:p-6 bg-gradient-to-b from-amber-50/40 via-white to-white">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-amber-200/60 pb-4">
+              <div className="p-5 sm:p-6 bg-white">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-amber-200/80 pb-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-amber-900">
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-amber-100 border border-amber-200 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-900">
                         <FileText size={13} />
                         Official Quotation
                       </span>
                       <StatusBadge status={quotation.status} />
                     </div>
-                    <h2 className="text-2xl font-bold text-slate-900">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900">
                       {formatCurrencyUsd(Number(quotation.totalUsd))}
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Quote Ref: <span className="font-mono font-semibold text-amber-950">{quotation.businessId || quotation.id}</span>
+                      Quote Ref: <strong className="font-mono font-semibold text-amber-950">{quotation.businessId || quotation.id}</strong>
                       {quotation.expiresAt ? ` · Guaranteed through ${formatLongDate(quotation.expiresAt)}` : ""}
                     </p>
                   </div>
@@ -616,7 +632,7 @@ export default function ServiceRequestDetailPage() {
                           size="sm"
                           onClick={handleAcceptQuoteDirect}
                           disabled={isAcceptingQuote}
-                          className="rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 shadow-sm"
+                          className="rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 shadow-xs"
                         >
                           {isAcceptingQuote ? (
                             <Loader2 size={14} className="animate-spin mr-1.5" />
@@ -630,14 +646,14 @@ export default function ServiceRequestDetailPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => setRejectQuoteOpen(true)}
-                          className="rounded-md border-rose-300 text-rose-700 hover:bg-rose-50"
+                          className="rounded-md border-rose-300 text-rose-700 hover:bg-rose-50 font-medium"
                         >
                           <XCircle size={14} className="mr-1.5" />
                           Decline
                         </Button>
                       </>
                     )}
-                    <Button asChild variant="outline" size="sm" className="rounded-md border-amber-300 bg-white text-amber-900 hover:bg-amber-50">
+                    <Button asChild variant="outline" size="sm" className="rounded-md border-amber-300 bg-white text-amber-900 hover:bg-amber-50 font-medium">
                       <Link href={`/user/quotations/${quotation.id}`}>
                         <FileText size={14} className="mr-1.5" />
                         View Full Breakdown
@@ -648,11 +664,11 @@ export default function ServiceRequestDetailPage() {
 
                 {/* Line Items Table if present */}
                 {quotation.lineItems && quotation.lineItems.length > 0 && (
-                  <div className="mt-5 space-y-2.5">
+                  <div className="mt-5 space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                       Itemized Diagnostics, Genuine Parts & Certified Labor
                     </p>
-                    <div className="divide-y divide-amber-100 rounded-lg border border-amber-200/60 bg-white overflow-hidden">
+                    <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 bg-white overflow-hidden shadow-xs">
                       {quotation.lineItems.map((item, idx) => {
                         const lineAny = item as unknown as Record<string, unknown>;
                         const label = String(lineAny.label || lineAny.description || `Service Item #${idx + 1}`);
@@ -665,7 +681,7 @@ export default function ServiceRequestDetailPage() {
                         return (
                           <div
                             key={String(lineAny.id || idx)}
-                            className="flex items-center justify-between p-3.5 hover:bg-amber-50/30 transition"
+                            className="flex items-center justify-between p-4 hover:bg-slate-50/50 transition"
                           >
                             <div className="space-y-0.5">
                               <p className="text-sm font-semibold text-slate-900">{label}</p>
@@ -677,7 +693,7 @@ export default function ServiceRequestDetailPage() {
                                 </p>
                               ) : null}
                             </div>
-                            <span className="text-sm font-semibold text-slate-900">
+                            <span className="text-sm sm:text-base font-bold text-slate-900">
                               {formatCurrencyUsd(amount)}
                             </span>
                           </div>
@@ -694,7 +710,7 @@ export default function ServiceRequestDetailPage() {
                   const taxVal = quoteAny.taxUsd ? Number(quoteAny.taxUsd) : undefined;
 
                   return (
-                    <div className="mt-4 rounded-lg bg-white p-4 border border-amber-200/80 space-y-2 text-xs sm:text-sm">
+                    <div className="mt-5 rounded-lg bg-slate-50/80 p-4 sm:p-5 border border-slate-200 space-y-2.5 text-xs sm:text-sm">
                       {quotation.subtotalUsd && (
                         <div className="flex justify-between text-slate-600 font-medium">
                           <span>Subtotal Parts & Labor</span>
@@ -713,7 +729,7 @@ export default function ServiceRequestDetailPage() {
                           <span className="font-semibold text-slate-800">{formatCurrencyUsd(taxVal)}</span>
                         </div>
                       ) : null}
-                      <div className="border-t border-slate-200 pt-2.5 flex justify-between text-base font-bold text-slate-900">
+                      <div className="border-t border-slate-200 pt-3 flex justify-between text-base sm:text-lg font-bold text-slate-900">
                         <span>Total Quotation</span>
                         <span className="text-teal-900">{formatCurrencyUsd(Number(quotation.totalUsd))}</span>
                       </div>
@@ -722,7 +738,7 @@ export default function ServiceRequestDetailPage() {
                 })()}
 
                 {quotation.notes && (
-                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3.5 text-xs text-amber-950 font-medium">
+                  <div className="mt-4 rounded-md border border-amber-200 bg-amber-50/70 p-3.5 text-xs text-amber-950 font-medium">
                     <strong className="text-amber-900 font-semibold">Estimator Note:</strong> {quotation.notes}
                   </div>
                 )}
@@ -744,68 +760,68 @@ export default function ServiceRequestDetailPage() {
               /* DIAGNOSTIC PROGRESS STEPPER (When Quotation is Under Review) */
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-3.5">
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-teal-200 bg-teal-100 text-teal-800 shadow-xs">
-                    <Sparkles size={20} />
+                  <div className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-teal-200 bg-teal-100 text-teal-800 shadow-xs">
+                    <Sparkles size={22} />
                   </div>
                   <div>
-                    <span className="inline-flex items-center gap-1 rounded-md bg-teal-100 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-teal-800">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-teal-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-teal-800">
                       Phase 1: In Diagnostic Review
                     </span>
-                    <h2 className="mt-1 text-lg font-bold text-slate-900 sm:text-xl">
+                    <h2 className="mt-1.5 text-lg font-bold text-slate-900 sm:text-xl">
                       Diagnostic Review & Quotation Preparation
                     </h2>
-                    <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl font-normal">
+                    <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl font-normal">
                       Our certified central vacuum specialists are reviewing your reported symptoms, equipment model specifications, and uploaded media attachments. An itemized quote with parts, labor pricing, and confirmed dispatch time slots will appear here shortly.
                     </p>
                   </div>
                 </div>
 
-                {/* Step Tracker */}
+                {/* Step Tracker - Increased typography & generous whitespace */}
                 <div className="mt-6 border-t border-slate-100 pt-5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+                  <p className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500 mb-3.5">
                     Service Progression Workflow
                   </p>
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {/* Step 1 */}
-                    <div className="rounded-lg border border-teal-200 bg-teal-50/50 p-3.5">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-teal-900">
-                        <CheckCircle2 size={15} className="text-teal-600" />
+                    <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-4">
+                      <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-teal-950">
+                        <CheckCircle2 size={18} className="text-teal-700 shrink-0" />
                         1. Intake Received
                       </div>
-                      <p className="mt-1 text-xs text-slate-600">
+                      <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
                         Ticket submitted & queued
                       </p>
                     </div>
 
                     {/* Step 2 */}
-                    <div className="rounded-lg border border-teal-400 bg-teal-50 p-3.5 shadow-xs relative overflow-hidden">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-teal-950">
-                        <Loader2 size={15} className="animate-spin text-teal-700" />
+                    <div className="rounded-lg border-2 border-teal-500 bg-teal-50 p-4 shadow-xs relative overflow-hidden">
+                      <div className="flex items-center gap-2 text-sm sm:text-base font-bold text-teal-950">
+                        <Loader2 size={18} className="animate-spin text-teal-700 shrink-0" />
                         2. Triage & Review
                       </div>
-                      <p className="mt-1 text-xs font-medium text-teal-800">
+                      <p className="mt-1.5 text-xs sm:text-sm font-medium text-teal-900 leading-relaxed">
                         Diagnosing symptoms & specs
                       </p>
                     </div>
 
                     {/* Step 3 */}
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5 opacity-70">
-                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <FileText size={15} />
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 opacity-75">
+                      <div className="flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-600">
+                        <FileText size={18} className="shrink-0 text-slate-400" />
                         3. Itemized Quote
                       </div>
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
                         Pricing & scope approval
                       </p>
                     </div>
 
                     {/* Step 4 */}
-                    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-3.5 opacity-70">
-                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                        <Calendar size={15} />
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 opacity-75">
+                      <div className="flex items-center gap-2 text-sm sm:text-base font-semibold text-slate-600">
+                        <Calendar size={18} className="shrink-0 text-slate-400" />
                         4. On-Site Dispatch
                       </div>
-                      <p className="mt-1 text-xs text-slate-400">
+                      <p className="mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed font-normal">
                         Technician service visit
                       </p>
                     </div>
@@ -816,26 +832,26 @@ export default function ServiceRequestDetailPage() {
           </section>
 
           {/* B. REPORTED ISSUE & SYMPTOMS */}
-          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-teal-800">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-800">
               <MessageSquare size={16} className="text-teal-600" />
               Customer Issue Description & Malfunction Notes
             </div>
 
             {/* Narrative description */}
-            <div className="mt-3.5 rounded-lg border border-slate-100 bg-slate-50/70 p-4">
-              <p className="text-sm font-medium leading-relaxed text-slate-800">
+            <div className="rounded-lg border border-slate-100 bg-slate-50/80 p-4 sm:p-5">
+              <p className="text-xs sm:text-sm font-medium leading-relaxed text-slate-800">
                 &ldquo;{problemDesc}&rdquo;
               </p>
             </div>
 
             {/* Observed Symptoms Chips */}
             {request.symptoms && request.symptoms.length > 0 && (
-              <div className="mt-5 border-t border-slate-100 pt-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">
+              <div className="border-t border-slate-100 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
                   Reported Malfunction Symptoms ({request.symptoms.length})
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2.5">
                   {request.symptoms.map((symptom: string, idx: number) => {
                     const SymptomIcon = getSymptomIcon(symptom);
                     return (
@@ -854,8 +870,8 @@ export default function ServiceRequestDetailPage() {
 
             {/* Access notes */}
             {request.additionalNotes && (
-              <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
-                <span className="font-semibold text-slate-900">Access & Property Notes:</span> {request.additionalNotes}
+              <div className="rounded-md border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-700">
+                <strong className="font-semibold text-slate-900">Access & Property Notes:</strong> {request.additionalNotes}
               </div>
             )}
           </section>
@@ -863,29 +879,29 @@ export default function ServiceRequestDetailPage() {
           {/* C. SYSTEM HARDWARE PROFILE & PROPERTY SPECS (2 Side-by-Side Cards) */}
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {/* Card 1: Equipment Profile */}
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3.5">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
                 <Cpu size={15} className="text-teal-600" />
                 Central Vacuum Equipment Specs
               </div>
 
               <div className="space-y-2.5">
-                <div className="flex justify-between rounded-md bg-slate-50 p-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm">
                   <span className="font-medium text-slate-500">Manufacturer / Brand</span>
                   <span className="font-semibold text-slate-900">{request.equipment?.manufacturer || "Standard Central Vac"}</span>
                 </div>
 
-                <div className="flex justify-between rounded-md bg-slate-50 p-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm">
                   <span className="font-medium text-slate-500">Model Number</span>
                   <span className="font-semibold text-slate-900">{request.equipment?.modelNumber || "Not Specified"}</span>
                 </div>
 
-                <div className="flex justify-between rounded-md bg-slate-50 p-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm">
                   <span className="font-medium text-slate-500">Serial Number</span>
                   <span className="font-semibold text-slate-900 font-mono">{request.equipment?.serialNumber || "N/A"}</span>
                 </div>
 
-                <div className="flex justify-between rounded-md bg-slate-50 p-2.5 text-xs sm:text-sm">
+                <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm">
                   <span className="font-medium text-slate-500">Unit Installation Location</span>
                   <span className="font-semibold text-slate-900">{request.equipment?.unitLocation || "Garage / Utility Room"}</span>
                 </div>
@@ -893,26 +909,26 @@ export default function ServiceRequestDetailPage() {
             </section>
 
             {/* Card 2: Property & Problem Location */}
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3.5">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
                 <MapPin size={15} className="text-teal-600" />
                 Service Location & Contact Info
               </div>
 
               <div className="space-y-2.5">
-                <div className="rounded-md bg-slate-50 p-2.5 text-xs sm:text-sm">
+                <div className="rounded-md bg-slate-50 p-3 text-xs sm:text-sm">
                   <span className="block font-medium text-slate-500 text-xs">Service Property</span>
                   <p className="mt-0.5 font-semibold text-slate-900">{displayStreet}</p>
                   {displayRegion && <p className="text-xs text-slate-500">{displayRegion}</p>}
                 </div>
 
-                <div className="rounded-md bg-slate-50 p-2.5 text-xs sm:text-sm">
+                <div className="rounded-md bg-slate-50 p-3 text-xs sm:text-sm">
                   <span className="block font-medium text-slate-500 text-xs">Problem Location / Inlets</span>
                   <p className="mt-0.5 font-semibold text-teal-950">{problemLoc}</p>
                 </div>
 
                 {(contactName || contactPhone || contactEmail) && (
-                  <div className="rounded-md bg-slate-50 p-2.5 text-xs space-y-1 text-slate-600">
+                  <div className="rounded-md bg-slate-50 p-3 text-xs space-y-1 text-slate-600">
                     {contactName && <p className="font-medium text-slate-900">Contact: {contactName}</p>}
                     {contactPhone && <p className="flex items-center gap-1.5"><Phone size={12} className="text-teal-600" /> {contactPhone}</p>}
                     {contactEmail && <p className="flex items-center gap-1.5"><Mail size={12} className="text-teal-600" /> {contactEmail}</p>}
@@ -926,7 +942,7 @@ export default function ServiceRequestDetailPage() {
           <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 mb-5">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">
                   Customer Inspection Photos & Videos
                 </h3>
                 <p className="text-xs text-slate-500 font-normal">
@@ -961,22 +977,22 @@ export default function ServiceRequestDetailPage() {
         </div>
 
         {/* RIGHT COLUMN: Sidebar Hub & Concierge (4 Cols) */}
-        <div className="space-y-6 lg:col-span-4">
+        <div className="space-y-6 sm:space-y-7 lg:col-span-4">
           {/* 1. APPOINTMENT & DISPATCH SUMMARY */}
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-teal-800">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-800">
               <CalendarDays size={15} className="text-teal-600" />
               Service Appointment Status
             </div>
 
-            <div className="mt-3.5 rounded-md bg-teal-50/60 border border-teal-100 p-3.5">
+            <div className="mt-4 rounded-md bg-teal-50/70 border border-teal-100 p-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-slate-600">Preferred Window</span>
                 <span className="rounded-md bg-white px-2 py-0.5 text-xs font-semibold text-teal-900 shadow-xs border border-teal-200/50">
                   {request.preferredTime || requestedSchedule.split(" · ")[1] || "Flexible"}
                 </span>
               </div>
-              <p className="mt-2 text-base font-bold text-slate-900">
+              <p className="mt-2 text-base sm:text-lg font-bold text-slate-900">
                 {request.preferredDate ? formatMonthDay(request.preferredDate) : requestedSchedule.split(" · ")[0]}
               </p>
               <p className="mt-1 text-xs text-slate-500 font-normal">
@@ -987,8 +1003,8 @@ export default function ServiceRequestDetailPage() {
 
           {/* 2. ASSIGNED TECHNICIAN CARD (if appointments[0].technician exists) */}
           {assignedTech && (
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-              <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-700 mb-3">
+            <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-700 mb-3.5">
                 <User size={14} className="text-teal-600" />
                 Assigned Service Technician
               </div>
@@ -1023,8 +1039,8 @@ export default function ServiceRequestDetailPage() {
           )}
 
           {/* 3. ACTIVITY LIFECYCLE TIMELINE */}
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Request Activity Timeline
             </h3>
 
@@ -1084,34 +1100,34 @@ export default function ServiceRequestDetailPage() {
             </div>
           </section>
 
-          {/* 4. CONCIERGE & SUPPORT CARD */}
-          <section className="rounded-lg border border-teal-900/20 bg-gradient-to-br from-teal-900 to-slate-900 p-5 text-white shadow-sm">
+          {/* 4. CONCIERGE & SUPPORT CARD - CLEAN SOLID CARD (NO GRADIENT) */}
+          <section className="rounded-lg border border-teal-800 bg-teal-900 p-5 sm:p-6 text-white shadow-xs">
             <div className="flex items-center gap-2">
-              <HelpCircle size={16} className="text-emerald-400" />
-              <h3 className="text-sm font-semibold text-white">Need Dedicated Assistance?</h3>
+              <HelpCircle size={17} className="text-teal-300" />
+              <h3 className="text-sm sm:text-base font-bold text-white">Need Dedicated Assistance?</h3>
             </div>
-            <p className="mt-1.5 text-xs text-teal-100/80 leading-relaxed font-normal">
+            <p className="mt-2 text-xs sm:text-sm text-teal-100/90 leading-relaxed font-normal">
               Have questions regarding your service intake ticket, hardware compatibility, or quotation? Our concierge support team is ready to help.
             </p>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 space-y-2.5">
               <Button
                 asChild
-                className="w-full rounded-md bg-white text-teal-950 font-semibold hover:bg-teal-50"
+                className="w-full rounded-md bg-white text-teal-950 font-bold hover:bg-teal-50"
                 size="sm"
               >
                 <Link href="/contact">
-                  <MessageSquare size={14} className="mr-1.5 text-teal-800" />
+                  <Mail size={14} className="mr-1.5" />
                   Message Support Team
                 </Link>
               </Button>
               <Button
                 asChild
-                className="w-full rounded-md border-teal-700 bg-teal-800/40 text-teal-100 hover:bg-teal-800 hover:text-white"
                 variant="outline"
+                className="w-full rounded-md border-teal-700 bg-teal-800/80 text-white hover:bg-teal-800 font-medium"
                 size="sm"
               >
                 <Link href="/user/schedule">
-                  <Calendar size={14} className="mr-1.5 text-teal-300" />
+                  <CalendarDays size={14} className="mr-1.5 text-teal-300" />
                   View All Appointments
                 </Link>
               </Button>
@@ -1120,83 +1136,81 @@ export default function ServiceRequestDetailPage() {
         </div>
       </div>
 
-      {/* CANCEL REQUEST CONFIRMATION MODAL */}
+      {/* MODAL: CANCEL REQUEST CONFIRMATION */}
       <Dialog open={cancelModalOpen} onOpenChange={setCancelModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md rounded-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-rose-700">
-              <AlertTriangle size={18} />
+            <DialogTitle className="text-base font-bold text-slate-900">
               Cancel Service Request?
             </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to cancel request #{displayId}? This will release your reserved appointment slot.
+            <DialogDescription className="text-xs sm:text-sm text-slate-600">
+              Are you sure you want to cancel request #{displayId}? If our dispatch team has already allocated replacement parts, they will be returned to inventory.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
-              type="button"
               variant="outline"
               size="sm"
+              className="rounded-md"
               onClick={() => setCancelModalOpen(false)}
             >
               Keep Request
             </Button>
             <Button
-              type="button"
               variant="destructive"
               size="sm"
+              className="rounded-md"
               disabled={isUpdatingStatus}
-              onClick={handleCancelRequest}
+              onClick={handleConfirmCancel}
             >
-              {isUpdatingStatus ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}
+              {isUpdatingStatus ? (
+                <Loader2 size={14} className="animate-spin mr-1.5" />
+              ) : null}
               Confirm Cancellation
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* DECLINE QUOTATION MODAL */}
+      {/* MODAL: DECLINE QUOTATION CONFIRMATION */}
       <Dialog open={rejectQuoteOpen} onOpenChange={setRejectQuoteOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md rounded-lg">
           <DialogHeader>
-            <DialogTitle>Decline Service Quotation</DialogTitle>
-            <DialogDescription>
-              Please let our estimation team know why you are declining this quotation.
+            <DialogTitle className="text-base font-bold text-slate-900">
+              Decline Official Quotation?
+            </DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm text-slate-600">
+              Please tell our estimating team why you are declining so we can provide revised pricing or alternative maintenance packages.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 py-3">
-            <label className="text-xs font-semibold text-slate-700">Reason</label>
-            <select
+          <div className="mt-3">
+            <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              className="w-full rounded-md border border-slate-300 bg-white p-2 text-xs text-slate-800 focus:border-teal-600 focus:outline-none"
-            >
-              <option value="">Select a reason...</option>
-              <option value="Price too high">Price too high</option>
-              <option value="Service no longer needed">Service no longer needed</option>
-              <option value="Need clarification on parts/labor">Need clarification on parts/labor</option>
-              <option value="Scheduling conflict">Scheduling conflict</option>
-              <option value="Other">Other reason</option>
-            </select>
+              placeholder="e.g. Budget constraints, seeking second opinion, or requested parts clarification..."
+              className="w-full min-h-24 rounded-md border border-slate-200 p-3 text-xs sm:text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            />
           </div>
-          <DialogFooter className="flex gap-2 sm:justify-end">
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
-              type="button"
               variant="outline"
               size="sm"
+              className="rounded-md"
               onClick={() => setRejectQuoteOpen(false)}
             >
-              Back
+              Cancel
             </Button>
             <Button
-              type="button"
               variant="destructive"
               size="sm"
-              disabled={!rejectReason || isRejectingQuote}
+              className="rounded-md"
+              disabled={!rejectReason.trim() || isRejectingQuote}
               onClick={handleRejectQuoteDirect}
             >
-              {isRejectingQuote ? <Loader2 size={14} className="animate-spin mr-1.5" /> : null}
-              Submit Decline
+              {isRejectingQuote ? (
+                <Loader2 size={14} className="animate-spin mr-1.5" />
+              ) : null}
+              Confirm Decline
             </Button>
           </DialogFooter>
         </DialogContent>

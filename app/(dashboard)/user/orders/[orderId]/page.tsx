@@ -39,7 +39,7 @@ function TotalSummary({
   totalUsd: number;
 }) {
   return (
-    <section className="rounded-lg border border-teal-900/60 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-5 sm:p-6 text-white shadow-xs">
+    <section className="rounded-lg border border-teal-800 bg-teal-900 p-5 sm:p-6 text-white shadow-xs">
       <h2 className="text-base font-bold text-white">Order Summary</h2>
       <div className="mt-4 space-y-2.5 text-xs sm:text-sm text-teal-100/80">
         <div className="flex justify-between">

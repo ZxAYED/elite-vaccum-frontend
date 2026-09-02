@@ -268,7 +268,7 @@ export default function QuotationDetailPage() {
           </section>
 
           {/* Line items section */}
-          <section className="rounded-xl border border-amber-200/80 bg-gradient-to-b from-amber-50/30 via-white to-white p-5 sm:p-6 shadow-xs">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
             <div className="flex items-center gap-2.5 border-b border-amber-200/60 pb-3.5">
               <FileText className="text-amber-800" size={20} />
               <div>

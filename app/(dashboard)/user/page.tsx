@@ -262,7 +262,7 @@ export default function DashboardOverview() {
           </div>
         </section>
 
-        <section className="lg:col-span-5 rounded-lg border border-teal-900/40 bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 p-5 sm:p-6 text-white shadow-xs flex flex-col justify-between">
+        <section className="lg:col-span-5 rounded-lg border border-teal-800 bg-teal-900 p-5 sm:p-6 text-white shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center gap-2.5 border-b border-white/10 pb-4">
               <div className="flex size-8 items-center justify-center rounded-md bg-teal-800/60 border border-teal-500/30 text-teal-200">
