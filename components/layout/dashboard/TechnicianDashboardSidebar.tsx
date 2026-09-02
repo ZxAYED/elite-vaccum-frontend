@@ -70,26 +70,26 @@ export default function TechnicianDashboardSidebar({
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white transition-transform duration-300 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-68 flex-col bg-white transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 border-r border-slate-100 shadow-sm`}
+        } lg:translate-x-0 border-r border-slate-100 shadow-xs`}
       >
-        <div className="flex h-16 items-center justify-between px-6">
+        <div className="flex h-16 items-center justify-between px-6 border-b border-slate-100/80">
           <Link href="/">
-            <Image src="/logo_dashboard.png" alt="Elite Logo" width={92} height={24} />
+            <Image src="/logo_dashboard.png" alt="Elite Logo" width={96} height={20} />
           </Link>
 
           <button
             onClick={onClose}
             aria-label="Close sidebar"
-            className="lg:hidden"
+            className="lg:hidden p-1 text-slate-500 hover:text-slate-900"
             type="button"
           >
             <X size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1.5 px-3 py-4">
+        <nav className="flex-1 space-y-1.5 px-3.5 py-5 overflow-y-auto">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -99,25 +99,25 @@ export default function TechnicianDashboardSidebar({
             return (
               <motion.div
                 key={item.href}
-                whileHover={{ x: 4 }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ x: 3 }}
+                whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 450, damping: 25 }}
               >
                 <Link
                   href={item.href}
                   onClick={onClose}
-                  className={`flex items-center justify-between gap-3 rounded-md px-3.5 py-2.5 text-sm font-medium transition ${
+                  className={`flex items-center justify-between gap-3.5 rounded-lg px-4 py-3 text-[15px] sm:text-base font-medium transition-colors ${
                     isActive
-                      ? "bg-teal-50 text-teal-900 font-semibold border-l-4 border-teal-700"
+                      ? "bg-teal-50 text-teal-950 font-semibold border-l-4 border-teal-700 shadow-xs"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <span className="flex items-center gap-3">
-                    <Icon size={18} className={isActive ? "text-teal-700" : "text-slate-500"} />
-                    {item.label}
+                  <span className="flex items-center gap-3.5">
+                    <Icon size={20} className={isActive ? "text-teal-700 shrink-0" : "text-slate-400 shrink-0"} />
+                    <span>{item.label}</span>
                   </span>
                   {item.href === "/technician/notifications" && unreadCount > 0 ? (
-                    <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-amber-100 px-1.5 py-0.2 text-[10px] font-semibold text-amber-800">
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-md bg-amber-100 px-1.5 py-0.2 text-xs font-bold text-amber-800">
                       {unreadCount}
                     </span>
                   ) : null}
@@ -127,31 +127,31 @@ export default function TechnicianDashboardSidebar({
           })}
         </nav>
 
-        <div className="border-t border-slate-100 p-3.5">
-          <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 shadow-xs">
+        <div className="border-t border-slate-100 p-4">
+          <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 shadow-xs">
             <Image
               src="/nav_profile.jpg"
               alt="Technician"
-              width={36}
-              height={36}
-              className="rounded-full object-cover border border-slate-200"
+              width={38}
+              height={38}
+              className="rounded-full object-cover"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold text-slate-900">
+              <p className="truncate text-sm font-bold text-slate-900">
                 {technician.displayName}
               </p>
-              <p className="text-[11px] text-slate-500">Field Technician</p>
+              <p className="text-xs text-slate-500">Field Technician</p>
             </div>
-            <Shield className="text-teal-700 shrink-0" size={16} />
+            <Shield className="text-teal-700 shrink-0" size={18} />
           </div>
 
           <motion.button
-            whileHover={{ x: 3, scale: 1.01 }}
+            whileHover={{ x: 2, scale: 1.01 }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 22 }}
             type="button"
             onClick={handleLogout}
-            className="mt-2.5 flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-rose-50/70 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+            className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-rose-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
           >
             <LogOut size={16} className="text-rose-500" />
             Logout

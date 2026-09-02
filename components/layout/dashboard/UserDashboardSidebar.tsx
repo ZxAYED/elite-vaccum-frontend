@@ -43,7 +43,7 @@ export default function UserDashboardSidebar({
 }: {
   isOpen: boolean;
   onClose: () => void;
-}) {
+  }) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -70,26 +70,26 @@ export default function UserDashboardSidebar({
       ) : null}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-white transition-transform duration-300 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-68 flex-col bg-white transition-transform duration-300 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 border-r border-slate-100 shadow-sm`}
+        } lg:translate-x-0 border-r border-slate-100 shadow-xs`}
       >
-        <div className="flex items-center justify-between h-14 px-6 py-8">
+        <div className="flex items-center justify-between h-16 px-6 py-6 border-b border-slate-100/80">
           <Link href="/">
             <Image
               src="/logo_dashboard.png"
               alt="Elite Logo"
-              width={88}
-              height={14}
+              width={96}
+              height={18}
             />
           </Link>
 
-          <button onClick={onClose} aria-label="Close sidebar" className="lg:hidden">
+          <button onClick={onClose} aria-label="Close sidebar" className="lg:hidden p-1 text-slate-500 hover:text-slate-900">
             <X size={20} />
           </button>
         </div>
 
-        <nav className="flex-1 space-y-1.5 px-3 py-4">
+        <nav className="flex-1 space-y-1.5 px-3.5 py-5 overflow-y-auto">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -99,50 +99,50 @@ export default function UserDashboardSidebar({
             return (
               <motion.div
                 key={item.href}
-                whileHover={{ x: 4 }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={{ x: 3 }}
+                whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 450, damping: 25 }}
               >
                 <Link
                   href={item.href}
                   onClick={onClose}
-                  className={`flex items-center gap-3 rounded-md px-3.5 py-2.5 text-sm font-medium transition ${
+                  className={`flex items-center gap-3.5 rounded-lg px-4 py-3 text-[15px] sm:text-base font-medium transition-colors ${
                     isActive
-                      ? "bg-teal-50 text-teal-900 font-semibold border-l-4 border-teal-700"
+                      ? "bg-teal-50 text-teal-950 font-semibold border-l-4 border-teal-700 shadow-xs"
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <Icon size={18} className={isActive ? "text-teal-700" : "text-slate-500"} />
-                  {item.label}
+                  <Icon size={20} className={isActive ? "text-teal-700 shrink-0" : "text-slate-400 shrink-0"} />
+                  <span>{item.label}</span>
                 </Link>
               </motion.div>
             );
           })}
         </nav>
 
-        <div className="p-3.5 border-t border-slate-100">
-          <div className="flex items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 p-2.5 shadow-xs">
+        <div className="p-4 border-t border-slate-100">
+          <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 shadow-xs">
             <Image
               src="/nav_profile.jpg"
               alt="User"
-              width={36}
-              height={36}
-              className="rounded-full object-cover border border-slate-200"
+              width={38}
+              height={38}
+              className="rounded-full object-cover"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-slate-900 truncate">John Doe</p>
-              <p className="text-[11px] text-slate-500">Customer Portal</p>
+              <p className="text-sm font-bold text-slate-900 truncate">John Doe</p>
+              <p className="text-xs text-slate-500">Customer Portal</p>
             </div>
-            <Shield className="text-teal-700 shrink-0" size={16} />
+            <Shield className="text-teal-700 shrink-0" size={18} />
           </div>
 
           <motion.button
-            whileHover={{ x: 3, scale: 1.01 }}
+            whileHover={{ x: 2, scale: 1.01 }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: "spring", stiffness: 400, damping: 22 }}
             type="button"
             onClick={handleLogout}
-            className="mt-2.5 flex w-full cursor-pointer items-center gap-2.5 rounded-md bg-rose-50/70 px-3 py-2 text-xs font-medium text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
+            className="mt-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-rose-50 px-4 py-2.5 text-xs sm:text-sm font-semibold text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition-colors"
           >
             <LogOut size={16} className="text-rose-500" />
             Logout

@@ -23,7 +23,6 @@ import {
   Phone,
   PowerOff,
   ShieldAlert,
-  Sparkles,
   Star,
   Tag,
   Truck,
@@ -266,10 +265,9 @@ export default function ServiceRequestDetailPage() {
     serviceName?: string;
   };
 
-  // Clean Service Title
-  const serviceName = request.service?.name || reqAny.serviceName || "Central Vacuum Maintenance & Troubleshooting";
-  const rawTitle = request.title || serviceName;
-  const cleanTitle = rawTitle.includes(" - ") ? rawTitle.split(" - ")[0].trim() : rawTitle;
+  // Service Title
+  const serviceName = request.service?.name || reqAny.serviceName || "Central Vacuum Service";
+  const displayTitle = request.title || serviceName;
 
   // Clean Problem Description
   const problemDesc =
@@ -356,8 +354,8 @@ export default function ServiceRequestDetailPage() {
             </div>
 
             {/* Main Title */}
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
-              {cleanTitle}
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-slate-900">
+              {displayTitle}
             </h1>
 
             {/* Quick Metadata Strip */}
@@ -515,8 +513,8 @@ export default function ServiceRequestDetailPage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Service Type
             </p>
-            <p className="mt-0.5 text-sm sm:text-base font-bold text-slate-900 truncate" title={cleanTitle}>
-              {cleanTitle}
+            <p className="mt-0.5 text-sm sm:text-base font-bold text-slate-900 truncate" title={displayTitle}>
+              {displayTitle}
             </p>
           </div>
         </div>
@@ -703,21 +701,13 @@ export default function ServiceRequestDetailPage() {
             ) : (
               /* DIAGNOSTIC PROGRESS STEPPER (When Quotation is Under Review) */
               <div className="p-5 sm:p-6">
-                <div className="flex items-start gap-3.5">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
-                    <Sparkles size={22} />
-                  </div>
-                  <div>
-                    <span className="inline-flex items-center gap-1 rounded-md bg-teal-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-teal-800">
-                      Phase 1: In Diagnostic Review
-                    </span>
-                    <h2 className="mt-1.5 text-lg font-bold text-slate-900 sm:text-xl">
-                      Diagnostic Review & Quotation Preparation
-                    </h2>
-                    <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl font-normal">
-                      Our certified central vacuum specialists are reviewing your reported symptoms, equipment model specifications, and uploaded media attachments. An itemized quote with parts, labor pricing, and confirmed dispatch time slots will appear here shortly.
-                    </p>
-                  </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900 sm:text-xl">
+                    Diagnostic Review & Quotation Preparation
+                  </h2>
+                  <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed max-w-2xl font-normal">
+                    Our certified central vacuum specialists are reviewing your reported symptoms, equipment model specifications, and uploaded media attachments. An itemized quote with parts, labor pricing, and confirmed dispatch time slots will appear here shortly.
+                  </p>
                 </div>
 
                 {/* Step Tracker - Clean borderless background tints */}
