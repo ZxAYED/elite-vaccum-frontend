@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
+  Loader2,
   type LucideIcon,
   MapPin,
   PackageSearch,
@@ -47,6 +48,7 @@ import { formatLongDate, formatShortDateTime } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import { cn } from "@/lib/utils";
 import {
+  useGetServiceRequestByIdQuery,
   useUpdateServiceRequestStatusMutation,
   useRejectServiceRequestMutation,
 } from "@/redux/api/serviceRequestsApi";
@@ -116,7 +118,19 @@ export default function AdminServiceRequestDetailPage({
 }: RequestDetailPageProps) {
   useSharedBusinessStoreVersion();
   const { requestId } = use(params);
-  const request = getSharedServiceRequestById(requestId);
+  const { data: apiRequest, isLoading } = useGetServiceRequestByIdQuery(requestId, {
+    skip: !requestId,
+  });
+  const mockRequest = getSharedServiceRequestById(requestId);
+  const request = apiRequest || mockRequest;
+
+  if (isLoading && !request) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="size-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
 
   if (!request) {
     notFound();

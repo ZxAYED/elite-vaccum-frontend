@@ -243,6 +243,35 @@ export const serviceRequestsApi = baseApi.injectEndpoints({
         { type: "ServiceRequest", id: "ME" },
       ],
     }),
+    cancelServiceRequest: builder.mutation<
+      { success: boolean; message: string },
+      { id: string; reason?: string }
+    >({
+      query: ({ id, reason }) => ({
+        url: `/service-requests/${id}/cancel`,
+        method: "POST",
+        body: reason ? { reason } : undefined,
+      }),
+      transformResponse: (
+        response:
+          | ApiResponse<{ success: boolean; message: string }>
+          | { success: boolean; message: string }
+      ) => {
+        const data = unwrapData(response);
+        return {
+          success: (data as { success?: boolean })?.success ?? true,
+          message:
+            (data as { message?: string })?.message ||
+            "Service request cancelled successfully.",
+        };
+      },
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "ServiceRequest", id },
+        { type: "ServiceRequest", id: "LIST" },
+        { type: "ServiceRequest", id: "ME" },
+        { type: "Schedule" },
+      ],
+    }),
   }),
 });
 
@@ -253,6 +282,7 @@ export const {
   useGetServiceRequestByIdQuery,
   useUpdateServiceRequestStatusMutation,
   useRejectServiceRequestMutation,
+  useCancelServiceRequestMutation,
   useAppendServiceRequestAttachmentsMutation,
   useDeleteServiceRequestAttachmentMutation,
 } = serviceRequestsApi;

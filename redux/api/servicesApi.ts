@@ -59,9 +59,24 @@ export const servicesApi = baseApi.injectEndpoints({
     getServices: builder.query<ServiceOffering[], void>({
       query: () => "/services",
       transformResponse: (
-        response: ApiResponse<ServiceOffering[]> | ServiceOffering[]
+        response:
+          | ApiResponse<ServiceOffering[]>
+          | ServiceOffering[]
+          | { groups?: Array<{ services?: ServiceOffering[] }>; symptoms?: unknown[] }
       ) => {
-        return unwrapData(response) || [];
+        const unwrapped = unwrapData(response as ApiResponse<unknown>);
+        if (Array.isArray(unwrapped)) return unwrapped;
+        if (
+          unwrapped &&
+          typeof unwrapped === "object" &&
+          "groups" in unwrapped &&
+          Array.isArray((unwrapped as { groups: Array<{ services?: ServiceOffering[] }> }).groups)
+        ) {
+          return (unwrapped as { groups: Array<{ services?: ServiceOffering[] }> }).groups.flatMap(
+            (g) => g.services || []
+          );
+        }
+        return [];
       },
       providesTags: (result) =>
         Array.isArray(result)

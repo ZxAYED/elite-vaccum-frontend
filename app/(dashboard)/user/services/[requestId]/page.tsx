@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/Dialog";
 import {
   useGetServiceRequestByIdQuery,
-  useUpdateServiceRequestStatusMutation,
+  useCancelServiceRequestMutation,
 } from "@/redux/api/serviceRequestsApi";
 import {
   useGetMyQuotationsQuery,
@@ -64,7 +64,7 @@ import {
   formatShortDateTime,
 } from "@/lib/formatters";
 import { toast } from "sonner";
-import type { AdminQuotation, QuoteStatus, ServiceRequestStatus } from "@/types/domain";
+import type { AdminQuotation, QuoteStatus } from "@/types/domain";
 
 // Helper to get an icon for common central vacuum symptoms
 function getSymptomIcon(symptom: string) {
@@ -83,6 +83,7 @@ export default function ServiceRequestDetailPage() {
 
   const [copiedId, setCopiedId] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [rejectQuoteOpen, setRejectQuoteOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
@@ -101,7 +102,7 @@ export default function ServiceRequestDetailPage() {
   const { data: myOrdersResponse } = useGetMyServiceOrdersQuery();
 
   // Mutations
-  const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateServiceRequestStatusMutation();
+  const [cancelRequestMutation, { isLoading: isCancellingRequest }] = useCancelServiceRequestMutation();
   const [acceptQuoteMutation, { isLoading: isAcceptingQuote }] = useAcceptQuotationMutation();
   const [rejectQuoteMutation, { isLoading: isRejectingQuote }] = useRejectQuotationMutation();
 
@@ -156,12 +157,13 @@ export default function ServiceRequestDetailPage() {
   async function handleConfirmCancel() {
     if (!requestId) return;
     try {
-      await updateStatus({
+      const res = await cancelRequestMutation({
         id: requestId,
-        status: "CANCELLED" as ServiceRequestStatus,
+        reason: cancelReason.trim() || undefined,
       }).unwrap();
-      toast.success("Service request has been cancelled.");
+      toast.success(res.message || "Service request has been cancelled.");
       setCancelModalOpen(false);
+      setCancelReason("");
     } catch {
       toast.error("Failed to cancel request. Please reach out to customer support.");
     }
@@ -1059,9 +1061,17 @@ export default function ServiceRequestDetailPage() {
               Cancel Service Request?
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm text-slate-600">
-              Are you sure you want to cancel request #{displayId}? If our dispatch team has already allocated replacement parts, they will be returned to inventory.
+              Are you sure you want to cancel request #{displayId}? This will immediately release your reserved schedule slot and update our dispatch team.
             </DialogDescription>
           </DialogHeader>
+          <div className="mt-3">
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Reason for cancellation (optional)..."
+              className="w-full min-h-20 rounded-md border border-slate-200 p-2.5 text-xs sm:text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+            />
+          </div>
           <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
               variant="outline"
@@ -1075,10 +1085,10 @@ export default function ServiceRequestDetailPage() {
               variant="destructive"
               size="sm"
               className="rounded-md"
-              disabled={isUpdatingStatus}
+              disabled={isCancellingRequest}
               onClick={handleConfirmCancel}
             >
-              {isUpdatingStatus ? (
+              {isCancellingRequest ? (
                 <Loader2 size={14} className="animate-spin mr-1.5" />
               ) : null}
               Confirm Cancellation
