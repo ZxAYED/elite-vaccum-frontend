@@ -33,7 +33,7 @@ import {
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatMonthDay, formatShortDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import type { ServiceRequest, ServiceRequestStatus } from "@/types/domain";
+import type { ServiceRequest } from "@/types/domain";
 
 type AdminRequestStatus =
   | "all"

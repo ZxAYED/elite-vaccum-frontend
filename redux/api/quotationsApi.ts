@@ -223,6 +223,33 @@ export const quotationsApi = baseApi.injectEndpoints({
         { type: "Quotation", id: "ADMIN_LIST" },
       ],
     }),
+    deleteQuotation: builder.mutation<
+      { success: boolean; message?: string },
+      string
+    >({
+      query: (id) => ({
+        url: `/quotations/${id}`,
+        method: "DELETE",
+      }),
+      transformResponse: (
+        response:
+          | ApiResponse<{ success: boolean; message?: string }>
+          | { success: boolean; message?: string }
+      ) => {
+        const data = unwrapData(response);
+        return {
+          success: (data as { success?: boolean })?.success ?? true,
+          message:
+            (data as { message?: string })?.message ||
+            "Quotation deleted successfully.",
+        };
+      },
+      invalidatesTags: [
+        { type: "Quotation", id: "ADMIN_LIST" },
+        { type: "Quotation", id: "MY_LIST" },
+        { type: "ServiceRequest" },
+      ],
+    }),
   }),
 });
 
@@ -234,4 +261,5 @@ export const {
   useReviseQuotationMutation,
   useAcceptQuotationMutation,
   useRejectQuotationMutation,
+  useDeleteQuotationMutation,
 } = quotationsApi;

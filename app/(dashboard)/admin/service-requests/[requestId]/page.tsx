@@ -7,7 +7,9 @@ import {
   Loader2,
   type LucideIcon,
   MapPin,
+  MessageSquare,
   PackageSearch,
+  Plus,
   UserRound,
   XCircle,
 } from "lucide-react";
@@ -18,6 +20,8 @@ import { use, useMemo, useState } from "react";
 
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
+import { ServiceRequestQuotations } from "@/components/admin/quotations/ServiceRequestQuotations";
+import { QuotationModal } from "@/components/admin/quotations/QuotationModal";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -39,7 +43,6 @@ import {
   acceptSharedServiceRequest,
   getSharedCustomerById,
   getSharedPublicServices,
-  getSharedQuotationForRequest,
   getSharedServiceRequestById,
   rejectSharedServiceRequest,
 } from "@/data/mock/shared-business-store";
@@ -161,12 +164,12 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
   useSharedBusinessStoreVersion();
   const customer = getCustomer(request);
   const schedule = getRequestedSchedule(request);
-  const quotation = getSharedQuotationForRequest(request.id);
   const [decisionStatus, setDecisionStatus] = useState<DecisionStatus>(
     getInitialDecisionStatus(request.status),
   );
   const [acceptOpen, setAcceptOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
+  const [createQuotationOpen, setCreateQuotationOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectError, setRejectError] = useState("");
@@ -294,23 +297,20 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
               </p>
             </div>
 
-            {decisionStatus === "accepted" ? (
-              <div className="flex flex-wrap gap-3">
-                {quotation ? (
-                  <Button asChild>
-                    <Link href={`/admin/quotations/${quotation.id}`}>
-                      View Quotation
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button asChild>
-                    <Link href={`/admin/quotations/new?requestId=${request.id}`}>
-                      Create Quotation
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
+                onClick={() => {
+                  toast.info("Customer messaging / chat will be implemented soon.", {
+                    description: `Messaging with ${customer?.displayName ?? "customer"} will be supported directly in this portal.`,
+                  });
+                }}
+              >
+                <MessageSquare size={16} />
+                Message Customer
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -327,14 +327,26 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   ["Cellphone", customer?.phone ?? "Not supplied"],
                 ]}
                 action={
-                  customer ? (
-                    <Link
-                      className="text-sm font-semibold text-teal-800 hover:text-teal-950"
-                      href={`/admin/customers/${customer.id}`}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toast.info("Customer messaging will be available soon.")
+                      }
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-teal-800 hover:text-teal-950 cursor-pointer"
                     >
-                      Open customer profile
-                    </Link>
-                  ) : null
+                      <MessageSquare size={13} />
+                      Message
+                    </button>
+                    {customer ? (
+                      <Link
+                        className="text-xs font-semibold text-teal-800 hover:text-teal-950"
+                        href={`/admin/customers/${customer.id}`}
+                      >
+                        Profile
+                      </Link>
+                    ) : null}
+                  </div>
                 }
               />
 
@@ -418,6 +430,11 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                 emptyDescription="No photos or video recordings were submitted with this request."
               />
             </section>
+
+            <ServiceRequestQuotations
+              serviceRequest={request}
+              isAccepted={decisionStatus === "accepted"}
+            />
           </div>
 
           <aside className="space-y-6">
@@ -432,25 +449,13 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
               </p>
               <div className="mt-6 space-y-3">
                 {decisionStatus === "accepted" ? (
-                  quotation ? (
-                    <Button
-                      asChild
-                      className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
-                    >
-                      <Link href={`/admin/quotations/${quotation.id}`}>
-                        View Quotation
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button
-                      asChild
-                      className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
-                    >
-                      <Link href={`/admin/quotations/new?requestId=${request.id}`}>
-                        Create Quotation
-                      </Link>
-                    </Button>
-                  )
+                  <Button
+                    className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
+                    onClick={() => setCreateQuotationOpen(true)}
+                  >
+                    <Plus size={16} />
+                    Create Quotation
+                  </Button>
                 ) : decisionStatus === "rejected" ? (
                   <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-center text-sm font-medium text-white/90">
                     Request Rejected
@@ -605,6 +610,14 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Quotation Modal */}
+      <QuotationModal
+        open={createQuotationOpen}
+        onOpenChange={setCreateQuotationOpen}
+        serviceRequest={request}
+        mode="create"
+      />
     </main>
   );
 }
