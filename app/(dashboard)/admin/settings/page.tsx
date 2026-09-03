@@ -18,6 +18,7 @@ import {
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
+import { NotificationPreferencesCard } from "@/components/notifications/NotificationPreferencesCard";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -1523,6 +1524,8 @@ export default function AdminSettingsPage() {
             title="Notifications"
             description="Control customer, technician, and admin notification behavior without changing business workflows."
           />
+
+          <NotificationPreferencesCard />
 
           {notificationFeedback ? (
             <AdminSurface className="border-emerald-200 bg-emerald-50/70 py-3 text-sm text-emerald-700">

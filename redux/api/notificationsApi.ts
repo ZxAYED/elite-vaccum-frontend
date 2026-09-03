@@ -24,6 +24,54 @@ export interface AdminEnqueueNotificationRequest {
   ctaLabel?: string;
 }
 
+function unwrapNotificationsResponse(raw: unknown): PaginatedResponse<Notification> {
+  if (!raw || typeof raw !== "object") {
+    return { items: [], meta: { page: 1, limit: 20, total: 0, totalPages: 0 } };
+  }
+  const obj = raw as Record<string, unknown>;
+  const rawItems = Array.isArray(obj.items)
+    ? obj.items
+    : Array.isArray(raw)
+    ? raw
+    : Array.isArray(obj.data)
+    ? obj.data
+    : [];
+
+  const meta =
+    obj.meta && typeof obj.meta === "object"
+      ? (obj.meta as PaginatedResponse<Notification>["meta"])
+      : { page: 1, limit: 20, total: rawItems.length, totalPages: 1 };
+
+  return { items: rawItems as Notification[], meta };
+}
+
+function unwrapUnreadCountResponse(raw: unknown): { unreadCount: number } {
+  if (typeof raw === "number") return { unreadCount: raw };
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (typeof obj.unreadCount === "number") return { unreadCount: obj.unreadCount };
+    if (typeof obj.count === "number") return { unreadCount: obj.count };
+    if (obj.data && typeof obj.data === "object") {
+      const dataObj = obj.data as Record<string, unknown>;
+      if (typeof dataObj.unreadCount === "number") return { unreadCount: dataObj.unreadCount };
+    }
+  }
+  return { unreadCount: 0 };
+}
+
+function unwrapPreferencesResponse(raw: unknown): NotificationPreferencesDto {
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    const target = (obj.preferences || obj.data || obj) as Record<string, unknown>;
+    return {
+      email: typeof target.email === "boolean" ? target.email : true,
+      sms: typeof target.sms === "boolean" ? target.sms : false,
+      push: typeof target.push === "boolean" ? target.push : true,
+    };
+  }
+  return { email: true, sms: false, push: true };
+}
+
 export const notificationsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getNotifications: builder.query<PaginatedResponse<Notification>, GetNotificationsParams | void>({
@@ -31,6 +79,7 @@ export const notificationsApi = baseApi.injectEndpoints({
         url: "/notifications",
         params: params || undefined,
       }),
+      transformResponse: unwrapNotificationsResponse,
       providesTags: (result) =>
         result
           ? [
@@ -41,10 +90,12 @@ export const notificationsApi = baseApi.injectEndpoints({
     }),
     getUnreadNotificationsCount: builder.query<{ unreadCount: number }, void>({
       query: () => "/notifications/unread-count",
+      transformResponse: unwrapUnreadCountResponse,
       providesTags: [{ type: "Notification", id: "UNREAD_COUNT" }],
     }),
     getNotificationPreferences: builder.query<NotificationPreferencesDto, void>({
       query: () => "/notifications/preferences",
+      transformResponse: unwrapPreferencesResponse,
       providesTags: [{ type: "Notification", id: "PREFERENCES" }],
     }),
     updateNotificationPreferences: builder.mutation<

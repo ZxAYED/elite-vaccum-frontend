@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/DropdownMenu";
 import logo from "@/public/logo.png";
 import { useLogoutMutation } from "@/redux/api/authApi";
+import { useGetUnreadNotificationsCountQuery } from "@/redux/api/notificationsApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { logout } from "@/redux/slices/authSlice";
 
@@ -55,11 +56,13 @@ function NavIconButton({
   label,
   children,
   withBadge = false,
+  badgeCount,
 }: {
   href: string;
   label: string;
   children: React.ReactNode;
   withBadge?: boolean;
+  badgeCount?: number;
 }) {
   return (
     <Link
@@ -68,7 +71,11 @@ function NavIconButton({
       href={href}
     >
       {children}
-      {withBadge ? (
+      {typeof badgeCount === "number" && badgeCount > 0 ? (
+        <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+          {badgeCount > 99 ? "99+" : badgeCount}
+        </span>
+      ) : withBadge ? (
         <span className="absolute right-2 top-2 size-2 rounded-full bg-[#0ea5b7]" />
       ) : null}
     </Link>
@@ -131,6 +138,14 @@ export function Navbar() {
       ? "/technician/notifications"
       : "/user/notifications";
 
+  const cartItemsCount = useAppSelector((state) =>
+    state.cart.items.reduce((acc, item) => acc + item.quantity, 0),
+  );
+  const { data: unreadNotificationsData } = useGetUnreadNotificationsCountQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const unreadNotificationCount = unreadNotificationsData?.unreadCount ?? 0;
+
   return (
     <header className="sticky top-0 z-50 border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
       <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
@@ -159,13 +174,13 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
-          <NavIconButton href="/cart" label="Open cart">
+          <NavIconButton href="/cart" label="Open cart" badgeCount={cartItemsCount}>
             <ShoppingCart size={18} />
           </NavIconButton>
           <NavIconButton
             href={notificationsHref}
-            label="View notifications"
-            withBadge
+            label={unreadNotificationCount > 0 ? `View notifications (${unreadNotificationCount} unread)` : "View notifications"}
+            badgeCount={isAuthenticated ? unreadNotificationCount : 0}
           >
             <Bell size={18} />
           </NavIconButton>
@@ -514,11 +529,16 @@ export function Navbar() {
               <div className="flex items-center gap-3">
                 <Link
                   aria-label="Open cart"
-                  className="inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
+                  className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
                   href="/cart"
                   onClick={() => setIsOpen(false)}
                 >
                   <ShoppingCart size={18} />
+                  {cartItemsCount > 0 ? (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+                      {cartItemsCount > 99 ? "99+" : cartItemsCount}
+                    </span>
+                  ) : null}
                 </Link>
                 <Link
                   aria-label="View notifications"
@@ -527,7 +547,11 @@ export function Navbar() {
                   onClick={() => setIsOpen(false)}
                 >
                   <Bell size={18} />
-                  <span className="absolute right-2 top-2 size-2 rounded-full bg-[#0ea5b7]" />
+                  {isAuthenticated && unreadNotificationCount > 0 ? (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+                      {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                    </span>
+                  ) : null}
                 </Link>
               </div>
 

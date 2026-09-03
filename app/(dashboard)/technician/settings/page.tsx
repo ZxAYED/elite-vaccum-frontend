@@ -15,6 +15,7 @@ import {
   TechnicianRouteShell,
 } from "@/components/technician/TechnicianRouteShell";
 import { Button } from "@/components/ui/Button";
+import { NotificationPreferencesCard } from "@/components/notifications/NotificationPreferencesCard";
 import { Input } from "@/components/ui/Input";
 import {
   Select,
@@ -212,6 +213,8 @@ export default function TechnicianSettingsPage() {
               </label>
             </div>
           </AdminSurface>
+
+          <NotificationPreferencesCard />
 
           <AdminSurface>
             <div className="mb-6 flex items-center gap-3">

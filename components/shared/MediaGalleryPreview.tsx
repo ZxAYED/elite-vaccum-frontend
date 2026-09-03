@@ -13,6 +13,7 @@ import {
 import { motion } from "framer-motion";
 
 import { Button } from "@/components/ui/Button";
+import Image from "next/image";
 import {
   Dialog,
   DialogContent,
@@ -189,14 +190,13 @@ export function MediaGalleryPreview({
                     </div>
                   ) : (
                     <div className="relative size-full bg-slate-100">
-                      <img
+                      <Image
                         src={mediaSrc}
                         alt={item.fileName || "Inspection attachment"}
+                        fill
+                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                         className="size-full object-cover transition duration-300 group-hover:scale-105"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=400&q=80";
-                        }}
+                        unoptimized={mediaSrc.startsWith("blob:") || mediaSrc.startsWith("data:")}
                       />
                     </div>
                   )}
@@ -296,15 +296,19 @@ export function MediaGalleryPreview({
                     className="max-h-[70vh] w-full rounded-xl object-contain"
                   />
                 ) : (
-                  <img
-                    src={resolveMediaUrl(activeMedia)}
-                    alt={activeMedia.fileName || "Preview"}
-                    className="max-h-[70vh] w-full rounded-xl object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80";
-                    }}
-                  />
+                  <div className="relative h-[70vh] w-full">
+                    <Image
+                      src={resolveMediaUrl(activeMedia)}
+                      alt={activeMedia.fileName || "Preview"}
+                      fill
+                      sizes="100vw"
+                      className="rounded-xl object-contain"
+                      unoptimized={
+                        resolveMediaUrl(activeMedia).startsWith("blob:") ||
+                        resolveMediaUrl(activeMedia).startsWith("data:")
+                      }
+                    />
+                  </div>
                 )}
               </div>
             </div>

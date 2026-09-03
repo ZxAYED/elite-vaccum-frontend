@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
+import { NotificationPreferencesCard } from "@/components/notifications/NotificationPreferencesCard";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -151,6 +152,9 @@ export default function UserSettingsPage() {
       />
 
       <div className="space-y-6">
+        {/* Real API Notification Delivery Preferences */}
+        <NotificationPreferencesCard />
+
         {/* SECTION 1: NOTIFICATIONS */}
         <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4">
