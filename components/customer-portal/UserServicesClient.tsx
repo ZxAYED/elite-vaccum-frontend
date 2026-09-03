@@ -193,11 +193,25 @@ export function UserServicesClient() {
               const displayTitle = rawTitle.includes(" - ") ? rawTitle.split(" - ")[0].trim() : rawTitle;
 
               // Schedule
+              const reqRecord = reqAny as Record<string, unknown>;
+              const sched = ((request.requestedSchedule || reqRecord.requestedSchedule || {}) as unknown) as Record<string, unknown>;
+              const prefDate =
+                (typeof sched.preferredDate === "string" && sched.preferredDate) ||
+                (typeof sched.date === "string" && sched.date) ||
+                request.preferredDate ||
+                (typeof reqRecord.preferredDate === "string" ? reqRecord.preferredDate : undefined);
+              const prefTime =
+                (typeof sched.timeWindow === "string" && sched.timeWindow) ||
+                (typeof sched.time === "string" && sched.time) ||
+                request.preferredTime ||
+                (typeof reqRecord.timeWindow === "string" ? reqRecord.timeWindow : undefined) ||
+                (typeof reqRecord.preferredTime === "string" ? reqRecord.preferredTime : undefined);
+
               const displaySchedule =
                 request.requestedSchedule?.label ??
-                (request.preferredDate
-                  ? `${formatMonthDay(request.preferredDate)}${request.preferredTime ? ` · ${request.preferredTime}` : ""}`
-                  : "Pending schedule");
+                (prefDate
+                  ? `${formatMonthDay(prefDate)}${prefTime ? ` · ${prefTime}` : ""}`
+                  : prefTime || "Pending schedule");
 
               // Address
               const line1 = request.serviceAddress?.line1 || request.serviceAddress?.address || reqAny.address || "";

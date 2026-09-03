@@ -97,9 +97,27 @@ function getServiceName(request: ServiceRequest) {
 }
 
 function getRequestedSchedule(request: ServiceRequest) {
-  return request.requestedSchedule ?? {
-    date: request.preferredDate,
-    time: request.preferredTime,
+  const reqAny = request as unknown as Record<string, unknown>;
+  const sched = (request.requestedSchedule || reqAny.requestedSchedule || {}) as Record<string, unknown>;
+
+  const date =
+    (typeof sched.preferredDate === "string" && sched.preferredDate) ||
+    (typeof sched.date === "string" && sched.date) ||
+    (typeof request.preferredDate === "string" && request.preferredDate) ||
+    (typeof reqAny.preferredDate === "string" && reqAny.preferredDate) ||
+    "";
+
+  const time =
+    (typeof sched.timeWindow === "string" && sched.timeWindow) ||
+    (typeof sched.time === "string" && sched.time) ||
+    (typeof request.preferredTime === "string" && request.preferredTime) ||
+    (typeof reqAny.timeWindow === "string" && reqAny.timeWindow) ||
+    (typeof reqAny.preferredTime === "string" && reqAny.preferredTime) ||
+    "";
+
+  return {
+    date,
+    time: time || "Not provided",
   };
 }
 
@@ -205,7 +223,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
     try {
       await updateStatusMutation({
         id: request.id,
-        status: "accepted",
+        status: "ACCEPTED",
       }).unwrap();
       toast.success("Service request accepted", {
         description: "You can now prepare a quotation for the customer.",
@@ -268,40 +286,31 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   Submitted {formatShortDateTime(request.submittedAt)}
                 </span>
               </div>
-              <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-teal-950">
+              <h1 className="mt-3 text-3xl font-medium tracking-[-0.03em] text-primary">
                 {request.id}
               </h1>
-              <p className="mt-2 text-lg text-slate-600">
+              <p className="mt-2 text-base font-medium text-slate-700">
                 {getServiceName(request)}
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {decisionStatus !== "rejected" ? (
-                <Button variant="outline" onClick={() => setRejectOpen(true)}>
-                  <XCircle size={17} />
-                  Reject Request
-                </Button>
-              ) : null}
-              {decisionStatus !== "accepted" ? (
-                <Button onClick={() => setAcceptOpen(true)}>
-                  <CheckCircle2 size={17} />
-                  Accept Request
-                </Button>
-              ) : quotation ? (
-                <Button asChild>
-                  <Link href={`/admin/quotations/${quotation.id}`}>
-                    View Quotation
-                  </Link>
-                </Button>
-              ) : (
-                <Button asChild>
-                  <Link href={`/admin/quotations/new?requestId=${request.id}`}>
-                    Create Quotation
-                  </Link>
-                </Button>
-              )}
-            </div>
+            {decisionStatus === "accepted" ? (
+              <div className="flex flex-wrap gap-3">
+                {quotation ? (
+                  <Button asChild>
+                    <Link href={`/admin/quotations/${quotation.id}`}>
+                      View Quotation
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button asChild>
+                    <Link href={`/admin/quotations/new?requestId=${request.id}`}>
+                      Create Quotation
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -336,7 +345,14 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   ["Address", request.serviceAddress.line1],
                   [
                     "City / State / ZIP",
-                    `${request.serviceAddress.city}, ${request.serviceAddress.state} ${request.serviceAddress.postalCode}`,
+                    [
+                      request.serviceAddress?.city,
+                      request.serviceAddress?.state,
+                      request.serviceAddress?.postalCode ||
+                        (request.serviceAddress as unknown as Record<string, unknown>)?.zipCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "Not provided",
                   ],
                   ["Inside Location", emptyValue(request.problemLocation)],
                   ["Property", request.propertyLabel],
@@ -349,8 +365,11 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                 icon={CalendarDays}
                 title="Requested Schedule"
                 rows={[
-                  ["Customer-selected date", formatLongDate(schedule.date)],
-                  ["Customer-selected time", schedule.time],
+                  [
+                    "Customer-selected date",
+                    schedule.date ? formatLongDate(schedule.date) : "Not provided",
+                  ],
+                  ["Customer-selected time", schedule.time || "Not provided"],
                   ["Current schedule", request.currentSchedule?.label ?? "Matches requested schedule"],
                 ]}
               />
@@ -405,25 +424,55 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
             <section className="rounded-xl bg-primary p-5 text-white shadow-[0_18px_56px_-42px_rgba(28,79,80,0.58)]">
               <h2 className="text-xl font-semibold">Admin Decision</h2>
               <p className="mt-3 text-sm leading-6 text-white/75">
-                Accepting a request only prepares it for quotation. It does not
-                create a service order.
+                {decisionStatus === "accepted"
+                  ? "This service request has been accepted. You can now prepare a quotation for the customer."
+                  : decisionStatus === "rejected"
+                    ? "This service request was rejected. Rejection details are logged in the history below."
+                    : "Accepting a request only prepares it for quotation. It does not create a service order."}
               </p>
               <div className="mt-6 space-y-3">
-                <Button
-                  className="w-full bg-white text-primary hover:bg-teal-50"
-                  disabled={decisionStatus === "accepted"}
-                  onClick={() => setAcceptOpen(true)}
-                >
-                  Accept Request
-                </Button>
-                <Button
-                  className="w-full border-white/30 text-white hover:bg-white/10"
-                  disabled={decisionStatus === "rejected"}
-                  onClick={() => setRejectOpen(true)}
-                  variant="outline"
-                >
-                  Reject Request
-                </Button>
+                {decisionStatus === "accepted" ? (
+                  quotation ? (
+                    <Button
+                      asChild
+                      className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
+                    >
+                      <Link href={`/admin/quotations/${quotation.id}`}>
+                        View Quotation
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      asChild
+                      className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
+                    >
+                      <Link href={`/admin/quotations/new?requestId=${request.id}`}>
+                        Create Quotation
+                      </Link>
+                    </Button>
+                  )
+                ) : decisionStatus === "rejected" ? (
+                  <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-center text-sm font-medium text-white/90">
+                    Request Rejected
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
+                      onClick={() => setAcceptOpen(true)}
+                    >
+                      <CheckCircle2 size={16} />
+                      Accept Request
+                    </Button>
+                    <Button
+                      className="w-full border border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white font-medium shadow-none"
+                      onClick={() => setRejectOpen(true)}
+                    >
+                      <XCircle size={16} />
+                      Reject Request
+                    </Button>
+                  </>
+                )}
               </div>
             </section>
 

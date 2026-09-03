@@ -160,12 +160,17 @@ export const serviceRequestsApi = baseApi.injectEndpoints({
     }),
     updateServiceRequestStatus: builder.mutation<
       ServiceRequest,
-      { id: string; status: ServiceRequestStatus; adminNote?: string }
+      { id: string; status: ServiceRequestStatus | string; adminNote?: string }
     >({
       query: ({ id, ...body }) => ({
         url: `/service-requests/${id}/status`,
         method: "PATCH",
-        body,
+        body: {
+          ...body,
+          status: body.status
+            ? body.status.toUpperCase().replace(/-/g, "_")
+            : body.status,
+        },
       }),
       transformResponse: (
         response: ApiResponse<ServiceRequest> | ServiceRequest
