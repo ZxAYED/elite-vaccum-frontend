@@ -22,8 +22,8 @@ export function PageHeader({
           </p>
         ) : null}
         <div>
-          <h1 className="text-3xl font-bold text-primary">{title}</h1>
-          <p className="mt-1 max-w-3xl text-gray-600">{description}</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-primary">{title}</h1>
+          <p className="mt-1 max-w-3xl text-xs sm:text-sm font-medium text-slate-600">{description}</p>
         </div>
       </div>
 
