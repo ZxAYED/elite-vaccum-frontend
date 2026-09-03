@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Check, CheckCircle2, Info, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch, type FieldErrors } from "react-hook-form";
 
 import { Button } from "@/components/ui/Button";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -339,19 +339,71 @@ export function ServiceRequestForm({
           statusCode?: number;
         };
         message?: string;
+        error?: string;
       };
       const message =
         (Array.isArray(apiErr?.data?.message)
           ? apiErr.data.message.join(", ")
           : apiErr?.data?.message) ||
         apiErr?.message ||
-        "Server error while submitting service request. Please check server logs or make sure you are signed in.";
+        apiErr?.error ||
+        "Could not submit service request. Please check your connection or verify your information.";
       toast.error(message, {
         description:
-          apiErr?.data?.error || `Status: ${apiErr?.status || "500"}`,
+          apiErr?.data?.error || `Status: ${apiErr?.status || "Error"}`,
       });
     }
   }
+
+  const onInvalid = (fieldErrors: FieldErrors<ServiceRequestFormValues>) => {
+    const errorKeys = Object.keys(fieldErrors) as Array<keyof ServiceRequestFormValues>;
+    if (errorKeys.length === 0) return;
+
+    const firstError = Object.values(fieldErrors)[0];
+    const firstMessage =
+      typeof firstError?.message === "string" ? firstError.message : undefined;
+
+    const friendlyFieldNames: Record<string, string> = {
+      requestedDate: "Service Date",
+      requestedTime: "Time Window",
+      fullName: "Full Name",
+      phone: "Phone Number",
+      address: "Address",
+      city: "City",
+      state: "State",
+      zipCode: "ZIP Code",
+      problemLocation: "Problem Location",
+      otherProblemLocation: "Other Location Details",
+      problemDescription: "Problem Description",
+      media: "Media Uploads",
+    };
+
+    const missingLabels = errorKeys
+      .map((k) => friendlyFieldNames[k] || k)
+      .slice(0, 3)
+      .join(", ");
+
+    const errorCount = errorKeys.length;
+    const description =
+      errorCount > 3
+        ? `Please check ${missingLabels} and ${errorCount - 3} other field${errorCount - 3 > 1 ? "s" : ""}.`
+        : `Please complete: ${missingLabels}.`;
+
+    toast.error(firstMessage || "Please complete all required fields", {
+      description,
+      duration: 5000,
+    });
+
+    // Auto-scroll smoothly to the first field that requires attention
+    setTimeout(() => {
+      const firstErrorElement = document.querySelector(
+        '[aria-invalid="true"], input[aria-invalid="true"], select[aria-invalid="true"], .text-red-500, .text-red-600, .border-rose-400'
+      );
+      if (firstErrorElement) {
+        firstErrorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
+  };
 
   if (isSubmitted) {
     return (
@@ -386,7 +438,7 @@ export function ServiceRequestForm({
   return (
     <main className="w-full min-w-0 bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_34%)] py-8 sm:py-12 md:py-16">
       <form
-        onSubmit={handleSubmit(onSubmit)}
+        onSubmit={handleSubmit(onSubmit, onInvalid)}
         className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
       >
         <div className="w-full min-w-0">
