@@ -63,8 +63,8 @@ const motionTransition = { type: "spring", stiffness: 400, damping: 17 } as cons
 export function Footer() {
   return (
     <footer className="bg-primary text-primary-foreground">
-      <div className="mx-auto max-w-360 px-4 py-12">
-        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-4">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <motion.div
               whileHover={{ scale: 1.03 }}
@@ -92,7 +92,7 @@ export function Footer() {
                 const Icon = item.icon;
                 return (
                   <motion.li
-                    className="flex gap-3 origin-left"
+                    className="flex min-w-0 items-start gap-3 origin-left"
                     key={item.href}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.8 }}
@@ -101,7 +101,7 @@ export function Footer() {
                     <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
                     <Link
                       href={item.href}
-                      className="break-words text-primary-foreground/85 transition-colors hover:text-accent"
+                      className="min-w-0 break-all text-primary-foreground/85 transition-colors hover:text-accent"
                     >
                       {item.label}
                     </Link>
@@ -113,7 +113,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/25 py-8">
-          <div className="mx-auto grid w-full max-w-400 items-center gap-6 text-center md:grid-cols-3 md:text-left">
+          <div className="mx-auto grid w-full max-w-7xl items-center gap-6 text-center md:grid-cols-3 md:text-left">
             <p className="text-sm text-primary-foreground/80">
               © 2025 | ELITE CENTRAL VACUUM SERVICES LLC.
             </p>

@@ -28,7 +28,7 @@ export function RequestSummary({
   const location = [address, city, state, zipCode].filter(Boolean).join(", ");
 
   return (
-    <aside className="rounded-[1.35rem] bg-primary p-6 text-white shadow-[0_28px_84px_-48px_rgba(28,79,80,0.75)] lg:sticky lg:top-28">
+    <aside className="w-full rounded-[1.35rem] border border-teal-800/30 bg-primary p-6 text-white shadow-sm lg:sticky lg:top-28">
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-100">
         Review Request
       </p>

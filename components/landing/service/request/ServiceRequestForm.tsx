@@ -384,12 +384,12 @@ export function ServiceRequestForm({
   }
 
   return (
-    <main className="bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_34%)] py-12 md:py-18">
+    <main className="w-full min-w-0 bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_34%)] py-8 sm:py-12 md:py-16">
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="mx-auto grid max-w-360 gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
+        className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
       >
-        <div className="min-w-0">
+        <div className="w-full min-w-0">
           <div>
             <Link
               href="/services"
@@ -398,14 +398,14 @@ export function ServiceRequestForm({
               <ArrowLeft size={16} />
               Change Service
             </Link>
-            <div className="mt-8 rounded-[1.35rem] border border-teal-100/80 bg-white p-6 md:p-8">
+            <div className="mt-6 rounded-[1.35rem] border border-teal-100/80 bg-white p-5 sm:mt-8 sm:p-6 md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-teal-700">
                 Request a Service
               </p>
-              <h1 className="mt-3 text-4xl font-semibold tracking-[-0.05em] text-primary md:text-5xl">
+              <h1 className="mt-3 break-words text-2xl font-semibold tracking-[-0.04em] text-primary sm:text-3xl md:text-4xl lg:text-5xl">
                 {service.title}
               </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-slate-600 sm:text-base sm:leading-7">
                 Tell us about your system and what you need help with. The
                 selected service is locked for this request.
               </p>
@@ -748,7 +748,7 @@ export function ServiceRequestForm({
           </div>
         </div>
 
-        <div className="lg:pt-36">
+        <div className="w-full min-w-0 lg:pt-14">
           <RequestSummary
             serviceTitle={service.title}
             requestedDate={watchedValues.requestedDate}

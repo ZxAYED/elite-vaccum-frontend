@@ -39,6 +39,8 @@ html {
   color-scheme: light;
   scrollbar-width: thin;
   scrollbar-color: var(--primary) #dfeceb;
+  overflow-x: clip;
+  max-width: 100vw;
 }
 
 html::-webkit-scrollbar,

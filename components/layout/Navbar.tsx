@@ -133,7 +133,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-360 items-center justify-between px-4 py-4">
+      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link
           href="/"
           className="flex items-center gap-2 font-bold text-xl text-primary"
@@ -508,7 +508,7 @@ export function Navbar() {
       {/* Mobile Drawer */}
       {isOpen ? (
         <div className="border-t border-[#e5f2ef] xl:hidden">
-          <div className="mx-auto flex max-w-360 flex-col gap-5 px-4 py-5">
+          <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6">
             {/* Quick action bar */}
             <div className="flex items-center justify-between border-b border-teal-100 pb-4">
               <div className="flex items-center gap-3">
