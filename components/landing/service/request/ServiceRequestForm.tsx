@@ -398,7 +398,7 @@ export function ServiceRequestForm({
               <ArrowLeft size={16} />
               Change Service
             </Link>
-            <div className="mt-8 rounded-[1.35rem] bg-white p-6 shadow-[0_28px_90px_-62px_rgba(28,79,80,0.7)] ring-1 ring-teal-100 md:p-8">
+            <div className="mt-8 rounded-[1.35rem] border border-teal-100/80 bg-white p-6 md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.24em] text-teal-700">
                 Request a Service
               </p>
