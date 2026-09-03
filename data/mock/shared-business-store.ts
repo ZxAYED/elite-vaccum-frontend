@@ -22,6 +22,7 @@ import type {
   ServiceRequestAttachment,
   ServiceRequestStatus,
   ServiceScheduleWindow,
+  ServiceUrgency,
 } from "@/types/domain";
 
 import { mockCustomers } from "@/data/mock/customers";
@@ -59,6 +60,7 @@ type ServiceRequestInput = {
   problemDescription: string;
   problemLocation: string;
   otherProblemLocation?: string;
+  urgency?: ServiceUrgency;
   manufacturer?: string;
   modelNumber?: string;
   serialNumber?: string;
@@ -428,7 +430,7 @@ export function createSharedServiceRequest(input: ServiceRequestInput) {
     title,
     description: input.problemDescription,
     status: "submitted",
-    urgency: "normal",
+    urgency: input.urgency ?? "MEDIUM",
     preferredDate: input.requestedDate,
     preferredTime: input.requestedTime,
     propertyLabel: serviceAddress.label,

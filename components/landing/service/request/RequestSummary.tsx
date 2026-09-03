@@ -1,11 +1,13 @@
-import { CalendarDays, MapPin, Wrench } from "lucide-react";
+import { CalendarDays, Clock, MapPin, Wrench } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 interface RequestSummaryProps {
   serviceTitle: string;
   requestedDate?: string;
   requestedTime?: string;
+  urgency?: "LOW" | "MEDIUM" | "HIGH" | "EMERGENCY";
   address?: string;
   city?: string;
   state?: string;
@@ -18,6 +20,7 @@ export function RequestSummary({
   serviceTitle,
   requestedDate,
   requestedTime,
+  urgency,
   address,
   city,
   state,
@@ -46,6 +49,29 @@ export function RequestSummary({
                 ? `${requestedDate} at ${requestedTime}`
                 : "Choose a date and time"}
             </p>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Clock className="mt-0.5 shrink-0 text-teal-100" size={18} />
+          <div>
+            <p className="font-semibold">Service Urgency</p>
+            <div className="mt-1">
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold uppercase tracking-wider",
+                  urgency === "EMERGENCY" &&
+                    "border border-rose-300/40 bg-rose-500/25 text-rose-200",
+                  urgency === "HIGH" &&
+                    "border border-amber-300/40 bg-amber-500/25 text-amber-200",
+                  urgency === "LOW" &&
+                    "border border-slate-300/30 bg-slate-500/20 text-slate-200",
+                  (!urgency || urgency === "MEDIUM") &&
+                    "border border-teal-300/30 bg-teal-400/20 text-teal-100",
+                )}
+              >
+                {urgency || "MEDIUM"} PRIORITY
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex gap-3">

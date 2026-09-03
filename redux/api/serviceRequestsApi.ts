@@ -25,6 +25,8 @@ export interface CreateServiceRequestDto {
   state: string;
   zipCode: string;
   problemLocation?: string;
+  otherProblemLocation?: string;
+  urgency?: "LOW" | "MEDIUM" | "HIGH" | "EMERGENCY";
   preferredDate?: string;
   timeWindow?: string;
   problemDescription?: string;

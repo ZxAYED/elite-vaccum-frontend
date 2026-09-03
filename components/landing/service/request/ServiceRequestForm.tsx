@@ -30,6 +30,7 @@ import {
   serviceRequestSchema,
   mediaConstraints,
   type ServiceRequestFormValues,
+  type ServiceRequestUrgency,
 } from "./service-request-schema";
 
 import {
@@ -169,6 +170,52 @@ const symptomKeyMap: Record<string, string> = {
   "Other": "OTHER",
 };
 
+const urgencyOptions: Array<{
+  value: ServiceRequestUrgency;
+  label: string;
+  badge: string;
+  description: string;
+  selectedClasses: string;
+  dotClasses: string;
+}> = [
+  {
+    value: "LOW",
+    label: "Low",
+    badge: "Flexible",
+    description: "Routine checkup or flexible timeline",
+    selectedClasses:
+      "border-slate-400 bg-slate-100/90 text-slate-900 shadow-xs ring-1 ring-slate-400/30",
+    dotClasses: "bg-slate-400",
+  },
+  {
+    value: "MEDIUM",
+    label: "Medium",
+    badge: "Default",
+    description: "Standard repair within normal scheduling",
+    selectedClasses:
+      "border-primary bg-teal-50/80 text-primary shadow-xs ring-1 ring-primary/30",
+    dotClasses: "bg-teal-600",
+  },
+  {
+    value: "HIGH",
+    label: "High",
+    badge: "Priority",
+    description: "Impacting daily use, prompt visit needed",
+    selectedClasses:
+      "border-amber-500 bg-amber-50/80 text-amber-950 shadow-xs ring-1 ring-amber-500/30",
+    dotClasses: "bg-amber-500",
+  },
+  {
+    value: "EMERGENCY",
+    label: "Emergency",
+    badge: "Immediate",
+    description: "System breakdown or urgent stoppage",
+    selectedClasses:
+      "border-rose-500 bg-rose-50/80 text-rose-950 shadow-xs ring-1 ring-rose-500/30",
+    dotClasses: "bg-rose-500 animate-pulse",
+  },
+];
+
 const fieldGridClassName = "grid gap-5 md:grid-cols-2";
 const inputClassName = "bg-slate-50 shadow-none focus-visible:bg-white";
 
@@ -201,6 +248,7 @@ export function ServiceRequestForm({
       otherProblemLocation: "",
       requestedDate: "",
       requestedTime: "",
+      urgency: "MEDIUM",
       problemDescription: "",
       symptoms: [],
       manufacturer: "",
@@ -275,6 +323,7 @@ export function ServiceRequestForm({
       otherProblemLocation: values.otherProblemLocation || undefined,
       preferredDate: values.requestedDate,
       timeWindow: values.requestedTime,
+      urgency: values.urgency || "MEDIUM",
       problemDescription: values.problemDescription,
       symptoms: (values.symptoms || []).map(
         (s) => symptomKeyMap[s] || s.toUpperCase().replace(/\s+/g, "_"),
@@ -315,6 +364,7 @@ export function ServiceRequestForm({
         zipCode: values.zipCode,
         requestedDate: values.requestedDate,
         requestedTime: values.requestedTime,
+        urgency: values.urgency || "MEDIUM",
         problemDescription: values.problemDescription,
         problemLocation: values.problemLocation,
         otherProblemLocation: values.otherProblemLocation,
@@ -366,6 +416,7 @@ export function ServiceRequestForm({
     const friendlyFieldNames: Record<string, string> = {
       requestedDate: "Service Date",
       requestedTime: "Time Window",
+      urgency: "Service Urgency",
       fullName: "Full Name",
       phone: "Phone Number",
       address: "Address",
@@ -663,6 +714,65 @@ export function ServiceRequestForm({
                     />
                   </FormField>
                 </div>
+
+                <div className="mt-6 border-t border-teal-100/70 pt-6">
+                  <FormField
+                    label="Service Urgency Level"
+                    helper="Default: Medium"
+                    error={errors.urgency?.message}
+                  >
+                    <Controller
+                      control={control}
+                      name="urgency"
+                      render={({ field }) => (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                          {urgencyOptions.map((opt) => {
+                            const isSelected =
+                              (field.value || "MEDIUM") === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => field.onChange(opt.value)}
+                                className={cn(
+                                  "flex flex-col items-start rounded-2xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+                                  isSelected
+                                    ? opt.selectedClasses
+                                    : "border-slate-200/80 bg-slate-50 text-slate-700 hover:border-teal-200 hover:bg-slate-100/70",
+                                )}
+                              >
+                                <div className="flex w-full items-center justify-between gap-2">
+                                  <span className="text-sm font-bold text-slate-900">
+                                    {opt.label}
+                                  </span>
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                                      isSelected
+                                        ? "bg-white/80 font-bold"
+                                        : "bg-slate-200/70 text-slate-600",
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        "size-1.5 rounded-full",
+                                        opt.dotClasses,
+                                      )}
+                                    />
+                                    {opt.badge}
+                                  </span>
+                                </div>
+                                <span className="mt-1.5 text-xs leading-relaxed text-slate-500">
+                                  {opt.description}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    />
+                  </FormField>
+                </div>
               </FormSection>
             </div>
 
@@ -805,6 +915,7 @@ export function ServiceRequestForm({
             serviceTitle={service.title}
             requestedDate={watchedValues.requestedDate}
             requestedTime={watchedValues.requestedTime}
+            urgency={watchedValues.urgency}
             address={watchedValues.address}
             city={watchedValues.city}
             state={watchedValues.state}

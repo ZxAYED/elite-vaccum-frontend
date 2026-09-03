@@ -12,7 +12,14 @@ export type ProductStatus = "active" | "draft" | "archived";
 export type ProductAvailability = "in-stock" | "special-order";
 export type ServiceStatus = "active" | "inactive";
 export type ServiceCatalogStatus = "ACTIVE" | "INACTIVE";
-export type ServiceUrgency = "normal" | "priority" | "urgent";
+export type ServiceUrgency =
+  | "LOW"
+  | "MEDIUM"
+  | "HIGH"
+  | "EMERGENCY"
+  | "normal"
+  | "priority"
+  | "urgent";
 export type ServiceRequestStatus =
   | "draft"
   | "submitted"
