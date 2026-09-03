@@ -168,15 +168,6 @@ function toApiGroup(group: string) {
   return group;
 }
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-}
 
 function formatDate(value?: string) {
   if (!value) return "Recently";
@@ -242,7 +233,6 @@ function ServiceFormDialog({
   services,
   isSubmitting = false,
 }: ServiceFormDialogProps) {
-  const [slugEdited, setSlugEdited] = useState(Boolean(editingService));
   const {
     control,
     formState: { errors },
@@ -254,13 +244,11 @@ function ServiceFormDialog({
     resolver: zodResolver(serviceCatalogSchema),
     defaultValues: {
       title: editingService?.title ?? "",
-      slug: editingService?.slug ?? "",
       summary: editingService?.summary ?? "",
       description: editingService?.description ?? "",
       group: formatGroup(editingService?.group),
       iconKey: editingService?.iconKey ?? "wrench",
       status: editingService?.status ?? "ACTIVE",
-      sortOrder: editingService?.sortOrder ?? services.length + 1,
       recommendedSymptoms: editingService?.recommendedSymptoms ?? [],
     },
   });
@@ -271,7 +259,6 @@ function ServiceFormDialog({
   }) || [];
 
   function closeDialog() {
-    setSlugEdited(false);
     onOpenChange(false);
   }
 
@@ -279,25 +266,13 @@ function ServiceFormDialog({
     const duplicateName = services.some(
       (service) =>
         service.slug !== editingService?.slug &&
+        service.id !== editingService?.id &&
         service.title.toLowerCase() === values.title.toLowerCase(),
-    );
-    const duplicateSlug = services.some(
-      (service) =>
-        service.slug !== editingService?.slug &&
-        service.slug.toLowerCase() === values.slug.toLowerCase(),
     );
 
     if (duplicateName) {
       setError("title", {
         message: "A service with this name already exists.",
-        type: "manual",
-      });
-      return;
-    }
-
-    if (duplicateSlug) {
-      setError("slug", {
-        message: "A service with this slug already exists.",
         type: "manual",
       });
       return;
@@ -309,81 +284,30 @@ function ServiceFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto w-[min(94vw,46rem)]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-[min(94vw,44rem)]">
         <DialogHeader>
           <DialogTitle>
             {editingService ? "Edit Service" : "Add Service"}
           </DialogTitle>
           <DialogDescription>
-            Services are the catalog offerings customers can request and schedule from the platform.
+            {editingService
+              ? "Update central vacuum service scope, details, and intake recommendations."
+              : "Create a dynamic service offering for customer scheduling and intake."}
           </DialogDescription>
         </DialogHeader>
 
-        <form className="mt-6 space-y-5" onSubmit={handleSubmit(submit)}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              error={errors.title?.message}
-              htmlFor="service-title"
-              label="Service Name"
-              required
-            >
-              <Input
-                id="service-title"
-                placeholder="e.g. Commercial Vacuum System Maintenance"
-                {...register("title", {
-                  onChange: (event) => {
-                    if (!slugEdited) {
-                      setValue("slug", slugify(event.target.value), {
-                        shouldValidate: true,
-                      });
-                    }
-                  },
-                })}
-              />
-            </FormField>
-
-            <FormField
-              error={errors.slug?.message}
-              htmlFor="service-slug"
-              hint="Unique identifier used in request booking URLs."
-              label="Slug"
-              required
-            >
-              <Input
-                id="service-slug"
-                placeholder="commercial-vacuum-system-maintenance"
-                {...register("slug", {
-                  onChange: () => setSlugEdited(true),
-                })}
-              />
-            </FormField>
-          </div>
-
+        <form className="mt-5 space-y-5" onSubmit={handleSubmit(submit)}>
           <FormField
-            error={errors.summary?.message}
-            htmlFor="service-summary"
-            label="Short Summary"
-            hint="Displayed in catalog cards and search overviews."
+            error={errors.title?.message}
+            htmlFor="service-title"
+            label="Service Title"
+            hint="Display name shown across customer portal and service catalog."
             required
           >
             <Input
-              id="service-summary"
-              placeholder="Custom maintenance contracts for medical, dental, and industrial facilities."
-              {...register("summary")}
-            />
-          </FormField>
-
-          <FormField
-            error={errors.description?.message}
-            htmlFor="service-description"
-            label="Detailed Scope & Description"
-            hint="Comprehensive diagnostic details, field steps, and coverage."
-          >
-            <Textarea
-              className="min-h-24"
-              id="service-description"
-              placeholder="Multi-point motor diagnostic, line depressurization tests, and industrial filter core replacements with certified compliance audit."
-              {...register("description")}
+              id="service-title"
+              placeholder="e.g. Turnkey Central Vacuum Installation"
+              {...register("title")}
             />
           </FormField>
 
@@ -391,7 +315,7 @@ function ServiceFormDialog({
             <FormField
               error={errors.group?.message}
               htmlFor="service-group"
-              label="Service Group / Category"
+              label="Service Group"
               required
             >
               <Controller
@@ -441,6 +365,34 @@ function ServiceFormDialog({
             </FormField>
           </div>
 
+          <FormField
+            error={errors.summary?.message}
+            htmlFor="service-summary"
+            label="Summary"
+            hint="Displayed in catalog cards and customer overviews."
+            required
+          >
+            <Input
+              id="service-summary"
+              placeholder="Complete rough-in and piping installation for new home constructions and renovations."
+              {...register("summary")}
+            />
+          </FormField>
+
+          <FormField
+            error={errors.description?.message}
+            htmlFor="service-description"
+            label="Detailed Scope & Description"
+            hint="Comprehensive diagnostic details, field steps, and coverage."
+          >
+            <Textarea
+              className="min-h-24"
+              id="service-description"
+              placeholder="Comprehensive diagnostic details, field steps, and coverage for complete central vacuum setup including PVC lines and low-voltage wall inlets."
+              {...register("description")}
+            />
+          </FormField>
+
           {/* Recommended Intake Symptoms */}
           <div className="space-y-2 rounded-xl border border-teal-100 bg-teal-50/30 p-4">
             <div className="flex items-center justify-between">
@@ -483,51 +435,34 @@ function ServiceFormDialog({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              error={errors.status?.message}
-              htmlFor="service-status"
-              label="Catalog Status"
-              required
-            >
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="service-status">
-                      <SelectValue placeholder="Choose status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active (Live in Public Catalog)</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive (Admin / Draft Only)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </FormField>
+          <FormField
+            error={errors.status?.message}
+            htmlFor="service-status"
+            label="Catalog Status"
+            required
+          >
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger id="service-status">
+                    <SelectValue placeholder="Choose status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active (Live in Public Catalog)</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive (Admin / Draft Only)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </FormField>
 
-            <FormField
-              error={errors.sortOrder?.message}
-              htmlFor="service-sort-order"
-              label="Display Order"
-              required
-            >
-              <Input
-                id="service-sort-order"
-                inputMode="numeric"
-                min={1}
-                type="number"
-                {...register("sortOrder", { valueAsNumber: true })}
-              />
-            </FormField>
-          </div>
-
-          <DialogFooter>
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={closeDialog} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting} className="min-w-[120px]">
+            <Button type="submit" disabled={isSubmitting} className="min-w-[130px]">
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -643,19 +578,16 @@ export default function AdminServicesPage() {
   async function saveService(values: ServiceCatalogValues, existing?: ServiceOffering | null) {
     const payload = {
       title: values.title.trim(),
-      slug: values.slug.trim(),
       group: toApiGroup(values.group),
       summary: values.summary.trim(),
       description: values.description?.trim() || undefined,
       iconKey: values.iconKey,
-      sortOrder: values.sortOrder,
       recommendedSymptoms: values.recommendedSymptoms || [],
       status: values.status,
     };
 
     const localValues = {
       title: values.title.trim(),
-      slug: values.slug.trim(),
       summary: values.summary.trim(),
       description: values.description?.trim(),
       group: (values.group === "Installation" || values.group === "INSTALLATION"
@@ -663,7 +595,7 @@ export default function AdminServicesPage() {
         : "Service & Maintenance") as PublicServiceGroup,
       iconKey: values.iconKey as PublicServiceIconKey,
       status: values.status,
-      sortOrder: values.sortOrder,
+      recommendedSymptoms: values.recommendedSymptoms || [],
     };
 
     if (existing) {

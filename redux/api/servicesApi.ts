@@ -38,24 +38,20 @@ export interface DispatchBoardDto {
 
 export interface CreateServiceDto {
   title: string;
-  slug?: string;
   group: string;
   summary: string;
   description?: string;
-  iconKey?: string;
-  sortOrder?: number;
-  recommendedSymptoms?: string[];
-  status?: "ACTIVE" | "INACTIVE";
+  iconKey: string;
+  recommendedSymptoms: string[];
+  status: "ACTIVE" | "INACTIVE";
 }
 
 export interface UpdateServiceDto {
   title?: string;
-  slug?: string;
   group?: string;
   summary?: string;
   description?: string;
   iconKey?: string;
-  sortOrder?: number;
   recommendedSymptoms?: string[];
   status?: "ACTIVE" | "INACTIVE";
 }

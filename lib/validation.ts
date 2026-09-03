@@ -148,15 +148,7 @@ export const serviceCatalogSchema = z.object({
     .trim()
     .min(2, "Service name is required.")
     .max(80, "Service name must be 80 characters or fewer."),
-  slug: z
-    .string()
-    .trim()
-    .min(2, "Slug is required.")
-    .max(96, "Slug must be 96 characters or fewer.")
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Use lowercase letters, numbers, and single hyphens only.",
-    ),
+  group: z.string().min(1, "Group is required."),
   summary: z
     .string()
     .trim()
@@ -168,17 +160,9 @@ export const serviceCatalogSchema = z.object({
     .max(360, "Detailed description must be 360 characters or fewer.")
     .optional()
     .or(z.literal("")),
-  group: z.string().min(1, "Group is required."),
   iconKey: z.string().min(1, "Icon is required."),
-  status: z.enum(["ACTIVE", "INACTIVE"]),
-  sortOrder: z
-    .number({
-      error: "Display order is required.",
-    })
-    .int("Display order must be a whole number.")
-    .min(1, "Display order must be at least 1.")
-    .max(999, "Display order must be 999 or fewer."),
   recommendedSymptoms: z.array(z.string()).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
 });
 
 export const technicianSchema = z.object({

@@ -883,20 +883,29 @@ export function deleteSharedQuotation(quotationId: string) {
 
 export function createSharedServiceCatalog(values: {
   title: string;
-  slug: string;
+  slug?: string;
   summary: string;
   description?: string;
   group: PublicServiceGroup;
   iconKey: ServiceOffering["iconKey"];
   status: ServiceOffering["status"];
-  sortOrder: number;
+  sortOrder?: number;
+  recommendedSymptoms?: string[];
 }) {
   hydrate();
   const today = new Date().toISOString().slice(0, 10);
-  const serviceId = `svc-${values.slug}`;
+  const slug =
+    values.slug ||
+    values.title
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  const serviceId = `svc-${slug}`;
   const service: Service = {
     id: serviceId,
-    slug: values.slug,
+    slug,
     name: values.title,
     category: values.group,
     description: values.description || values.summary,
@@ -906,6 +915,8 @@ export function createSharedServiceCatalog(values: {
   };
   const offering: ServiceOffering = {
     ...values,
+    slug,
+    sortOrder: values.sortOrder ?? state.publicServices.length + 1,
     serviceId,
     createdAt: today,
     updatedAt: today,
@@ -924,13 +935,14 @@ export function updateSharedServiceCatalog(
   editingSlug: string,
   values: {
     title: string;
-    slug: string;
+    slug?: string;
     summary: string;
     description?: string;
     group: PublicServiceGroup;
     iconKey: ServiceOffering["iconKey"];
     status: ServiceOffering["status"];
-    sortOrder: number;
+    sortOrder?: number;
+    recommendedSymptoms?: string[];
   },
 ) {
   hydrate();
@@ -938,18 +950,20 @@ export function updateSharedServiceCatalog(
   const existing = state.publicServices.find((item) => item.slug === editingSlug);
   if (!existing) return null;
 
+  const targetSlug = values.slug || existing.slug;
+
   state = {
     ...state,
     publicServices: state.publicServices.map((service) =>
       service.slug === editingSlug
-        ? { ...service, ...values, updatedAt: today }
+        ? { ...service, ...values, slug: targetSlug, updatedAt: today }
         : service,
     ),
     services: state.services.map((service) =>
       service.id === existing.serviceId
         ? {
             ...service,
-            slug: values.slug,
+            slug: targetSlug,
             name: values.title,
             category: values.group,
             description: values.description || values.summary,
@@ -959,7 +973,7 @@ export function updateSharedServiceCatalog(
     ),
   };
   emit();
-  return getSharedServiceCatalogBySlug(values.slug);
+  return getSharedServiceCatalogBySlug(targetSlug);
 }
 
 export function deleteSharedServiceCatalog(slug: string) {
