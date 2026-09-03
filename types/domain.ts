@@ -261,12 +261,19 @@ export type PublicServiceIconKey =
   | "sparkles"
   | "sliders"
   | "upload"
-  | "compass";
+  | "compass"
+  | "Building2"
+  | "Home"
+  | "Wrench"
+  | "ShieldCheck"
+  | string;
 
 export interface ServiceOffering {
+  id?: string;
+  key?: string;
   slug: string;
   serviceId: string;
-  group: PublicServiceGroup;
+  group: PublicServiceGroup | "SERVICE_AND_MAINTENANCE" | "INSTALLATION" | string;
   title: string;
   summary: string;
   description?: string;
@@ -274,6 +281,9 @@ export interface ServiceOffering {
   image?: string;
   status: ProductCategoryStatus;
   sortOrder?: number;
+  recommendedSymptoms?: string[];
+  requestCount?: number;
+  reviewCount?: number;
   createdAt: string;
   updatedAt: string;
 }

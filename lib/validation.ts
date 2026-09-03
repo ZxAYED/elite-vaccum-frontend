@@ -168,17 +168,8 @@ export const serviceCatalogSchema = z.object({
     .max(360, "Detailed description must be 360 characters or fewer.")
     .optional()
     .or(z.literal("")),
-  group: z.enum(["Service & Maintenance", "Installation"]),
-  iconKey: z.enum([
-    "home-plus",
-    "wrench",
-    "activity",
-    "shield",
-    "sparkles",
-    "sliders",
-    "upload",
-    "compass",
-  ]),
+  group: z.string().min(1, "Group is required."),
+  iconKey: z.string().min(1, "Icon is required."),
   status: z.enum(["ACTIVE", "INACTIVE"]),
   sortOrder: z
     .number({
@@ -187,6 +178,7 @@ export const serviceCatalogSchema = z.object({
     .int("Display order must be a whole number.")
     .min(1, "Display order must be at least 1.")
     .max(999, "Display order must be 999 or fewer."),
+  recommendedSymptoms: z.array(z.string()).optional(),
 });
 
 export const technicianSchema = z.object({

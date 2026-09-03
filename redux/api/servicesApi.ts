@@ -36,6 +36,36 @@ export interface DispatchBoardDto {
   technicianWorkload: Array<{ technicianId: string; count: number }>;
 }
 
+export interface CreateServiceDto {
+  title: string;
+  slug?: string;
+  group: string;
+  summary: string;
+  description?: string;
+  iconKey?: string;
+  sortOrder?: number;
+  recommendedSymptoms?: string[];
+  status?: "ACTIVE" | "INACTIVE";
+}
+
+export interface UpdateServiceDto {
+  title?: string;
+  slug?: string;
+  group?: string;
+  summary?: string;
+  description?: string;
+  iconKey?: string;
+  sortOrder?: number;
+  recommendedSymptoms?: string[];
+  status?: "ACTIVE" | "INACTIVE";
+}
+
+export interface DeleteServiceResponse {
+  success: boolean;
+  message?: string;
+  action?: "deleted" | "deactivated" | string;
+}
+
 interface ApiResponse<T> {
   success?: boolean;
   message?: string;
@@ -56,6 +86,73 @@ function unwrapData<T>(response: ApiResponse<T> | T): T {
 
 export const servicesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    getAllServicesList: builder.query<ServiceOffering[], void>({
+      query: () => "/services/list/all",
+      transformResponse: (
+        response: ApiResponse<ServiceOffering[]> | ServiceOffering[]
+      ) => {
+        const unwrapped = unwrapData(response);
+        if (Array.isArray(unwrapped)) return unwrapped;
+        return [];
+      },
+      providesTags: (result) =>
+        Array.isArray(result)
+          ? [
+              ...result.map(({ slug }) => ({
+                type: "Service" as const,
+                id: slug,
+              })),
+              { type: "Service", id: "LIST" },
+            ]
+          : [{ type: "Service", id: "LIST" }],
+    }),
+    createService: builder.mutation<ServiceOffering, CreateServiceDto>({
+      query: (body) => ({
+        url: "/services",
+        method: "POST",
+        body,
+      }),
+      transformResponse: (
+        response: ApiResponse<ServiceOffering> | ServiceOffering
+      ) => {
+        return unwrapData(response);
+      },
+      invalidatesTags: [{ type: "Service", id: "LIST" }],
+    }),
+    updateService: builder.mutation<
+      ServiceOffering,
+      { id: string; body: UpdateServiceDto }
+    >({
+      query: ({ id, body }) => ({
+        url: `/services/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      transformResponse: (
+        response: ApiResponse<ServiceOffering> | ServiceOffering
+      ) => {
+        return unwrapData(response);
+      },
+      invalidatesTags: [{ type: "Service", id: "LIST" }],
+    }),
+    deleteService: builder.mutation<DeleteServiceResponse, string>({
+      query: (id) => ({
+        url: `/services/${id}`,
+        method: "DELETE",
+      }),
+      transformResponse: (
+        response: ApiResponse<DeleteServiceResponse> | DeleteServiceResponse
+      ) => {
+        const data = unwrapData(response);
+        return (
+          data || {
+            success: true,
+            message: "Service processed successfully.",
+          }
+        );
+      },
+      invalidatesTags: [{ type: "Service", id: "LIST" }],
+    }),
     getServices: builder.query<ServiceOffering[], void>({
       query: () => "/services",
       transformResponse: (
@@ -198,6 +295,10 @@ export const servicesApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetAllServicesListQuery,
+  useCreateServiceMutation,
+  useUpdateServiceMutation,
+  useDeleteServiceMutation,
   useGetServicesQuery,
   useGetServiceBySlugQuery,
   useGetAvailableSlotsQuery,
