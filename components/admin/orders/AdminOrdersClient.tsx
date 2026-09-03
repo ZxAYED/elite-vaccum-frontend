@@ -12,10 +12,12 @@ import {
   Truck,
   Wrench,
   XCircle,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { downloadReportCsv } from "@/lib/exportCsv";
 
 import {
   AdminPageHeader,
@@ -362,6 +364,30 @@ export function AdminOrdersClient() {
         eyebrow="Commerce"
         title="Orders"
         description="Manage product purchases and accepted service work from one unified order system."
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadReportCsv(
+                "orders",
+                orders,
+                [
+                  { header: "Order ID", accessor: (r: AdminUnifiedOrder) => r.id },
+                  { header: "Type", accessor: (r: AdminUnifiedOrder) => r.type },
+                  { header: "Customer ID", accessor: (r: AdminUnifiedOrder) => r.customerId },
+                  { header: "Status", accessor: (r: AdminUnifiedOrder) => r.status },
+                  { header: "Total ($)", accessor: (r: AdminUnifiedOrder) => r.total.totalUsd },
+                  { header: "Created At", accessor: (r: AdminUnifiedOrder) => r.createdAt },
+                ],
+              )
+            }
+            className="flex items-center gap-2 border-teal-200 font-semibold text-teal-900 shadow-sm hover:border-teal-300"
+          >
+            <Download size={14} className="text-teal-700" />
+            Export Orders CSV
+          </Button>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

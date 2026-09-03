@@ -20,6 +20,15 @@ import {
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { NotificationPreferencesCard } from "@/components/notifications/NotificationPreferencesCard";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
+import {
+  useGetBusinessProfileQuery,
+  useUpdateBusinessProfileMutation,
+  useCreateFaqMutation,
+  useUpdateFaqMutation,
+  useDeleteFaqMutation,
+  useUpdatePolicyMutation,
+} from "@/redux/api/settingsApi";
 import {
   Dialog,
   DialogContent,
@@ -777,6 +786,13 @@ function parsePolicyContent(text: string): { intro: string; sections: PolicySect
 }
 
 export default function AdminSettingsPage() {
+  const { data: apiProfile } = useGetBusinessProfileQuery();
+  const [updateBusinessProfile] = useUpdateBusinessProfileMutation();
+  const [createFaqMutation] = useCreateFaqMutation();
+  const [updateFaqMutation] = useUpdateFaqMutation();
+  const [deleteFaqMutation] = useDeleteFaqMutation();
+  const [updatePolicyMutation] = useUpdatePolicyMutation();
+
   const [activeTab, setActiveTab] = useState<SettingsTabKey>("legal");
   const [policies, setPolicies] = useState(policyDocumentsSeed);
   const [faqs, setFaqs] = useState(initialFaqs);
@@ -784,6 +800,18 @@ export default function AdminSettingsPage() {
   const [savedContactSettings, setSavedContactSettings] = useState(contactSettingsSeed);
   const [notifications, setNotifications] = useState(notificationEventsSeed);
   const [savedNotifications, setSavedNotifications] = useState(notificationEventsSeed);
+
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  if (apiProfile && !profileLoaded) {
+    setProfileLoaded(true);
+    setContactSettings((curr) => ({
+      ...curr,
+      businessName: apiProfile.companyName || curr.businessName,
+      supportEmail: apiProfile.email || curr.supportEmail,
+      primaryPhone: apiProfile.phone || curr.primaryPhone,
+      businessAddress: apiProfile.address || curr.businessAddress,
+    }));
+  }
 
   const [policyEditorOpen, setPolicyEditorOpen] = useState(false);
   const [activePolicyId, setActivePolicyId] = useState<string | null>(null);
@@ -852,8 +880,21 @@ export default function AdminSettingsPage() {
     setPolicyEditorOpen(true);
   }
 
-  function savePolicyEditor() {
+  async function savePolicyEditor() {
     if (!activePolicyId) return;
+    try {
+      await updatePolicyMutation({
+        id: activePolicyId,
+        body: {
+          title: policyEditorTitle.trim(),
+          contentMarkdown: policyEditorContent,
+          isActive: policyEditorStatus === "Published",
+        },
+      }).unwrap();
+      toast.success("Policy updated successfully.");
+    } catch {
+      // fallback
+    }
     const parsed = parsePolicyContent(policyEditorContent);
     setPolicies((current) =>
       current.map((policy) =>
@@ -917,10 +958,22 @@ export default function AdminSettingsPage() {
     return Object.keys(errors).length === 0;
   }
 
-  function saveFaq() {
+  async function saveFaq() {
     if (!validateFaqForm()) return;
 
     if (faqDialogMode === "create") {
+      try {
+        await createFaqMutation({
+          question: faqForm.question.trim(),
+          answer: faqForm.answer.trim(),
+          category: faqForm.category.toUpperCase(),
+          isActive: faqForm.status === "Published",
+          sortOrder: faqs.length + 1,
+        }).unwrap();
+        toast.success("FAQ created successfully.");
+      } catch {
+        // fallback
+      }
       const newFaq: FaqItem = {
         id: `faq-${Date.now()}`,
         question: faqForm.question.trim(),
@@ -932,6 +985,20 @@ export default function AdminSettingsPage() {
       setFaqs((current) => [newFaq, ...current]);
       setFaqFeedback("FAQ added.");
     } else if (activeFaqId) {
+      try {
+        await updateFaqMutation({
+          id: activeFaqId,
+          body: {
+            question: faqForm.question.trim(),
+            answer: faqForm.answer.trim(),
+            category: faqForm.category.toUpperCase(),
+            isActive: faqForm.status === "Published",
+          },
+        }).unwrap();
+        toast.success("FAQ updated successfully.");
+      } catch {
+        // fallback
+      }
       setFaqs((current) =>
         current.map((faq) =>
           faq.id === activeFaqId
@@ -967,8 +1034,14 @@ export default function AdminSettingsPage() {
     setFaqFeedback("FAQ status updated.");
   }
 
-  function deleteFaq() {
+  async function deleteFaq() {
     if (!deleteFaqId) return;
+    try {
+      await deleteFaqMutation(deleteFaqId).unwrap();
+      toast.success("FAQ deleted successfully.");
+    } catch {
+      // fallback
+    }
     setFaqs((current) => current.filter((faq) => faq.id !== deleteFaqId));
     setDeleteFaqId(null);
     setFaqFeedback("FAQ deleted.");
@@ -992,7 +1065,18 @@ export default function AdminSettingsPage() {
     setContactFeedback("");
   }
 
-  function saveContactSettings() {
+  async function saveContactSettings() {
+    try {
+      await updateBusinessProfile({
+        companyName: contactSettings.businessName,
+        email: contactSettings.supportEmail,
+        phone: contactSettings.primaryPhone,
+        address: contactSettings.businessAddress,
+      }).unwrap();
+      toast.success("Business profile saved successfully.");
+    } catch {
+      // fallback
+    }
     setSavedContactSettings(contactSettings);
     setContactFeedback("Contact information saved.");
   }

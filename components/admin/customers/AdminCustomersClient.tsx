@@ -8,9 +8,11 @@ import {
   Phone,
   UserRound,
   XCircle,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { downloadReportCsv } from "@/lib/exportCsv";
 
 import {
   AdminPageHeader,
@@ -178,6 +180,31 @@ export function AdminCustomersClient() {
         eyebrow="Customers"
         title="Customers"
         description="Manage customer accounts, linked properties, service history, product orders, and internal operating context."
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadReportCsv(
+                "customers",
+                customers,
+                [
+                  { header: "Customer ID", accessor: (r: Customer) => r.id },
+                  { header: "Name", accessor: (r: Customer) => r.displayName || `${r.firstName} ${r.lastName}` },
+                  { header: "Email", accessor: (r: Customer) => r.email },
+                  { header: "Phone", accessor: (r: Customer) => r.phone },
+                  { header: "Status", accessor: (r: Customer) => r.status },
+                  { header: "Total Orders", accessor: (r: Customer) => r.totalOrders },
+                  { header: "Lifetime Value ($)", accessor: (r: Customer) => r.lifetimeValueUsd },
+                ],
+              )
+            }
+            className="flex items-center gap-2 border-teal-200 font-semibold text-teal-900 shadow-sm hover:border-teal-300"
+          >
+            <Download size={14} className="text-teal-700" />
+            Export Customers CSV
+          </Button>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">

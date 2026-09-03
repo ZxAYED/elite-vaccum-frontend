@@ -30,6 +30,7 @@ import {
   AdminStatCard,
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
+import { ExportReportMenu } from "@/components/admin/reports/ExportReportMenu";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import {
   Select,
@@ -169,6 +170,7 @@ export function AdminReportsClient() {
         eyebrow="Insights"
         title="Reports"
         description="Operational and revenue reporting derived from shared orders, billing, service requests, schedules, customers, and technicians."
+        action={<ExportReportMenu />}
       />
 
       <AdminSurface className="space-y-4">

@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { MessageSquareQuote, Star } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { useAppSelector } from "@/redux/hooks";
+import { useGetMyReviewsQuery, useSubmitReviewMutation } from "@/redux/api/reviewsApi";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
@@ -47,14 +51,25 @@ export function ReviewsExperience({
   initialOrderId,
 }: ReviewsExperienceProps) {
   useSharedBusinessStoreVersion();
+  const authUser = useAppSelector((state) => state.auth.user);
   const [selectedOrderId, setSelectedOrderId] = useState(initialOrderId ?? "");
   const [composeType, setComposeType] = useState<ComposeType>(initialComposeType);
   const [draft, setDraft] = useState<DraftState>(emptyDraft);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
-  const customerReviews = getSharedReviews().filter(
-    (review) => review.customerId === mockCurrentUser.customerId,
-  );
+  const { data: apiMyReviews } = useGetMyReviewsQuery();
+  const [submitReviewApi, { isLoading: isSubmittingReview }] = useSubmitReviewMutation();
+
+  const customerReviews = useMemo(() => {
+    if (apiMyReviews && apiMyReviews.length > 0) {
+      return apiMyReviews;
+    }
+    return getSharedReviews().filter(
+      (review) =>
+        review.customerId ===
+        (authUser?.id ?? mockCurrentUser.customerId ?? mockCurrentCustomer.id),
+    );
+  }, [apiMyReviews, authUser?.id]);
 
   const eligibleProductOrders = dashboardProductOrders.filter(
     (order) => order.status === "delivered" && !hasSharedReviewForOrder(order.id),
@@ -79,7 +94,7 @@ export function ReviewsExperience({
     setSubmitMessage(null);
   }
 
-  function submitReview() {
+  async function submitReview() {
     if (!composeType) return;
     if (!draft.title.trim() || draft.body.trim().length < 20) return;
 
@@ -87,10 +102,24 @@ export function ReviewsExperience({
       const firstItem = selectedProductOrder?.items[0];
       if (!firstItem) return;
 
+      try {
+        await submitReviewApi({
+          type: "PRODUCT",
+          productId: firstItem.productId,
+          productOrderId: selectedProductOrder.id,
+          rating: draft.rating,
+          title: draft.title.trim(),
+          body: draft.body.trim(),
+        }).unwrap();
+        toast.success("Review submitted for moderation!");
+      } catch {
+        // Fallback to local store
+      }
+
       createSharedReview({
         type: "PRODUCT",
-        customerId: mockCurrentUser.customerId ?? mockCurrentCustomer.id,
-        customerName: mockCurrentCustomer.displayName,
+        customerId: authUser?.id ?? mockCurrentUser.customerId ?? mockCurrentCustomer.id,
+        customerName: authUser?.fullName || authUser?.email || mockCurrentCustomer.displayName,
         relatedOrderId: selectedProductOrder.id,
         relatedEntityId: firstItem.productId,
         relatedName: firstItem.name,
@@ -101,10 +130,23 @@ export function ReviewsExperience({
     } else {
       if (!selectedServiceOrder) return;
 
+      try {
+        await submitReviewApi({
+          type: "SERVICE",
+          serviceOrderId: selectedServiceOrder.id,
+          rating: draft.rating,
+          title: draft.title.trim(),
+          body: draft.body.trim(),
+        }).unwrap();
+        toast.success("Service review submitted for moderation!");
+      } catch {
+        // Fallback to local store
+      }
+
       createSharedReview({
         type: "SERVICE",
-        customerId: mockCurrentUser.customerId ?? mockCurrentCustomer.id,
-        customerName: mockCurrentCustomer.displayName,
+        customerId: authUser?.id ?? mockCurrentUser.customerId ?? mockCurrentCustomer.id,
+        customerName: authUser?.fullName || authUser?.email || mockCurrentCustomer.displayName,
         relatedOrderId: selectedServiceOrder.id,
         relatedEntityId: selectedServiceOrder.serviceRequestId,
         relatedName: selectedServiceOrder.serviceName,
@@ -259,9 +301,9 @@ export function ReviewsExperience({
                     size="sm"
                     className="rounded-md font-medium"
                     onClick={submitReview}
-                    disabled={!draft.title.trim() || draft.body.trim().length < 20}
+                    disabled={isSubmittingReview || !draft.title.trim() || draft.body.trim().length < 20}
                   >
-                    Submit Review
+                    {isSubmittingReview ? "Submitting..." : "Submit Review"}
                   </Button>
                   <Button
                     type="button"

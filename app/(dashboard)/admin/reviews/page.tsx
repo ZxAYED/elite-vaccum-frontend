@@ -37,12 +37,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
+import { toast } from "sonner";
 import {
   deleteSharedReview,
   getSharedCustomerById,
   getSharedReviews,
   updateSharedReviewStatus,
 } from "@/data/mock/shared-business-store";
+import {
+  useGetAdminReviewsQuery,
+  useModerateReviewMutation,
+  useDeleteReviewMutation,
+} from "@/redux/api/reviewsApi";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatLongDate } from "@/lib/formatters";
 import type { CustomerReview, ReviewStatus } from "@/types/domain";
@@ -104,7 +110,20 @@ export default function AdminReviewsPage() {
   const [selectedReview, setSelectedReview] = useState<CustomerReview | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomerReview | null>(null);
 
-  const reviews = getSharedReviews();
+  const { data: apiReviewsData } = useGetAdminReviewsQuery({
+    status: statusFilter === "all" ? undefined : statusFilter,
+    type: typeFilter === "all" ? undefined : typeFilter,
+    search: query.trim() || undefined,
+  });
+  const [moderateReview] = useModerateReviewMutation();
+  const [deleteReviewMutation] = useDeleteReviewMutation();
+
+  const reviews = useMemo(() => {
+    if (apiReviewsData?.items && apiReviewsData.items.length > 0) {
+      return apiReviewsData.items;
+    }
+    return getSharedReviews();
+  }, [apiReviewsData?.items]);
 
   const filteredReviews = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -152,7 +171,13 @@ export default function AdminReviewsPage() {
     total: reviews.length,
   };
 
-  function moderate(reviewId: string, status: ReviewStatus) {
+  async function moderate(reviewId: string, status: ReviewStatus) {
+    try {
+      await moderateReview({ id: reviewId, status }).unwrap();
+      toast.success(`Review ${status.toLowerCase()} successfully.`);
+    } catch {
+      // Graceful fallback to mock store
+    }
     updateSharedReviewStatus(reviewId, status, {
       actorLabel: "Admin",
       note:
@@ -167,8 +192,14 @@ export default function AdminReviewsPage() {
     }
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
+    try {
+      await deleteReviewMutation(deleteTarget.id).unwrap();
+      toast.success("Review deleted successfully.");
+    } catch {
+      // Graceful fallback
+    }
     deleteSharedReview(deleteTarget.id, {
       actorLabel: "Admin",
       reason: "Removed during moderation",

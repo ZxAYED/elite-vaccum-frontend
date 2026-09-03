@@ -4,11 +4,13 @@ import {
   CalendarDays,
   ClipboardCheck,
   Eye,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { useGetAdminServiceRequestsQuery } from "@/redux/api/serviceRequestsApi";
+import { downloadReportCsv } from "@/lib/exportCsv";
 
 import {
   AdminPageHeader,
@@ -254,6 +256,31 @@ export default function AdminServiceRequestsPage() {
           eyebrow="Service Operations"
           title="Service Requests"
           description="Review customer service requests and decide the next action."
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                downloadReportCsv(
+                  "service-requests",
+                  filteredRequests,
+                  [
+                    { header: "Request ID", accessor: (r: ServiceRequest) => r.id },
+                    { header: "Title", accessor: (r: ServiceRequest) => r.title },
+                    { header: "Customer ID", accessor: (r: ServiceRequest) => r.customerId },
+                    { header: "Status", accessor: (r: ServiceRequest) => r.status },
+                    { header: "Urgency", accessor: (r: ServiceRequest) => r.urgency },
+                    { header: "Preferred Date", accessor: (r: ServiceRequest) => r.preferredDate },
+                    { header: "Preferred Time", accessor: (r: ServiceRequest) => r.preferredTime },
+                  ],
+                )
+              }
+              className="flex items-center gap-2 border-teal-200 font-semibold text-teal-900 shadow-sm hover:border-teal-300"
+            >
+              <Download size={14} className="text-teal-700" />
+              Export Requests CSV
+            </Button>
+          }
         />
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
