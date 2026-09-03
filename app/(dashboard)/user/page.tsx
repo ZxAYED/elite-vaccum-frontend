@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   getDashboardInvoices,
   getDashboardOrders,
@@ -236,30 +237,42 @@ export default function DashboardOverview() {
             </Button>
           </div>
 
-          <div className="mt-4 space-y-3">
-            {allOrders.slice(0, 3).map((order) => (
-              <Link
-                className="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50/50 p-3.5 transition hover:border-teal-300 hover:bg-teal-50/40 sm:flex-row sm:items-center sm:justify-between"
-                href={`/user/orders/${order.id}`}
-                key={order.id}
-              >
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <TypeBadge type={order.type} />
-                    <StatusBadge status={order.status} />
+          {allOrders.length === 0 ? (
+            <EmptyState
+              icon={Package}
+              title="No active orders"
+              description="You haven't placed any product or service orders yet."
+              action={{ label: "Browse Store", href: "/store" }}
+              secondaryAction={{ label: "Request Service", href: "/services" }}
+              tone="minimal"
+              className="py-8"
+            />
+          ) : (
+            <div className="mt-4 space-y-3">
+              {allOrders.slice(0, 3).map((order) => (
+                <Link
+                  className="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50/50 p-3.5 transition hover:border-teal-300 hover:bg-teal-50/40 sm:flex-row sm:items-center sm:justify-between"
+                  href={`/user/orders/${order.id}`}
+                  key={order.id}
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <TypeBadge type={order.type} />
+                      <StatusBadge status={order.status} />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {order.type === "PRODUCT"
+                        ? order.items[0]?.name
+                        : order.serviceName}
+                    </p>
                   </div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {order.type === "PRODUCT"
-                      ? order.items[0]?.name
-                      : order.serviceName}
+                  <p className="text-sm font-bold text-slate-900">
+                    {formatCurrencyUsd(order.total.totalUsd)}
                   </p>
-                </div>
-                <p className="text-sm font-bold text-slate-900">
-                  {formatCurrencyUsd(order.total.totalUsd)}
-                </p>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="lg:col-span-5 rounded-lg border border-teal-800 bg-teal-900 p-5 sm:p-6 text-white shadow-xs flex flex-col justify-between">

@@ -8,6 +8,7 @@ import {
 } from "@/components/technician/TechnicianRouteShell";
 import { buildTechnicianAddressLabel } from "@/components/technician/technician-utils";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import {
   getTechnicianCustomerLabel,
@@ -110,9 +111,26 @@ export default async function TechnicianJobsPage({
 
       <div className="space-y-4">
         {jobs.length === 0 ? (
-          <AdminSurface className="text-center text-sm text-slate-600">
-            {emptyStateByFilter[activeFilter]}
-          </AdminSurface>
+          <EmptyState
+            icon={query ? Search : CalendarDays}
+            title={query ? "No matching jobs" : emptyStateByFilter[activeFilter]}
+            description={
+              query
+                ? `No jobs matched "${query}". Try adjusting your search query or selected filter.`
+                : "Assigned service visits and diagnostic jobs will appear here as they are scheduled."
+            }
+            action={
+              query
+                ? {
+                    label: "Clear Search",
+                    href: `/technician/jobs?filter=${activeFilter}`,
+                    variant: "outline",
+                  }
+                : undefined
+            }
+            tone="dashed"
+            className="py-14"
+          />
         ) : (
           jobs.map((order) => (
             <AdminSurface key={order.id}>

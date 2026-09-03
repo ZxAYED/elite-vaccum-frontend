@@ -7,6 +7,7 @@ import { ArrowRight, FileText, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useGetMyQuotationsQuery } from "@/redux/api/quotationsApi";
 import { getCustomerQuotations, getServiceById } from "@/data/mock/customer-portal";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
@@ -64,18 +65,17 @@ export default function UserQuotationsPage() {
       {!isLoading && (
         <div className="space-y-4">
           {displayQuotations.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
-                <FileText size={22} />
-              </div>
-              <h2 className="mt-3 text-base font-semibold text-slate-900">No quotations received yet</h2>
-              <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600">
-                Once our team reviews your service request, custom quotations will appear here for your approval.
-              </p>
-              <Button asChild size="sm" className="mt-5 rounded-md font-medium">
-                <Link href="/services">Request a Service</Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="No quotations received yet"
+              description="Once our team reviews your service request, custom itemized quotations will appear here for your review and approval."
+              action={{
+                label: "Request a Service",
+                href: "/services",
+              }}
+              tone="card"
+              className="py-12"
+            />
           ) : (
             displayQuotations.map(({ request, quote }) => {
               const service = getServiceById(request.serviceId);

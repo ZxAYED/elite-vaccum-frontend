@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import { getDashboardOrders, type CustomerRecordType } from "@/data/mock/customer-dashboard";
 import { formatCurrencyUsd, formatLongDate, formatShortDate } from "@/lib/formatters";
@@ -138,20 +139,26 @@ export default async function UserOrdersPage({ searchParams }: UserOrdersPagePro
 
       <div className="space-y-4">
         {filteredOrders.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
-              <Package size={22} />
-            </div>
-            <p className="mt-3 text-base font-semibold text-slate-900">No matching orders</p>
-            <p className="mt-1 text-xs text-slate-500">
-              Try adjusting your search query or filters.
-            </p>
-            {(query || selectedType !== "ALL" || selectedStatus !== "all") ? (
-              <Button asChild size="sm" variant="outline" className="mt-4 rounded-md">
-                <Link href="/user/orders">Clear all filters</Link>
-              </Button>
-            ) : null}
-          </div>
+          allOrders.length === 0 ? (
+            <EmptyState
+              icon={Package}
+              title="No orders found"
+              description="You haven't placed any product or service orders yet. Explore our store offerings or request a specialized central vacuum service visit."
+              action={{ label: "Browse Store", href: "/store" }}
+              secondaryAction={{ label: "Request Service", href: "/services" }}
+              tone="card"
+              className="py-12"
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No matching orders"
+              description="No orders match your search query or selected filters. Try clearing your filters."
+              action={{ label: "Clear all filters", href: "/user/orders", variant: "outline" }}
+              tone="dashed"
+              className="py-10"
+            />
+          )
         ) : null}
         {filteredOrders.map((order) => (
           <article

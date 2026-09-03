@@ -34,6 +34,7 @@ import { mockOrders } from "@/data/mock/orders";
 import { mockTechnicians } from "@/data/mock/technicians";
 import { formatCurrencyUsd } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 const statusClassMap: Record<string, string> = {
   completed: styles.statusCompleted,
@@ -298,38 +299,48 @@ export default function AdminDashboardPage() {
 
       <div className={styles.tableCard}>
         <h3 className={styles.tableTitle}>Recent Requests</h3>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Order ID</th>
-              <th>Customer</th>
-              <th>Service</th>
-              <th>Technician</th>
-              <th>Status</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentRequests.map((request) => (
-              <tr key={request.id}>
-                <td>{request.id}</td>
-                <td>{request.customer}</td>
-                <td>{request.service}</td>
-                <td>{request.technician}</td>
-                <td>
-                  <span
-                    className={`${styles.statusBadge} ${
-                      statusClassMap[request.status] ?? ""
-                    }`}
-                  >
-                    {formatStatusLabel(request.status)}
-                  </span>
-                </td>
-                <td>{request.amount}</td>
+        {recentRequests.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            title="No recent service requests"
+            description="Recent customer intake requests and orders will appear here."
+            tone="minimal"
+            className="py-10"
+          />
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Service</th>
+                <th>Technician</th>
+                <th>Status</th>
+                <th>Amount</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {recentRequests.map((request) => (
+                <tr key={request.id}>
+                  <td>{request.id}</td>
+                  <td>{request.customer}</td>
+                  <td>{request.service}</td>
+                  <td>{request.technician}</td>
+                  <td>
+                    <span
+                      className={`${styles.statusBadge} ${
+                        statusClassMap[request.status] ?? ""
+                      }`}
+                    >
+                      {formatStatusLabel(request.status)}
+                    </span>
+                  </td>
+                  <td>{request.amount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

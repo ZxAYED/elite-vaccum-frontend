@@ -6,6 +6,7 @@ import {
   Eye,
   Mail,
   Phone,
+  Search,
   UserRound,
   XCircle,
   Download,
@@ -22,6 +23,7 @@ import {
 } from "@/components/admin/AdminPageShell";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Select,
   SelectContent,
@@ -261,9 +263,26 @@ export function AdminCustomersClient() {
         </div>
 
         {filteredCustomers.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center text-sm text-slate-600">
-            No customers match the current search and filter.
-          </div>
+          <EmptyState
+            icon={query ? Search : UserRound}
+            title={query ? "No matching customers" : "No customers found"}
+            description={
+              query
+                ? `No customers matched "${query}". Try a different search term or filter.`
+                : "Registered customer accounts will appear here once customers create accounts or submit requests."
+            }
+            action={
+              query
+                ? {
+                    label: "Clear Search",
+                    onClick: () => setQuery(""),
+                    variant: "outline",
+                  }
+                : undefined
+            }
+            tone="dashed"
+            className="py-16"
+          />
         ) : (
           <>
             <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">

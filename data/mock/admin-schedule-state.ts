@@ -2,7 +2,6 @@ import { mockServices } from "@/data/mock/services";
 import {
   getSharedCustomerById,
   getSharedQuotationForRequest,
-  getSharedServiceRequestById,
 } from "@/data/mock/shared-business-store";
 import type {
   AdminScheduleRecord,
@@ -329,17 +328,7 @@ function createServiceOrderFromRequest(request: ServiceRequest): AdminServiceOrd
   };
 }
 
-const seededServiceOrders: AdminServiceOrder[] = [
-  createServiceOrderFromRequest(
-    getSharedServiceRequestById("REQ-1006") ?? getSharedServiceRequestById("REQ-1001")!,
-  ),
-  createServiceOrderFromRequest(
-    getSharedServiceRequestById("REQ-1007") ?? getSharedServiceRequestById("REQ-1002")!,
-  ),
-  createServiceOrderFromRequest(
-    getSharedServiceRequestById("REQ-1009") ?? getSharedServiceRequestById("REQ-1003")!,
-  ),
-];
+const seededServiceOrders: AdminServiceOrder[] = [];
 
 function createScheduleFromOrder(
   order: AdminServiceOrder,
@@ -375,14 +364,7 @@ function createScheduleFromOrder(
   };
 }
 
-const seededSchedules: AdminScheduleRecord[] = [
-  createScheduleFromOrder(seededServiceOrders[0]),
-  createScheduleFromOrder(seededServiceOrders[1], {
-    status: "completed",
-    updatedAt: "2026-07-12T12:30:00.000Z",
-    deletionEligible: false,
-  }),
-];
+const seededSchedules: AdminScheduleRecord[] = [];
 
 let serviceOrdersState = clone(seededServiceOrders);
 let schedulesState = clone(seededSchedules);

@@ -32,8 +32,24 @@ export const mockCurrentUser: User = {
   customerId: "cust-1001",
 };
 
+const fallbackCustomer: Customer = {
+  id: "cust-1001",
+  displayName: "Customer Account",
+  firstName: "Customer",
+  lastName: "Account",
+  email: "customer@example.com",
+  phone: "+1 (203) 555-0148",
+  status: "active",
+  joinedAt: "2025-03-15T10:00:00.000Z",
+  totalOrders: 0,
+  lifetimeValueUsd: 0,
+  addresses: [],
+};
+
 export const mockCurrentCustomer: Customer =
-  mockCustomers.find((customer) => customer.id === "cust-1001") ?? mockCustomers[0];
+  mockCustomers.find((customer) => customer.id === "cust-1001") ??
+  mockCustomers[0] ??
+  fallbackCustomer;
 
 export const mockSavedProperties: SavedProperty[] = [
   {

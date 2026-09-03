@@ -29,6 +29,7 @@ import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -454,140 +455,158 @@ export function AdminOrdersClient() {
           </Select>
         </div>
 
-        <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">
-          <div className="grid grid-cols-[160px_120px_1.1fr_1.4fr_140px_140px_120px_96px] bg-teal-50/60 px-5 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
-            <span>Order</span>
-            <span>Type</span>
-            <span>Customer</span>
-            <span>Summary</span>
-            <span>Total</span>
-            <span>Status</span>
-            <span>Date</span>
-            <span className="text-right">Actions</span>
-          </div>
-          <div className="divide-y divide-teal-100 bg-white">
-            {filteredOrders.map((order) => {
-              const customer = getCustomerSummary(order);
-              const summary = getOrderSummary(order);
-
-              return (
-                <div
-                  className="grid grid-cols-[160px_120px_1.1fr_1.4fr_140px_140px_120px_96px] items-center gap-4 px-5 py-4"
-                  key={order.id}
-                >
-                  <div>
-                    <p className="font-semibold text-slate-950">{order.id}</p>
-                    {order.type === "SERVICE" ? (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Request {order.serviceRequestId}
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs text-slate-500">
-                        {order.items.length} item{order.items.length === 1 ? "" : "s"}
-                      </p>
-                    )}
-                  </div>
-                  <TypeBadge type={order.type} />
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900">
-                      {customer.name}
-                    </p>
-                    <p className="truncate text-sm text-slate-500">
-                      {customer.email}
-                    </p>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-900">
-                      {summary.title}
-                    </p>
-                    <p className="truncate text-sm text-slate-500">
-                      {summary.meta}
-                    </p>
-                  </div>
-                  <p className="font-semibold text-slate-950">
-                    {formatCurrencyUsd(getOrderTotal(order))}
-                  </p>
-                  <StatusBadge status={order.status} />
-                  <p className="text-sm text-slate-600">
-                    {formatShortDate(order.createdAt)}
-                  </p>
-                  <div className="flex justify-end">
-                    <OrdersRowActions order={order} onCancel={openCancellation} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid gap-4 xl:hidden">
-          {filteredOrders.map((order) => {
-            const customer = getCustomerSummary(order);
-            const summary = getOrderSummary(order);
-
-            return (
-              <div
-                className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_16px_42px_-34px_rgba(28,79,80,0.22)]"
-                key={order.id}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <TypeBadge type={order.type} />
-                      <StatusBadge status={order.status} />
-                    </div>
-                    <p className="text-lg font-semibold text-slate-950">{order.id}</p>
-                    <p className="text-sm text-slate-500">
-                      {formatShortDate(order.createdAt)}
-                    </p>
-                  </div>
-                  <OrdersRowActions order={order} onCancel={openCancellation} />
-                </div>
-
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                      Customer
-                    </p>
-                    <p className="mt-2 font-medium text-slate-900">{customer.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">{customer.email}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                      Summary
-                    </p>
-                    <p className="mt-2 font-medium text-slate-900">{summary.title}</p>
-                    <p className="mt-1 text-sm text-slate-500">{summary.meta}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3">
-                  <span className="text-sm text-slate-500">
-                    {getOrderActionLabel(order)}
-                  </span>
-                  <div className="flex items-center gap-4">
-                    <span className="font-semibold text-slate-950">
-                      {formatCurrencyUsd(getOrderTotal(order))}
-                    </span>
-                    <Link
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800"
-                      href={`/admin/orders/${order.id}`}
-                    >
-                      View
-                      <ChevronRight size={16} />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
         {filteredOrders.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center text-sm text-slate-600">
-            No orders matched the current filters.
-          </div>
-        ) : null}
+          <EmptyState
+            icon={Package}
+            title={search ? "No matching orders" : "No orders found"}
+            description={
+              search
+                ? `No orders matched "${search}". Try adjusting your search query or reset filters.`
+                : "Customer merchandise purchases and approved service orders will appear in this unified commerce feed."
+            }
+            action={
+              search
+                ? {
+                    label: "Clear Search",
+                    onClick: () => setSearch(""),
+                  }
+                : undefined
+            }
+            tone="dashed"
+            className="py-16"
+          />
+        ) : (
+          <>
+            <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">
+              <div className="grid grid-cols-[160px_120px_1.1fr_1.4fr_140px_140px_120px_96px] bg-teal-50/60 px-5 py-3 text-xs font-bold uppercase tracking-[0.24em] text-slate-500">
+                <span>Order</span>
+                <span>Type</span>
+                <span>Customer</span>
+                <span>Summary</span>
+                <span>Total</span>
+                <span>Status</span>
+                <span>Date</span>
+                <span className="text-right">Actions</span>
+              </div>
+              <div className="divide-y divide-teal-100 bg-white">
+                {filteredOrders.map((order) => {
+                  const customer = getCustomerSummary(order);
+                  const summary = getOrderSummary(order);
+
+                  return (
+                    <div
+                      className="grid grid-cols-[160px_120px_1.1fr_1.4fr_140px_140px_120px_96px] items-center gap-4 px-5 py-4"
+                      key={order.id}
+                    >
+                      <div>
+                        <p className="font-semibold text-slate-950">{order.id}</p>
+                        {order.type === "SERVICE" ? (
+                          <p className="mt-1 text-xs text-slate-500">
+                            Request {order.serviceRequestId}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-slate-500">
+                            {order.items.length} item{order.items.length === 1 ? "" : "s"}
+                          </p>
+                        )}
+                      </div>
+                      <TypeBadge type={order.type} />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-900">
+                          {customer.name}
+                        </p>
+                        <p className="truncate text-sm text-slate-500">
+                          {customer.email}
+                        </p>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-900">
+                          {summary.title}
+                        </p>
+                        <p className="truncate text-sm text-slate-500">
+                          {summary.meta}
+                        </p>
+                      </div>
+                      <p className="font-semibold text-slate-950">
+                        {formatCurrencyUsd(getOrderTotal(order))}
+                      </p>
+                      <StatusBadge status={order.status} />
+                      <p className="text-sm text-slate-600">
+                        {formatShortDate(order.createdAt)}
+                      </p>
+                      <div className="flex justify-end">
+                        <OrdersRowActions order={order} onCancel={openCancellation} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-4 xl:hidden">
+              {filteredOrders.map((order) => {
+                const customer = getCustomerSummary(order);
+                const summary = getOrderSummary(order);
+
+                return (
+                  <div
+                    className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_16px_42px_-34px_rgba(28,79,80,0.22)]"
+                    key={order.id}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <TypeBadge type={order.type} />
+                          <StatusBadge status={order.status} />
+                        </div>
+                        <p className="text-lg font-semibold text-slate-950">{order.id}</p>
+                        <p className="text-sm text-slate-500">
+                          {formatShortDate(order.createdAt)}
+                        </p>
+                      </div>
+                      <OrdersRowActions order={order} onCancel={openCancellation} />
+                    </div>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                          Customer
+                        </p>
+                        <p className="mt-2 font-medium text-slate-900">{customer.name}</p>
+                        <p className="mt-1 text-sm text-slate-500">{customer.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                          Summary
+                        </p>
+                        <p className="mt-2 font-medium text-slate-900">{summary.title}</p>
+                        <p className="mt-1 text-sm text-slate-500">{summary.meta}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3">
+                      <span className="text-sm text-slate-500">
+                        {getOrderActionLabel(order)}
+                      </span>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold text-slate-950">
+                          {formatCurrencyUsd(getOrderTotal(order))}
+                        </span>
+                        <Link
+                          className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800"
+                          href={`/admin/orders/${order.id}`}
+                        >
+                          View
+                          <ChevronRight size={16} />
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </AdminSurface>
 
       <Dialog

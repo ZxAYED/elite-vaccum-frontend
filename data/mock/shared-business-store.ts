@@ -84,7 +84,7 @@ type QuotationMutationInput = {
   revisionReason?: string;
 };
 
-const STORAGE_KEY = "elite-shared-business-store-v1";
+const STORAGE_KEY = "elite-shared-business-store-v3";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;

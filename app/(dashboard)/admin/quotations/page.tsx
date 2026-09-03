@@ -5,6 +5,7 @@ import {
   Edit3,
   FileText,
   Plus,
+  Search,
   Send,
   Trash2,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import {
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -318,15 +320,26 @@ export default function AdminQuotationsPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 p-8 text-center">
-            <FileText className="mx-auto size-8 text-teal-700" />
-            <h2 className="mt-3 text-xl font-semibold text-primary">
-              No quotations found
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Adjust your filters or create a quotation from an accepted service request.
-            </p>
-          </div>
+          <EmptyState
+            icon={query ? Search : FileText}
+            title={query ? "No matching quotations" : "No quotations generated yet"}
+            description={
+              query
+                ? `No quotations matched "${query}". Try adjusting your search query or status filter.`
+                : "Create and dispatch formal quotations for incoming customer service requests."
+            }
+            action={
+              query
+                ? {
+                    label: "Clear Search",
+                    onClick: () => setQuery(""),
+                    variant: "outline",
+                  }
+                : undefined
+            }
+            tone="dashed"
+            className="py-14"
+          />
         )}
       </AdminSurface>
 

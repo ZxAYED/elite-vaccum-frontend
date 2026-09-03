@@ -131,12 +131,25 @@ let technicianSettingsState = {
   timezone: "et",
 };
 
+const fallbackTechnician: AdminTechnician = {
+  id: mockCurrentTechnicianId,
+  userId: "user-tech-002",
+  displayName: "Field Technician",
+  email: "technician@elitevacuum.com",
+  phone: "+1 (203) 555-0100",
+  status: "ACTIVE",
+  availability: "AVAILABLE",
+  rating: 5,
+  completedJobs: 0,
+  verified: true,
+  specializations: ["General Diagnostics", "Repairs"],
+  createdAt: "2025-01-01T00:00:00.000Z",
+  updatedAt: "2025-01-01T00:00:00.000Z",
+};
+
 export function getCurrentTechnicianProfile(): AdminTechnician {
   const technician = getAdminTechnicianById(mockCurrentTechnicianId);
-  if (!technician) {
-    throw new Error(`Missing technician seed for ${mockCurrentTechnicianId}`);
-  }
-  return technician;
+  return technician ?? fallbackTechnician;
 }
 
 export function getTechnicianOrderById(serviceOrderId: string) {

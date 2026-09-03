@@ -7,6 +7,7 @@ import { ArrowRight, CalendarDays, Clock3, Loader2, UserRound } from "lucide-rea
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useGetMyServiceOrdersQuery } from "@/redux/api/serviceOrdersApi";
 import { getDashboardScheduleItems } from "@/data/mock/customer-dashboard";
 import { formatLongDate } from "@/lib/formatters";
@@ -68,22 +69,21 @@ export function UserScheduleClient() {
       {!isLoading && (
         <div className="space-y-4">
           {displayOrders.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
-                <CalendarDays size={22} />
-              </div>
-              <h2 className="mt-3 text-base font-semibold text-slate-900">
-                {activeTab === "upcoming" ? "No upcoming appointments scheduled" : "No completed visits yet"}
-              </h2>
-              <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600">
-                {activeTab === "upcoming"
-                  ? "When an admin approves and schedules your request, dispatch details will appear here."
-                  : "Completed service orders and technician service reports will appear here."}
-              </p>
-              <Button asChild size="sm" className="mt-5 rounded-md font-medium">
-                <Link href="/services">Book a Service Visit</Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={CalendarDays}
+              title={activeTab === "upcoming" ? "No upcoming appointments scheduled" : "No completed visits yet"}
+              description={
+                activeTab === "upcoming"
+                  ? "When an admin approves and schedules your request, dispatch details and arrival window will appear here."
+                  : "Completed service orders and technician service reports will appear here."
+              }
+              action={{
+                label: "Book a Service Visit",
+                href: "/services",
+              }}
+              tone="card"
+              className="py-12"
+            />
           ) : (
             displayOrders.map((orderItem) => {
               const order = orderItem as unknown as Record<string, unknown>;

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import { getBillingRecordsForCustomer } from "@/data/mock/shared-billing";
 import { mockCurrentCustomer } from "@/data/mock/user";
@@ -125,20 +126,26 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       {tab === "invoices" ? (
         <div className="space-y-4">
           {invoices.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
-                <FileText size={22} />
-              </div>
-              <p className="mt-3 text-base font-semibold text-slate-900">No matching invoices</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Try adjusting your search query or type filter.
-              </p>
-              {(query || type !== "ALL") ? (
-                <Button asChild size="sm" variant="outline" className="mt-4 rounded-md">
-                  <Link href="/user/billing?tab=invoices">Clear all filters</Link>
-                </Button>
-              ) : null}
-            </div>
+            records.invoices.length === 0 ? (
+              <EmptyState
+                icon={FileText}
+                title="No invoices found"
+                description="Completed product orders and accepted service visits will generate downloadable invoices here."
+                action={{ label: "Browse Store", href: "/store" }}
+                secondaryAction={{ label: "Request Service", href: "/services" }}
+                tone="card"
+                className="py-12"
+              />
+            ) : (
+              <EmptyState
+                icon={Search}
+                title="No matching invoices"
+                description="No invoices match your current search query or type filter."
+                action={{ label: "Clear all filters", href: "/user/billing?tab=invoices", variant: "outline" }}
+                tone="dashed"
+                className="py-10"
+              />
+            )
           ) : null}
           {invoices.map((invoice) => (
             <article
@@ -180,20 +187,24 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       ) : (
         <div className="space-y-4">
           {payments.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
-                <CreditCard size={22} />
-              </div>
-              <p className="mt-3 text-base font-semibold text-slate-900">No matching payments</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Try adjusting your search query or type filter.
-              </p>
-              {(query || type !== "ALL") ? (
-                <Button asChild size="sm" variant="outline" className="mt-4 rounded-md">
-                  <Link href="/user/billing?tab=payments">Clear all filters</Link>
-                </Button>
-              ) : null}
-            </div>
+            records.payments.length === 0 ? (
+              <EmptyState
+                icon={CreditCard}
+                title="No payments recorded"
+                description="Processed payments and settlement receipts will appear here once orders are confirmed."
+                tone="card"
+                className="py-12"
+              />
+            ) : (
+              <EmptyState
+                icon={Search}
+                title="No matching payments"
+                description="No payments match your current search query or type filter."
+                action={{ label: "Clear all filters", href: "/user/billing?tab=payments", variant: "outline" }}
+                tone="dashed"
+                className="py-10"
+              />
+            )
           ) : null}
           {payments.map((payment) => (
             <article

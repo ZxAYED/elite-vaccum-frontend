@@ -141,7 +141,12 @@ function createProductOrdersSeed(): BillingProductOrderState[] {
   const customers = mockCustomers;
   const customer = customers[0] ?? mockCurrentCustomer;
   const products = mockProducts;
-  const primaryAddress = customer.addresses[0];
+  const primaryAddress = customer.addresses[0] ?? {
+    line1: "123 Heritage Lane",
+    city: "Greenwich",
+    state: "CT",
+    postalCode: "06830",
+  };
 
   return sharedProductOrderSeed.map((order, index) => {
     const subtotalUsd = order.items.reduce(

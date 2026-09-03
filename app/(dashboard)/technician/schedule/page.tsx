@@ -10,6 +10,7 @@ import {
   TechnicianRouteShell,
 } from "@/components/technician/TechnicianRouteShell";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -271,9 +272,13 @@ function ScheduleSection({
       <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
       <div className="mt-5 space-y-3">
         {entries.length === 0 ? (
-          <div className="rounded-xl bg-slate-50 px-4 py-6 text-sm text-slate-600">
-            {emptyText}
-          </div>
+          <EmptyState
+            icon={CalendarDays}
+            title={emptyText}
+            description="Assigned appointments and visits will appear here once booked."
+            tone="minimal"
+            className="py-6"
+          />
         ) : (
           entries.map((entry) => (
             <article key={entry.schedule.id} className="rounded-xl bg-slate-50 p-4">

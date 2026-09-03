@@ -18,6 +18,7 @@ import {
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import { useGetMyServiceRequestsQuery } from "@/redux/api/serviceRequestsApi";
 import { useGetMyQuotationsQuery } from "@/redux/api/quotationsApi";
@@ -161,22 +162,29 @@ export function UserServicesClient() {
       {!isLoadingRequests && (
         <div className="space-y-4 sm:space-y-5">
           {displayedRequests.length === 0 ? (
-            <div className="rounded-lg bg-teal-50/40 p-12 text-center">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
-                <Wrench size={26} />
-              </div>
-              <h2 className="mt-4 text-xl sm:text-2xl font-semibold text-slate-800">
-                {searchQuery ? "No matching service requests found" : "No service requests found"}
-              </h2>
-              <p className="mx-auto mt-1.5 max-w-md text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                {searchQuery
+            <EmptyState
+              icon={searchQuery ? Search : Wrench}
+              title={searchQuery ? "No matching service requests" : "No service requests found"}
+              description={
+                searchQuery
                   ? `No requests matched "${searchQuery}". Try a different keyword or reset filters.`
-                  : "Submit an intake ticket to schedule professional inspection or repair for your central vacuum."}
-              </p>
-              <Button asChild size="sm" className="mt-6 rounded-md bg-teal-600 hover:bg-teal-500 font-medium text-white shadow-xs">
-                <Link href="/services">Start New Service Request</Link>
-              </Button>
-            </div>
+                  : "Submit an intake ticket to schedule professional inspection, diagnostic repair, or a turnkey central vacuum installation."
+              }
+              action={{
+                label: "Start New Service Request",
+                href: "/services",
+              }}
+              secondaryAction={
+                searchQuery
+                  ? {
+                      label: "Clear Search",
+                      onClick: () => setSearchQuery(""),
+                    }
+                  : undefined
+              }
+              tone="card"
+              className="py-12"
+            />
           ) : (
             displayedRequests.map((request) => {
               const reqAny = request as unknown as {

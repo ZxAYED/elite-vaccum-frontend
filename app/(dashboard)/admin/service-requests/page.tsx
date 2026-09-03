@@ -5,9 +5,9 @@ import {
   ClipboardCheck,
   Eye,
   Download,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { useGetAdminServiceRequestsQuery } from "@/redux/api/serviceRequestsApi";
 import { downloadReportCsv } from "@/lib/exportCsv";
@@ -21,6 +21,7 @@ import {
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Select,
   SelectContent,
@@ -338,19 +339,24 @@ export default function AdminServiceRequestsPage() {
 
           {serviceRequests.length === 0 ? (
             <EmptyState
-              action={<Button>Refresh</Button>}
-              title="No service requests yet."
-              text="New customer requests will appear here."
+              icon={ClipboardCheck}
+              title="No service requests yet"
+              description="New customer service intake tickets and diagnostic requests will appear here for triage."
+              tone="dashed"
+              className="py-14"
             />
           ) : filteredRequests.length === 0 ? (
             <EmptyState
-              action={
-                <Button variant="outline" onClick={clearFilters}>
-                  Clear Filters
-                </Button>
-              }
-              title="No service requests match your filters."
-              text="Try a different search term, service, or status."
+              icon={Search}
+              title="No service requests match your filters"
+              description="Try adjusting your search query, service filter, or status selection."
+              action={{
+                label: "Clear Filters",
+                onClick: clearFilters,
+                variant: "outline",
+              }}
+              tone="dashed"
+              className="py-12"
             />
           ) : (
             <>
@@ -554,21 +560,3 @@ function InfoTile({ label, value }: { label: string; value: string }) {
   );
 }
 
-function EmptyState({
-  action,
-  text,
-  title,
-}: {
-  action: ReactNode;
-  text: string;
-  title: string;
-}) {
-  return (
-    <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
-      <ClipboardCheck className="mx-auto text-teal-700" size={34} />
-      <h2 className="mt-4 text-xl font-semibold text-teal-950">{title}</h2>
-      <p className="mt-2 text-sm text-slate-600">{text}</p>
-      <div className="mt-5">{action}</div>
-    </div>
-  );
-}

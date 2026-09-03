@@ -3,6 +3,8 @@
 import {
   MoreHorizontal,
   Plus,
+  Search,
+  UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -16,6 +18,7 @@ import {
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -271,20 +274,36 @@ export function AdminTechniciansClient() {
         </div>
 
         {filteredTechnicians.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
-            <p className="text-sm text-slate-600">No technicians match your filters.</p>
-            <Button
-              className="mt-4"
-              onClick={() => {
-                setSearch("");
-                setFilter("all");
-                setSort("name-asc");
+          technicians.length === 0 ? (
+            <EmptyState
+              icon={UserCheck}
+              title="No technicians found"
+              description="Add field technicians to assign service dispatch jobs, evaluate territory coverage, and track work orders."
+              action={{
+                label: "Add Technician",
+                onClick: openCreate,
               }}
-              variant="outline"
-            >
-              Clear Filters
-            </Button>
-          </div>
+              tone="dashed"
+              className="py-16"
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No technicians match your filters"
+              description="Try adjusting your search query, status filter, or sort selection."
+              action={{
+                label: "Clear Filters",
+                onClick: () => {
+                  setSearch("");
+                  setFilter("all");
+                  setSort("name-asc");
+                },
+                variant: "outline",
+              }}
+              tone="dashed"
+              className="py-12"
+            />
+          )
         ) : (
           <>
             <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">

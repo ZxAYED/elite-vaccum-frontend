@@ -19,6 +19,7 @@ import {
   TechnicianRouteShell,
 } from "@/components/technician/TechnicianRouteShell";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   getCurrentTechnicianProfile,
   getTechnicianCustomerLabel,
@@ -83,9 +84,17 @@ export default function TechnicianOverviewPage() {
 
           <div className="mt-5 space-y-4">
             {todaysOrders.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-4 py-8 text-center text-sm text-slate-600">
-                No jobs scheduled for today.
-              </div>
+              <EmptyState
+                icon={CalendarDays}
+                title="No jobs scheduled for today"
+                description="You have no assigned jobs for today. Check upcoming appointments or view your calendar schedule."
+                action={{
+                  label: "View Full Schedule",
+                  href: "/technician/schedule",
+                }}
+                tone="dashed"
+                className="py-10"
+              />
             ) : (
               todaysOrders.map((order) => (
                 <article
@@ -221,9 +230,13 @@ export default function TechnicianOverviewPage() {
                     </Link>
                   ))
                 ) : (
-                  <div className="rounded-xl bg-slate-50 px-4 py-6 text-sm text-slate-600">
-                    No upcoming assignments.
-                  </div>
+                  <EmptyState
+                    icon={CalendarDays}
+                    title="No upcoming assignments"
+                    description="New dispatch assignments will appear here once assigned by dispatchers."
+                    tone="dashed"
+                    className="py-8"
+                  />
                 )
               ) : (
                 upcomingOrders.map((order) => (
