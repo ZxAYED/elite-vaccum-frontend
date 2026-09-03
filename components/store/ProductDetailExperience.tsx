@@ -11,8 +11,8 @@ import { formatCurrencyUsd } from "@/lib/formatters";
 import { toast } from "sonner";
 import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { addToCart } from "@/redux/slices/cartSlice";
+import { useAppSelector } from "@/redux/hooks";
+import { useCartSync } from "@/hooks/useCartSync";
 import type { Product } from "@/types/domain";
 
 import { QuantityControl } from "./QuantityControl";
@@ -30,7 +30,7 @@ export function ProductDetailExperience({
   categoryName,
 }: ProductDetailExperienceProps) {
   const router = useRouter();
-  const dispatch = useAppDispatch();
+  const { addProduct } = useCartSync();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   const galleryImages = mockProductGalleryImagesById[product.id] ?? [];
@@ -45,7 +45,7 @@ export function ProductDetailExperience({
   const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0];
   const productHighlights = product.highlights ?? [];
 
-  const handleAction = (destination: "/checkout" | "/cart") => {
+  const handleAction = async (destination: "/checkout" | "/cart") => {
     const token = getCookie(AUTH_TOKEN_KEY);
 
     if (!isAuthenticated && !token) {
@@ -55,13 +55,7 @@ export function ProductDetailExperience({
       return;
     }
 
-    dispatch(
-      addToCart({
-        productId: product.id,
-        quantity,
-        product,
-      })
-    );
+    await addProduct(product, quantity);
 
     toast.success("Added to cart", {
       description: `${quantity} × ${product.name} added.`,

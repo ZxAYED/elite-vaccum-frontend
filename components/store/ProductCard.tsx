@@ -12,8 +12,8 @@ import { formatCurrencyUsd } from "@/lib/formatters";
 import { toast } from "sonner";
 import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
-import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { addToCart } from "@/redux/slices/cartSlice";
+import { useAppSelector } from "@/redux/hooks";
+import { useCartSync } from "@/hooks/useCartSync";
 import type { Product } from "@/types/domain";
 
 interface ProductCardProps {
@@ -23,11 +23,11 @@ interface ProductCardProps {
 
 export function ProductCard({ product, priority = false }: ProductCardProps) {
   const router = useRouter();
-  const dispatch = useAppDispatch();
+  const { addProduct } = useCartSync();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
   const productImage = mockProductImagesById[product.id];
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     const token = getCookie(AUTH_TOKEN_KEY);
 
@@ -36,13 +36,7 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
       return;
     }
 
-    dispatch(
-      addToCart({
-        productId: product.id,
-        quantity: 1,
-        product,
-      })
-    );
+    await addProduct(product, 1);
     toast.success("Added to cart", {
       description: `${product.name} has been added to your cart.`,
     });

@@ -202,11 +202,20 @@ export interface ProductCategory {
   status: ServiceCatalogStatus;
   createdAt: string;
   updatedAt: string;
+  productCount?: number;
+  imageUrl?: string;
+  sortOrder?: number;
 }
 
 export interface Product {
   id: string;
   categoryId: string;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  categorySlug?: string;
   slug: string;
   name: string;
   sku?: string;

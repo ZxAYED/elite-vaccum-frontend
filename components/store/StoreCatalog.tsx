@@ -11,6 +11,9 @@ import { mockProductCategories } from "@/data/mock/products";
 import { cn } from "@/lib/utils";
 import type { Product, ProductAvailability } from "@/types/domain";
 
+import { useGetCategoriesQuery } from "@/redux/api/categoriesApi";
+import { useGetProductsQuery, type GetProductsParams } from "@/redux/api/productsApi";
+
 import { ProductSection } from "./ProductSection";
 
 const PAGE_SIZE = 10;
@@ -79,7 +82,7 @@ function FilterOption({
   return (
     <label
       htmlFor={id}
-      className="flex items-center justify-between gap-3 rounded-[0.9rem] px-1 py-1 text-sm text-slate-600 transition hover:text-primary"
+      className="flex items-center justify-between gap-3 rounded-[0.9rem] px-1 py-1 text-sm text-slate-600 transition hover:text-primary cursor-pointer"
     >
       <span className="flex min-w-0 items-center gap-3">
         <RadioGroupItem id={id} value={value} />
@@ -90,6 +93,14 @@ function FilterOption({
       ) : null}
     </label>
   );
+}
+
+interface CatalogCategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  productCount?: number;
 }
 
 export function StoreCatalog({ products }: StoreCatalogProps) {
@@ -103,50 +114,150 @@ export function StoreCatalog({ products }: StoreCatalogProps) {
   const [accessoryPage, setAccessoryPage] = useState(1);
   const deferredQuery = useDeferredValue(query);
 
-  const categoryCounts = useMemo(
-    () =>
-      mockProductCategories.map((category) => ({
-        ...category,
-        count: products.filter((product) => product.categoryId === category.id).length,
-      })),
-    [products],
+  // 1. Fetch categories dynamically from API with fallback to mockProductCategories
+  const { data: categoriesData } = useGetCategoriesQuery({ status: "ACTIVE" });
+  const categoryApiItems = categoriesData?.items;
+
+  const categoriesList: CatalogCategoryItem[] = useMemo(() => {
+    if (categoryApiItems && categoryApiItems.length > 0) {
+      return categoryApiItems.map((cat) => ({
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug || cat.id,
+        description: cat.description || "",
+        productCount: (cat as { productCount?: number }).productCount,
+      }));
+    }
+    return mockProductCategories;
+  }, [categoryApiItems]);
+
+  // 2. Fetch products dynamically from API with parameters
+  const selectedCategoryObj = categoriesList.find(
+    (c) => c.id === categoryId || c.slug === categoryId,
   );
+  const categoryParam =
+    categoryId === "all"
+      ? undefined
+      : selectedCategoryObj?.slug || selectedCategoryObj?.id || categoryId;
+
+  const sortParam: GetProductsParams["sortBy"] =
+    productSort === "price-low-high"
+      ? "price_asc"
+      : productSort === "price-high-low"
+      ? "price_desc"
+      : productSort === "newest"
+      ? "newest"
+      : "popularity";
+
+  const { data: apiProductsData } = useGetProductsQuery({
+    category: categoryParam,
+    search: deferredQuery.trim() || undefined,
+    sortBy: sortParam,
+    status: "ACTIVE",
+  });
+  const productApiItems = apiProductsData?.items;
+
+  // Blend API products with fallback mock products
+  const activeProducts = useMemo(() => {
+    if (productApiItems && productApiItems.length > 0) {
+      return productApiItems;
+    }
+    return products;
+  }, [productApiItems, products]);
+
+  const categoryCounts = useMemo(() => {
+    return categoriesList.map((category) => {
+      const count =
+        typeof category.productCount === "number" && category.productCount > 0
+          ? category.productCount
+          : products.filter((product) => {
+              const p = product as Product & {
+                category?: { id?: string; slug?: string };
+                categorySlug?: string;
+              };
+              return (
+                p.categoryId === category.id ||
+                p.category?.id === category.id ||
+                p.category?.slug === category.slug ||
+                p.categorySlug === category.slug
+              );
+            }).length;
+
+      return {
+        ...category,
+        count,
+      };
+    });
+  }, [categoriesList, products]);
 
   const filteredProducts = useMemo(() => {
     const normalizedQuery = normalizeSearch(deferredQuery);
     const selectedPriceRange =
       priceRanges.find((range) => range.value === priceRange) ?? priceRanges[0];
 
-    return products.filter((product) => {
+    return activeProducts.filter((product) => {
+      const p = product as Product & {
+        category?: { id?: string; slug?: string };
+        categorySlug?: string;
+      };
       const matchesQuery =
         normalizedQuery.length === 0 ||
-        [product.name, product.summary, product.description, product.eyebrow]
+        [p.name, p.summary, p.description, p.eyebrow]
           .filter(Boolean)
           .some((value) => value?.toLowerCase().includes(normalizedQuery));
+
       const matchesCategory =
-        categoryId === "all" || product.categoryId === categoryId;
+        categoryId === "all" ||
+        p.categoryId === categoryId ||
+        p.category?.id === categoryId ||
+        p.category?.slug === categoryId ||
+        p.categorySlug === categoryId;
+
+      const price =
+        typeof p.priceUsd === "number"
+          ? p.priceUsd
+          : Number(p.priceUsd) || 0;
       const matchesPrice =
-        product.priceUsd >= selectedPriceRange.min &&
-        product.priceUsd <= selectedPriceRange.max;
+        price >= selectedPriceRange.min && price <= selectedPriceRange.max;
+
       const matchesAvailability =
-        availability === "all" || product.availability === availability;
+        availability === "all" || p.availability === availability;
 
       return matchesQuery && matchesCategory && matchesPrice && matchesAvailability;
     });
-  }, [availability, categoryId, deferredQuery, priceRange, products]);
+  }, [activeProducts, availability, categoryId, deferredQuery, priceRange]);
 
   const productItems = useMemo(
     () =>
       sortProducts(
-        filteredProducts.filter((product) => product.categoryId === PRODUCT_CATEGORY_ID),
+        filteredProducts.filter((product) => {
+          const p = product as Product & {
+            category?: { id?: string; slug?: string; name?: string };
+          };
+          return (
+            p.categoryId === PRODUCT_CATEGORY_ID ||
+            p.category?.slug === "central-vacuum-units" ||
+            p.category?.name?.toLowerCase().includes("unit")
+          );
+        }),
         productSort,
       ),
     [filteredProducts, productSort],
   );
+
   const accessoryItems = useMemo(
     () =>
       sortProducts(
-        filteredProducts.filter((product) => product.categoryId !== PRODUCT_CATEGORY_ID),
+        filteredProducts.filter((product) => {
+          const p = product as Product & {
+            category?: { id?: string; slug?: string; name?: string };
+          };
+          return (
+            p.categoryId !== PRODUCT_CATEGORY_ID &&
+            p.category?.slug !== "central-vacuum-units" &&
+            !p.category?.name?.toLowerCase().includes("unit")
+          );
+        }),
         accessorySort,
       ),
     [accessorySort, filteredProducts],
@@ -245,13 +356,13 @@ export function StoreCatalog({ products }: StoreCatalogProps) {
                 id="category-all"
                 value="all"
                 label="All categories"
-                count={products.length}
+                count={activeProducts.length}
               />
               {categoryCounts.map((category) => (
                 <FilterOption
                   key={category.id}
                   id={`category-${category.id}`}
-                  value={category.id}
+                  value={category.slug || category.id}
                   label={category.name}
                   count={category.count}
                 />

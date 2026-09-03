@@ -4,14 +4,33 @@ import type { PaginatedResponse } from "./types";
 
 export interface GetProductsParams {
   search?: string;
+  category?: string;
   categoryId?: string;
   categorySlug?: string;
+  priceRange?: string;
   minPrice?: number;
   maxPrice?: number;
   brand?: string;
   isFeatured?: boolean;
-  availability?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "PREORDER" | "in-stock" | "special-order";
-  sort?: "price_asc" | "price_desc" | "newest" | "popular" | "name_asc";
+  availability?:
+    | "IN_STOCK"
+    | "LOW_STOCK"
+    | "OUT_OF_STOCK"
+    | "PREORDER"
+    | "BACKORDER"
+    | "DISCONTINUED"
+    | "in-stock"
+    | "special-order"
+    | "all";
+  sortBy?:
+    | "featured"
+    | "popularity"
+    | "price_asc"
+    | "price_desc"
+    | "newest"
+    | "name_asc"
+    | "name_desc";
+  sort?: string;
   status?: string;
   page?: number;
   limit?: number;
@@ -26,13 +45,65 @@ export interface UpdateStatusRequest {
   availability?: string;
 }
 
+function unwrapProductsResponse(raw: unknown): PaginatedResponse<Product> {
+  if (!raw || typeof raw !== "object") {
+    return { items: [], meta: { page: 1, limit: 12, total: 0, totalPages: 0 } };
+  }
+
+  const payload = raw as Record<string, unknown>;
+  const data = (payload.data && typeof payload.data === "object" ? payload.data : payload) as Record<string, unknown>;
+
+  let items: Product[] = [];
+  if (Array.isArray(data)) {
+    items = data as Product[];
+  } else if (Array.isArray(data.items)) {
+    items = data.items as Product[];
+  } else if (Array.isArray(payload.items)) {
+    items = payload.items as Product[];
+  }
+
+  const rawMeta = (data.meta || payload.meta) as Record<string, unknown> | undefined;
+  const meta = {
+    page: Number(rawMeta?.currentPage ?? rawMeta?.page ?? 1),
+    limit: Number(rawMeta?.perPage ?? rawMeta?.limit ?? 12),
+    total: Number(rawMeta?.totalItems ?? rawMeta?.total ?? items.length),
+    totalPages: Number(rawMeta?.totalPages ?? 1),
+  };
+
+  return { items, meta };
+}
+
+function unwrapSingleProduct(raw: unknown): Product {
+  if (raw && typeof raw === "object" && "data" in raw && raw.data) {
+    return raw.data as Product;
+  }
+  return raw as Product;
+}
+
 export const productsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProducts: builder.query<PaginatedResponse<Product>, GetProductsParams | void>({
-      query: (params) => ({
-        url: "/products",
-        params: params || undefined,
-      }),
+      query: (params) => {
+        if (!params) return { url: "/products" };
+        const queryParams: Record<string, unknown> = { ...params };
+        if (params.categorySlug || params.categoryId) {
+          queryParams.category = params.category || params.categorySlug || params.categoryId;
+        }
+        if (params.sort && !params.sortBy) {
+          const sortMap: Record<string, GetProductsParams["sortBy"]> = {
+            "price-low-high": "price_asc",
+            "price-high-low": "price_desc",
+            newest: "newest",
+            popularity: "popularity",
+          };
+          queryParams.sortBy = sortMap[params.sort] || (params.sort as GetProductsParams["sortBy"]);
+        }
+        return {
+          url: "/products",
+          params: queryParams,
+        };
+      },
+      transformResponse: unwrapProductsResponse,
       providesTags: (result) =>
         result
           ? [
@@ -43,6 +114,7 @@ export const productsApi = baseApi.injectEndpoints({
     }),
     getProductByIdOrSlug: builder.query<Product, string>({
       query: (idOrSlug) => `/products/${idOrSlug}`,
+      transformResponse: unwrapSingleProduct,
       providesTags: (result) =>
         result ? [{ type: "Product", id: result.id }] : [{ type: "Product", id: "LIST" }],
     }),
