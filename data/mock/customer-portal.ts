@@ -1,15 +1,13 @@
 import type {
   Address,
   Appointment,
+  Notification,
   PaymentStatus,
   Product,
   Quote,
   RejectionHistoryEntry,
 } from "@/types/domain";
 
-import { mockNotifications } from "@/data/mock/notifications";
-import { mockOrders } from "@/data/mock/orders";
-import { mockPayments } from "@/data/mock/payments";
 import { mockServices } from "@/data/mock/services";
 import { mockTechnicians } from "@/data/mock/technicians";
 import {
@@ -19,7 +17,7 @@ import {
   getSharedServiceRequestById,
   getSharedServiceRequests,
 } from "@/data/mock/shared-business-store";
-import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
+import { mockCurrentUser } from "@/data/mock/user";
 
 export interface QuoteLineItem {
   id: string;
@@ -237,23 +235,6 @@ export const mockCustomerPaymentMethods = [
 ];
 
 export const mockPaymentLedger: PaymentLedgerEntry[] = [
-  ...mockPayments
-    .filter((payment) => payment.customerId === mockCurrentCustomer.id)
-    .map((payment) => {
-      const relatedOrder = mockOrders.find((order) => order.id === payment.orderId);
-      return {
-        id: payment.id,
-        title: relatedOrder?.summary ?? "Service invoice",
-        category: "service" as const,
-        amountUsd: payment.amountUsd,
-        status: payment.status,
-        processedAt: payment.processedAt,
-        detail: payment.methodLabel,
-        href: relatedOrder?.serviceRequestId
-          ? `/user/services/${relatedOrder.serviceRequestId}`
-          : "/user/services",
-      };
-    }),
   ...mockCustomerProductOrders.map((order) => ({
     id: `pay-${order.id.toLowerCase()}`,
     title: `Store order ${order.id}`,
@@ -270,15 +251,13 @@ export const mockPaymentLedger: PaymentLedgerEntry[] = [
 );
 
 export const mockNotificationHrefById: Record<string, string> = {
-  "notif-1001": "/user/services/REQ-1001#quote",
+  "notif-1001": "/user/services/REQ-1001#quotation",
   "notif-1002": "/user/services/REQ-1006#appointment",
   "notif-1003": "/user/billing",
   "notif-1004": "/user/services",
 };
 
-export const mockCustomerNotifications = mockNotifications.filter(
-  (notification) => notification.userId === mockCurrentUser.id,
-);
+export const mockCustomerNotifications: Notification[] = [];
 
 export function getServiceRequestById(requestId: string) {
   const request = getSharedServiceRequestById(requestId);

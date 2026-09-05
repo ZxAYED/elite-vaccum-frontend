@@ -3,7 +3,6 @@
 import {
   Archive,
   CheckCircle2,
-  ChevronDown,
   Edit3,
   MoreHorizontal,
   Plus,
@@ -13,7 +12,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
-import { AdminPageHeader, AdminPageShell } from "@/components/admin/AdminPageShell";
+import { AdminPageHeader, AdminPageShell, AdminStatCard } from "@/components/admin/AdminPageShell";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
 import {
@@ -45,8 +44,15 @@ import {
   toggleSharedProductStatus,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import {
+  useGetProductsQuery,
+  useDeleteProductMutation,
+  useUpdateProductStatusMutation,
+} from "@/redux/api/productsApi";
+import { useGetCategoriesQuery } from "@/redux/api/categoriesApi";
 import { formatCurrencyUsd } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Product } from "@/types/domain";
 
 type ProductStatusFilter = "all" | "active" | "draft" | "archived";
@@ -66,8 +72,20 @@ export function AdminProductsClient() {
   const [sort, setSort] = useState<ProductSort>("newest");
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
-  const products = getSharedProducts();
-  const categories = getSharedCategories();
+  const { data: apiProductsData } = useGetProductsQuery({ status: "ALL", limit: 100 });
+  const { data: apiCategoriesData } = useGetCategoriesQuery({ limit: 50 });
+  const [deleteProductMutation] = useDeleteProductMutation();
+  const [updateProductStatusMutation] = useUpdateProductStatusMutation();
+
+  const sharedProducts = getSharedProducts();
+  const products = (apiProductsData?.items && apiProductsData.items.length > 0)
+    ? apiProductsData.items
+    : sharedProducts;
+
+  const sharedCategories = getSharedCategories();
+  const categories = (apiCategoriesData?.items && apiCategoriesData.items.length > 0)
+    ? apiCategoriesData.items
+    : sharedCategories;
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredProducts = products
@@ -128,12 +146,37 @@ export function AdminProductsClient() {
     return categories.find((category) => category.id === categoryId)?.name ?? "Unknown";
   }
 
+  async function handleDelete(target: Product) {
+    try {
+      await deleteProductMutation(target.id).unwrap();
+    } catch {
+      // Fallback to local store
+    }
+    deleteSharedProduct(target.id);
+    toast.success(`Product "${target.name}" deleted.`);
+    setDeleteTarget(null);
+  }
+
+  async function handleToggleStatus(target: Product) {
+    const nextStatus = target.status === "active" ? "archived" : "active";
+    try {
+      await updateProductStatusMutation({
+        id: target.id,
+        data: { status: nextStatus.toUpperCase() },
+      }).unwrap();
+    } catch {
+      // Fallback to local store
+    }
+    toggleSharedProductStatus(target.id);
+    toast.success(`Product is now ${nextStatus}.`);
+  }
+
   return (
     <AdminPageShell>
       <AdminPageHeader
         eyebrow="Catalog"
         title="Products"
-        description="Manage storefront products from the same shared mock source used by categories and public product data."
+        description="Manage storefront products with unified customer & admin backend API sync."
         action={
           <Button asChild>
             <Link href="/admin/products/new">
@@ -144,90 +187,108 @@ export function AdminProductsClient() {
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-4">
-        {[
-          { label: "Total Products", value: totals.total },
-          { label: "Active", value: totals.active },
-          { label: "Draft", value: totals.draft },
-          { label: "Inactive", value: totals.inactive },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-teal-100 bg-white p-4">
-            <p className="text-sm text-slate-500">{stat.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-primary">{stat.value}</p>
-          </div>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminStatCard
+          label="Total Products"
+          value={totals.total}
+          tone="default"
+        />
+        <AdminStatCard
+          label="Active"
+          value={totals.active}
+          tone="success"
+        />
+        <AdminStatCard
+          label="Drafts"
+          value={totals.draft}
+          tone="warning"
+        />
+        <AdminStatCard
+          label="Inactive"
+          value={totals.inactive}
+          tone="soft"
+        />
       </div>
 
-      <div className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.34)]">
-        <div className="grid gap-3 xl:grid-cols-[1fr_12rem_14rem_12rem]">
-          <AdminSearchInput
-            value={query}
-            onChange={setQuery}
-            placeholder="Search by name, slug, SKU, or model..."
-            ariaLabel="Search products"
-          />
+      <div className="mt-8 rounded-lg border border-teal-100 bg-white p-5 shadow-[0_20px_50px_-38px_rgba(28,79,80,0.35)] sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-md flex-1">
+            <AdminSearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Search products by name, SKU, or model..."
+            />
+          </div>
 
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ProductStatusFilter)}>
-            <SelectTrigger>
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="archived">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+            >
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as ProductStatusFilter)}
+            >
+              <SelectTrigger className="w-36">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="archived">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={sort} onValueChange={(value) => setSort(value as ProductSort)}>
-            <SelectTrigger>
-              <span className="flex items-center gap-2 text-slate-500">
-                <ChevronDown size={16} />
-                <SelectValue />
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
-              <SelectItem value="name-asc">Name A-Z</SelectItem>
-              <SelectItem value="name-desc">Name Z-A</SelectItem>
-              <SelectItem value="price-high">Price high-low</SelectItem>
-              <SelectItem value="price-low">Price low-high</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select
+              value={sort}
+              onValueChange={(value) => setSort(value as ProductSort)}
+            >
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+                <SelectItem value="name-asc">Name: A to Z</SelectItem>
+                <SelectItem value="name-desc">Name: Z to A</SelectItem>
+                <SelectItem value="price-high">Price: High to Low</SelectItem>
+                <SelectItem value="price-low">Price: Low to High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {filteredProducts.length ? (
+        {filteredProducts.length > 0 ? (
           <>
-            <div className="mt-5 hidden overflow-hidden rounded-lg border border-teal-100 lg:block">
-              <table className="w-full border-collapse text-left">
-                <thead className="bg-[#f7fbfa] text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                  <tr>
-                    <th className="px-5 py-4">Product</th>
-                    <th className="px-5 py-4">Category</th>
-                    <th className="px-5 py-4">SKU / Model</th>
-                    <th className="px-5 py-4">Price</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
+            <div className="mt-6 hidden overflow-x-auto lg:block">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-teal-100 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-5 py-3">Product</th>
+                    <th className="px-5 py-3">Category</th>
+                    <th className="px-5 py-3">Identifier</th>
+                    <th className="px-5 py-3">Price</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-teal-100">
+                <tbody className="divide-y divide-teal-50">
                   {filteredProducts.map((product) => (
-                    <tr key={product.id}>
+                    <tr key={product.id} className="hover:bg-teal-50/20">
                       <td className="px-5 py-5">
                         <p className="font-semibold text-primary">{product.name}</p>
                         <p className="mt-1 max-w-md text-sm text-slate-500">{product.summary}</p>
@@ -260,6 +321,7 @@ export function AdminProductsClient() {
                         <ProductActions
                           product={product}
                           onDelete={setDeleteTarget}
+                          onToggleStatus={handleToggleStatus}
                         />
                       </td>
                     </tr>
@@ -279,7 +341,11 @@ export function AdminProductsClient() {
                       <p className="text-lg font-semibold text-primary">{product.name}</p>
                       <p className="mt-1 text-sm text-slate-500">{product.summary}</p>
                     </div>
-                    <ProductActions product={product} onDelete={setDeleteTarget} />
+                    <ProductActions
+                      product={product}
+                      onDelete={setDeleteTarget}
+                      onToggleStatus={handleToggleStatus}
+                    />
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg bg-slate-50 p-3 text-sm">
@@ -316,7 +382,7 @@ export function AdminProductsClient() {
             <DialogDescription>
               This permanently removes{" "}
               <span className="font-semibold text-slate-900">{deleteTarget?.name}</span>{" "}
-              from the shared mock store.
+              from the storefront catalog.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -327,9 +393,8 @@ export function AdminProductsClient() {
               variant="destructive"
               onClick={() => {
                 if (deleteTarget) {
-                  deleteSharedProduct(deleteTarget.id);
+                  void handleDelete(deleteTarget);
                 }
-                setDeleteTarget(null);
               }}
             >
               Delete product
@@ -344,9 +409,11 @@ export function AdminProductsClient() {
 function ProductActions({
   product,
   onDelete,
+  onToggleStatus,
 }: {
   product: Product;
   onDelete: (product: Product) => void;
+  onToggleStatus: (product: Product) => void;
 }) {
   return (
     <DropdownMenu>
@@ -362,7 +429,7 @@ function ProductActions({
             Edit
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => toggleSharedProductStatus(product.id)}>
+        <DropdownMenuItem onSelect={() => onToggleStatus(product)}>
           {product.status === "active" ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
           {product.status === "active" ? "Deactivate" : "Activate"}
         </DropdownMenuItem>

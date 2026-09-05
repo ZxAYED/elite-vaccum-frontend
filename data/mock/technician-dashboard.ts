@@ -23,7 +23,7 @@ import type {
 
 export const mockCurrentTechnicianId = "tech-002";
 
-type TechnicianJobFilter = "today" | "upcoming" | "in-progress" | "completed";
+export type TechnicianJobFilter = "today" | "upcoming" | "in-progress" | "completed";
 
 export interface TechnicianRecentActivityItem {
   id: string;

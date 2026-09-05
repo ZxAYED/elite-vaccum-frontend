@@ -6,9 +6,6 @@ import type {
 } from "@/types/domain";
 
 import { getSharedAdminServiceOrders } from "@/data/mock/admin-schedule-state";
-import { mockCustomers } from "@/data/mock/customers";
-import { mockProducts } from "@/data/mock/products";
-import { sharedProductOrderSeed } from "@/data/mock/shared-product-order-seed";
 import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
 
 type BillingRecordType = OrderType;
@@ -131,64 +128,8 @@ function toMoney(value: number) {
   return Number(value.toFixed(2));
 }
 
-function productOrderStatus(index: number) {
-  if (index === 0) return "processing" as const;
-  if (index === 1) return "delivered" as const;
-  return "shipped" as const;
-}
-
 function createProductOrdersSeed(): BillingProductOrderState[] {
-  const customers = mockCustomers;
-  const customer = customers[0] ?? mockCurrentCustomer;
-  const products = mockProducts;
-  const primaryAddress = customer.addresses[0] ?? {
-    line1: "123 Heritage Lane",
-    city: "Greenwich",
-    state: "CT",
-    postalCode: "06830",
-  };
-
-  return sharedProductOrderSeed.map((order, index) => {
-    const subtotalUsd = order.items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPriceUsd,
-      0,
-    );
-    const shippingUsd = index === 0 ? 0 : 18;
-    const taxUsd = toMoney(subtotalUsd * 0.08);
-    const items = order.items.map((item) => {
-      const product = products.find((entry) => entry.id === item.productId);
-      return {
-        id: item.id,
-        productId: item.productId,
-        name: product?.name ?? "Central vacuum product",
-        summary: product?.summary ?? "Elite central vacuum accessory",
-        sku: product?.sku ?? product?.id.toUpperCase() ?? "ECV-SKU",
-        quantity: item.quantity,
-        unitPriceUsd: item.unitPriceUsd,
-        imageSrc: "/product.png",
-      };
-    });
-
-    return {
-      id: index === 0 ? "ORD-88410" : "ORD-90422",
-      type: "PRODUCT" as const,
-      customerId: customer.id,
-      customerName: customer.displayName,
-      createdAt: order.createdAt,
-      status: productOrderStatus(index),
-      paymentStatus: order.paymentStatus,
-      invoiceId: index === 0 ? "INV-1048" : "INV-1049",
-      paymentId: index === 0 ? "PAY-1044" : "PAY-1045",
-      shippingAddress: clone(primaryAddress),
-      items,
-      total: {
-        subtotalUsd,
-        shippingUsd,
-        taxUsd,
-        totalUsd: subtotalUsd + shippingUsd + taxUsd,
-      },
-    };
-  });
+  return [];
 }
 
 let productOrdersState: BillingProductOrderState[] | null = null;
@@ -292,13 +233,12 @@ function buildInvoices() {
   }));
 
   const serviceInvoices: BillingInvoiceRecord[] = serviceOrders.map((order) => {
-    const customer = mockCustomers.find((entry) => entry.id === order.customerId);
     return {
       id: order.invoiceId ?? `INV-${order.id.replace("SO-", "")}`,
       type: "SERVICE",
       relatedOrderId: order.id,
       customerId: order.customerId,
-      customerName: customer?.displayName ?? mockCurrentCustomer.displayName,
+      customerName: mockCurrentCustomer.displayName,
       description: order.serviceName,
       status: deriveInvoiceStatus(order.paymentStatus ?? "pending", order.status),
       createdAt: order.createdAt,

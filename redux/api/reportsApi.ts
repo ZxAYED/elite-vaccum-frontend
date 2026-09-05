@@ -84,6 +84,31 @@ export const reportsApi = baseApi.injectEndpoints({
       }),
       providesTags: [{ type: "Report", id: "CUSTOMERS" }],
     }),
+    exportOrdersCsv: builder.query<string, GetReportsParams | void>({
+      query: (params) => ({
+        url: "/reports/export/orders/csv",
+        params: params || undefined,
+        responseHandler: (response) => response.text(),
+      }),
+    }),
+    exportServiceRequestsCsv: builder.query<string, void>({
+      query: () => ({
+        url: "/reports/export/service-requests/csv",
+        responseHandler: (response) => response.text(),
+      }),
+    }),
+    exportCustomersCsv: builder.query<string, void>({
+      query: () => ({
+        url: "/reports/export/customers/csv",
+        responseHandler: (response) => response.text(),
+      }),
+    }),
+    exportInvoicesCsv: builder.query<string, void>({
+      query: () => ({
+        url: "/reports/export/invoices/csv",
+        responseHandler: (response) => response.text(),
+      }),
+    }),
   }),
 });
 
@@ -93,4 +118,8 @@ export const {
   useGetServiceOperationsReportQuery,
   useGetTechniciansReportQuery,
   useGetCustomersReportQuery,
+  useExportOrdersCsvQuery,
+  useExportServiceRequestsCsvQuery,
+  useExportCustomersCsvQuery,
+  useExportInvoicesCsvQuery,
 } = reportsApi;

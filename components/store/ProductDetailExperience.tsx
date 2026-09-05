@@ -13,6 +13,7 @@ import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
 import { useAppSelector } from "@/redux/hooks";
 import { useCartSync } from "@/hooks/useCartSync";
+import { useGetProductByIdOrSlugQuery } from "@/redux/api/productsApi";
 import type { Product } from "@/types/domain";
 
 import { QuantityControl } from "./QuantityControl";
@@ -33,17 +34,30 @@ export function ProductDetailExperience({
   const { addProduct } = useCartSync();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
-  const galleryImages = mockProductGalleryImagesById[product.id] ?? [];
+  const { data: apiProduct } = useGetProductByIdOrSlugQuery(product.slug || product.id, {
+    skip: !product.id && !product.slug,
+  });
+  const currentProduct = apiProduct || product;
+
+  const galleryImages = useMemo(() => {
+    if (currentProduct.images && currentProduct.images.length > 0) {
+      return currentProduct.images.map((img: string | { id?: string; url: string }) =>
+        typeof img === "string" ? img : img.url || ""
+      );
+    }
+    return mockProductGalleryImagesById[currentProduct.id] ?? ["/product.png"];
+  }, [currentProduct]);
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
   const totalPrice = useMemo(
-    () => formatCurrencyUsd(product.priceUsd * quantity),
-    [product.priceUsd, quantity],
+    () => formatCurrencyUsd(currentProduct.priceUsd * quantity),
+    [currentProduct.priceUsd, quantity],
   );
 
   const selectedImage = galleryImages[selectedImageIndex] ?? galleryImages[0];
-  const productHighlights = product.highlights ?? [];
+  const productHighlights = currentProduct.highlights ?? [];
 
   const handleAction = async (destination: "/checkout" | "/cart") => {
     const token = getCookie(AUTH_TOKEN_KEY);
@@ -55,10 +69,10 @@ export function ProductDetailExperience({
       return;
     }
 
-    await addProduct(product, quantity);
+    await addProduct(currentProduct, quantity);
 
     toast.success("Added to cart", {
-      description: `${quantity} × ${product.name} added.`,
+      description: `${quantity} × ${currentProduct.name} added.`,
     });
 
     router.push(destination);

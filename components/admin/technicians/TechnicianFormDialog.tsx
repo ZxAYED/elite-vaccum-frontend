@@ -191,6 +191,7 @@ export function TechnicianFormDialog({
                       <SelectContent>
                         <SelectItem value="AVAILABLE">Available</SelectItem>
                         <SelectItem value="BUSY">Busy</SelectItem>
+                        <SelectItem value="ON_BREAK">On Break</SelectItem>
                         <SelectItem value="OFF_DUTY">Off Duty</SelectItem>
                       </SelectContent>
                     </Select>

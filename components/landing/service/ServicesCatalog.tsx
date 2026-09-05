@@ -31,26 +31,36 @@ import {
   StaggerItem,
 } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
-import { publicServiceOfferings } from "@/data/mock/public-services";
 import { getSharedActivePublicServices } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { cn } from "@/lib/utils";
 import heroVacuum from "@/public/landing/home/vaccum.png";
 import serviceVanImage from "@/public/landing/service/service.png";
-import type { PublicServiceGroup, PublicServiceIconKey } from "@/types/domain";
+import type { PublicServiceGroup, ServiceOffering } from "@/types/domain";
 
 const groups: PublicServiceGroup[] = ["Service & Maintenance", "Installation"];
 
-const iconByKey: Record<PublicServiceIconKey, ElementType> = {
+const iconByKey: Record<string, ElementType> = {
   "home-plus": HomeIcon,
+  home: HomeIcon,
+  house: HomeIcon,
   wrench: Wrench,
   activity: Activity,
   shield: ShieldCheck,
+  "shield-check": ShieldCheck,
+  shieldcheck: ShieldCheck,
   sparkles: Sparkles,
   sliders: SlidersHorizontal,
   upload: Upload,
+  upgrade: Upload,
   compass: Compass,
 };
+
+function getServiceIcon(iconKey?: string): ElementType {
+  if (!iconKey) return Wrench;
+  const key = iconKey.toLowerCase().replace(/[_\s]/g, "-");
+  return iconByKey[key] || iconByKey[iconKey.toLowerCase()] || Wrench;
+}
 
 const benefits = [
   { title: "Expert Technicians", icon: BadgeCheck },
@@ -58,23 +68,6 @@ const benefits = [
   { title: "Transparent Quotation", icon: FileCheck2 },
   { title: "Reliable Service", icon: CheckCircle2 },
 ];
-
-const serviceOrderByGroup: Record<PublicServiceGroup, string[]> = {
-  "Service & Maintenance": [
-    "vacuum-repair",
-    "maintenance",
-    "low-suction-fix",
-    "broken-inlet-repair",
-    "general-service",
-    "system-inspection",
-  ],
-  Installation: [
-    "new-system",
-    "custom-fit",
-    "system-upgrade",
-    "architectural",
-  ],
-};
 
 const processSteps = [
   {
@@ -109,46 +102,50 @@ const processSteps = [
   },
 ];
 
-import { useGetServicesQuery } from "@/redux/api/servicesApi";
+import {
+  useGetAllServicesListQuery,
+  useGetServicesQuery,
+} from "@/redux/api/servicesApi";
 
 export function ServicesCatalog() {
   useSharedBusinessStoreVersion();
-  const { data: apiServices } = useGetServicesQuery();
+  const { data: apiServicesList } = useGetAllServicesListQuery({ status: "ACTIVE" });
+  const { data: apiServicesGrouped } = useGetServicesQuery();
   const [activeGroup, setActiveGroup] =
     useState<PublicServiceGroup>("Service & Maintenance");
 
-  const visibleServices = useMemo(() => {
+  const servicesByGroup = useMemo(() => {
     const rawServices =
-      apiServices && apiServices.length > 0
-        ? apiServices
-        : getSharedActivePublicServices();
+      apiServicesList && apiServicesList.length > 0
+        ? apiServicesList
+        : apiServicesGrouped && apiServicesGrouped.length > 0
+          ? apiServicesGrouped
+          : getSharedActivePublicServices();
 
-    const normalizedGroup =
-      activeGroup === "Service & Maintenance"
-        ? ["Service & Maintenance", "SERVICE_AND_MAINTENANCE"]
-        : ["Installation", "INSTALLATION"];
+    const isMaintenance = (group?: string) => {
+      if (!group) return true;
+      const g = group.toUpperCase();
+      return g.includes("SERVICE") || g.includes("MAINTENANCE");
+    };
 
-    const servicesInGroup = rawServices.filter((service) =>
-      normalizedGroup.includes(service.group),
+    const activeServices = rawServices.filter(
+      (s) => !s.status || s.status.toUpperCase() === "ACTIVE",
     );
 
-    if (servicesInGroup.length > 0) {
-      return [...servicesInGroup].sort(
-        (a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999),
-      );
-    }
+    const maintenance = activeServices.filter((s) => isMaintenance(s.group));
+    const installation = activeServices.filter((s) => !isMaintenance(s.group));
 
-    const order = serviceOrderByGroup[activeGroup];
-    const fallbackBySlug = new Map(
-      publicServiceOfferings
-        .filter((service) => normalizedGroup.includes(service.group))
-        .map((service) => [service.slug, service]),
-    );
+    const sortFn = (a: ServiceOffering, b: ServiceOffering) =>
+      (a.sortOrder ?? 999) - (b.sortOrder ?? 999);
 
-    return order
-      .map((slug) => fallbackBySlug.get(slug))
-      .filter((service): service is NonNullable<typeof service> => Boolean(service));
-  }, [activeGroup, apiServices]);
+    return {
+      "Service & Maintenance": maintenance.sort(sortFn),
+      Installation: installation.sort(sortFn),
+      totalCount: activeServices.length,
+    };
+  }, [apiServicesList, apiServicesGrouped]);
+
+  const visibleServices = servicesByGroup[activeGroup] || [];
 
   return (
     <main className="overflow-hidden bg-white">
@@ -211,6 +208,7 @@ export function ServicesCatalog() {
           <div className="flex flex-wrap gap-8 text-xl font-semibold md:text-2xl">
             {groups.map((group) => {
               const active = activeGroup === group;
+              const count = servicesByGroup[group]?.length ?? 0;
 
               return (
                 <button
@@ -218,11 +216,11 @@ export function ServicesCatalog() {
                   type="button"
                   onClick={() => setActiveGroup(group)}
                   className={cn(
-                    "relative pb-3 text-slate-400 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]",
-                    active && "text-primary",
+                    "relative pb-3 transition hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)] cursor-pointer",
+                    active ? "font-semibold text-primary" : "font-medium text-slate-400",
                   )}
                 >
-                  {group}
+                  {group} ({count})
                   <span
                     className={cn(
                       "absolute inset-x-0 bottom-0 h-0.5 origin-left rounded-full bg-primary transition-transform duration-300",
@@ -237,42 +235,28 @@ export function ServicesCatalog() {
 
         <StaggerGroup
           key={activeGroup}
-          className={cn(
-            "mt-10 overflow-hidden rounded-[0.2rem] border border-teal-100 bg-[linear-gradient(180deg,#ffffff_0%,#f4fbfa_100%)]",
-            activeGroup === "Installation"
-              ? "grid sm:grid-cols-2 xl:grid-cols-4"
-              : "grid sm:grid-cols-2 lg:grid-cols-3",
-          )}
+          className="mt-10 overflow-hidden rounded-[0.2rem] border border-teal-100 bg-[linear-gradient(180deg,#ffffff_0%,#f4fbfa_100%)] grid sm:grid-cols-2 lg:grid-cols-3"
           delay={0.04}
         >
-          {visibleServices.map((service) => {
-            const Icon = iconByKey[service.iconKey];
+          {visibleServices.map((service, idx) => {
+            const Icon = getServiceIcon(service.iconKey);
 
             return (
               <StaggerItem
                 key={service.slug}
                 className={cn(
                   "border-b border-r border-teal-100",
-                  activeGroup === "Service & Maintenance" &&
-                    "sm:nth-[2n]:border-r-0 lg:nth-[2n]:border-r lg:nth-[3n]:border-r-0 lg:nth-last-[1]:border-b-0 lg:nth-last-[2]:border-b-0 lg:nth-last-[3]:border-b-0",
-                  activeGroup === "Installation" &&
-                    "sm:nth-[2n]:border-r-0 xl:nth-[2n]:border-r xl:nth-[4n]:border-r-0 xl:nth-last-[1]:border-b-0 xl:nth-last-[2]:border-b-0 xl:nth-last-[3]:border-b-0 xl:nth-last-[4]:border-b-0",
-                  activeGroup === "Installation" &&
-                    visibleServices.length <= 2 &&
-                    "sm:nth-last-[1]:border-b-0 sm:nth-last-[2]:border-b-0",
+                  (idx + 1) % 2 === 0 && "sm:border-r-0 lg:border-r",
+                  (idx + 1) % 3 === 0 && "lg:border-r-0",
+                  idx >= visibleServices.length - (visibleServices.length % 3 || 3) && "lg:border-b-0",
                 )}
               >
-                <article
-                  className={cn(
-                    "flex min-h-56 h-full flex-col bg-transparent p-6 lg:p-7",
-                    activeGroup === "Service & Maintenance" && "lg:min-h-60",
-                  )}
-                >
+                <article className="flex min-h-60 h-full flex-col bg-transparent p-6 lg:p-7">
                   <Icon aria-hidden="true" className="text-primary" size={22} />
                   <h2 className="mt-8 text-xl font-semibold tracking-[-0.03em] text-slate-950">
                     {service.title}
                   </h2>
-                  <p className="mt-3 max-w-72 text-sm leading-6 text-slate-500">
+                  <p className="mt-3 max-w-72 text-sm leading-6 text-slate-500 flex-1">
                     {service.summary}
                   </p>
                   <Pressable className="mt-auto w-fit pt-8">

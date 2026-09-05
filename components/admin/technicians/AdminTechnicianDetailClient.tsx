@@ -27,6 +27,11 @@ import {
 import { getSharedCustomerById } from "@/data/mock/shared-business-store";
 import { formatLongDate } from "@/lib/formatters";
 import type { TechnicianValues } from "@/lib/validation";
+import { toast } from "sonner";
+import {
+  useGetTechnicianByIdQuery,
+  useUpdateTechnicianMutation,
+} from "@/redux/api/technicianApi";
 
 import { TechnicianFormDialog } from "./TechnicianFormDialog";
 import {
@@ -45,6 +50,9 @@ export function AdminTechnicianDetailClient({
 }: AdminTechnicianDetailClientProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [version, setVersion] = useState(0);
+
+  useGetTechnicianByIdQuery(technicianId);
+  const [updateTechnicianApi] = useUpdateTechnicianMutation();
 
   const technician = getAdminTechnicianById(technicianId);
 
@@ -83,7 +91,7 @@ export function AdminTechnicianDetailClient({
     );
   }
 
-  function handleSave(values: TechnicianValues) {
+  async function handleSave(values: TechnicianValues) {
     updateAdminTechnician(technicianId, {
       displayName: values.fullName,
       email: values.email,
@@ -92,6 +100,24 @@ export function AdminTechnicianDetailClient({
       availability: values.availability,
       notes: values.notes || undefined,
     });
+
+    try {
+      await updateTechnicianApi({
+        id: technicianId,
+        body: {
+          displayName: values.fullName,
+          email: values.email,
+          phone: values.phone,
+          status: values.status,
+          availability: values.availability,
+          bio: values.notes || undefined,
+        },
+      }).unwrap();
+      toast.success("Technician details updated successfully.");
+    } catch {
+      toast.info("Technician updated locally.");
+    }
+
     setVersion((current) => current + 1);
     setFormOpen(false);
   }

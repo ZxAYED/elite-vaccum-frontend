@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import {
   activePublicServiceOfferings,
@@ -32,11 +32,5 @@ export default async function PublicServiceSlugPage({
   params,
 }: PublicServiceSlugPageProps) {
   const { slug } = await params;
-  const service = getPublicServiceBySlug(slug);
-
-  if (!service) {
-    notFound();
-  }
-
-  redirect(`/services/request?service=${service.slug}`);
+  redirect(`/services/request?service=${slug}`);
 }

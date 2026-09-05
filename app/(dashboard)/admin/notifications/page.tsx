@@ -24,7 +24,6 @@ import {
   useMarkNotificationAsReadMutation,
   useDeleteNotificationMutation,
 } from "@/redux/api/notificationsApi";
-import { mockNotifications } from "@/data/mock/notifications";
 import { formatLongDate } from "@/lib/formatters";
 
 type FilterTab = "all" | "unread" | "payment" | "service-update" | "system";
@@ -55,7 +54,7 @@ export default function AdminNotificationsPage() {
   const rawNotifications =
     apiNotificationsData?.items && apiNotificationsData.items.length > 0
       ? apiNotificationsData.items
-      : mockNotifications;
+      : [];
 
   const filteredNotifications = rawNotifications.filter((notif) => {
     if (activeTab === "unread") return !notif.isRead;

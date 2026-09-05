@@ -2,38 +2,133 @@ import { baseApi } from "./baseApi";
 import type { ServiceOffering, Appointment } from "@/types/domain";
 
 export interface ScheduleSlot {
-  timeWindow: string;
+  slot?: string;
+  timeWindow?: string;
   startTime: string;
   endTime: string;
   isBooked: boolean;
-  status: "FREE" | "BOOKED";
+  status: "FREE" | "BOOKED" | string;
+  bookedCount?: number;
+  availableCapacity?: number;
 }
 
 export interface GetSlotsResponse {
+  success?: boolean;
   date: string;
+  totalSlots?: number;
+  availableSlotsCount?: number;
+  bookedSlotsCount?: number;
   slots: ScheduleSlot[];
 }
 
 export interface GetScheduleBoardParams {
-  startDate: string;
-  endDate: string;
+  dateFrom?: string;
+  dateTo?: string;
+  startDate?: string;
+  endDate?: string;
   technicianId?: string;
+  status?: string;
+}
+
+export interface DispatchAppointmentDto {
+  id: string;
+  serviceRequestId: string;
+  serviceOrderId?: string;
+  technicianId?: string;
+  status: string;
+  startAt?: string;
+  endAt?: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  notes?: string;
+  technician?: {
+    id: string;
+    displayName: string;
+    phone?: string;
+    rating?: number;
+    status?: string;
+  };
+  serviceRequest?: {
+    id: string;
+    businessId?: string;
+    title?: string;
+    status?: string;
+    serviceAddress?: {
+      addressLine1?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+    };
+    customer?: {
+      id?: string;
+      displayName?: string;
+      email?: string;
+      phone?: string;
+    };
+  };
+}
+
+export interface DispatchTechnicianDto {
+  id: string;
+  displayName: string;
+  phone?: string;
+  status?: string;
+  rating?: number;
+}
+
+export interface DispatchBoardStats {
+  confirmed: number;
+  rescheduled: number;
+  completed: number;
+  cancelled: number;
+  unassigned: number;
+}
+
+export interface DispatchBoardMeta {
+  dateFrom?: string;
+  dateTo?: string;
+  total?: number;
+  stats?: DispatchBoardStats;
+}
+
+export interface DispatchBoardDto {
+  appointments: DispatchAppointmentDto[];
+  technicians?: DispatchTechnicianDto[];
+  meta?: DispatchBoardMeta;
+  startDate?: string;
+  endDate?: string;
+  technicianWorkload?: Array<{ technicianId: string; count: number }>;
 }
 
 export interface CreateAppointmentRequest {
   serviceRequestId: string;
-  technicianId: string;
   date: string;
   startTime: string;
   endTime: string;
+  technicianId?: string;
+  adminNote?: string;
   notes?: string;
 }
 
-export interface DispatchBoardDto {
-  startDate: string;
-  endDate: string;
-  appointments: Appointment[];
-  technicianWorkload: Array<{ technicianId: string; count: number }>;
+export interface UpdateAppointmentRequest {
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  status?: string;
+  notes?: string;
+}
+
+export interface AssignTechnicianRequest {
+  appointmentId: string;
+  technicianId: string;
+  notes?: string;
+}
+
+export interface CancelAppointmentRequest {
+  appointmentId: string;
+  cancellationReason?: string;
+  reason?: string;
 }
 
 export interface CreateServiceDto {
@@ -80,15 +175,55 @@ function unwrapData<T>(response: ApiResponse<T> | T): T {
   return response as T;
 }
 
+export interface GetServicesParams {
+  search?: string;
+  status?: string;
+  group?: string;
+  sort?: string;
+}
+
 export const servicesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getAllServicesList: builder.query<ServiceOffering[], void>({
-      query: () => "/services/list/all",
+    getAllServicesList: builder.query<
+      ServiceOffering[],
+      GetServicesParams | void
+    >({
+      query: (params) => {
+        const queryParams: Record<string, string> = {};
+        if (params?.search && params.search.trim()) {
+          queryParams.search = params.search.trim();
+        }
+        if (params?.status && params.status !== "all") {
+          queryParams.status = params.status;
+        }
+        if (params?.group && params.group !== "all") {
+          queryParams.group = params.group;
+        }
+        if (params?.sort) {
+          queryParams.sort = params.sort;
+        }
+
+        return {
+          url: "/services/list/all",
+          params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+        };
+      },
       transformResponse: (
-        response: ApiResponse<ServiceOffering[]> | ServiceOffering[]
+        response:
+          | ApiResponse<ServiceOffering[]>
+          | ServiceOffering[]
+          | { items?: ServiceOffering[]; data?: ServiceOffering[] }
       ) => {
-        const unwrapped = unwrapData(response);
+        const unwrapped = unwrapData(response as ApiResponse<unknown>);
         if (Array.isArray(unwrapped)) return unwrapped;
+        if (
+          unwrapped &&
+          typeof unwrapped === "object" &&
+          "items" in unwrapped &&
+          Array.isArray((unwrapped as { items: ServiceOffering[] }).items)
+        ) {
+          return (unwrapped as { items: ServiceOffering[] }).items;
+        }
         return [];
       },
       providesTags: (result) =>
@@ -151,23 +286,37 @@ export const servicesApi = baseApi.injectEndpoints({
     }),
     getServices: builder.query<ServiceOffering[], void>({
       query: () => "/services",
-      transformResponse: (
-        response:
-          | ApiResponse<ServiceOffering[]>
-          | ServiceOffering[]
-          | { groups?: Array<{ services?: ServiceOffering[] }>; symptoms?: unknown[] }
-      ) => {
+      transformResponse: (response: unknown) => {
         const unwrapped = unwrapData(response as ApiResponse<unknown>);
-        if (Array.isArray(unwrapped)) return unwrapped;
-        if (
-          unwrapped &&
-          typeof unwrapped === "object" &&
-          "groups" in unwrapped &&
-          Array.isArray((unwrapped as { groups: Array<{ services?: ServiceOffering[] }> }).groups)
-        ) {
-          return (unwrapped as { groups: Array<{ services?: ServiceOffering[] }> }).groups.flatMap(
-            (g) => g.services || []
-          );
+        if (Array.isArray(unwrapped)) return unwrapped as ServiceOffering[];
+        if (unwrapped && typeof unwrapped === "object") {
+          const u = unwrapped as Record<string, unknown>;
+          const items: ServiceOffering[] = [];
+          if (Array.isArray(u.serviceAndMaintenance)) {
+            items.push(...(u.serviceAndMaintenance as ServiceOffering[]));
+          }
+          if (Array.isArray(u.installation)) {
+            items.push(...(u.installation as ServiceOffering[]));
+          }
+          if (Array.isArray(u.items)) {
+            items.push(...(u.items as ServiceOffering[]));
+          }
+          if (Array.isArray(u.groups)) {
+            items.push(
+              ...(u.groups as Array<{ services?: ServiceOffering[] }>).flatMap(
+                (g) => g.services || [],
+              ),
+            );
+          }
+          if (items.length > 0) {
+            return items.map((service) => ({
+              ...service,
+              group:
+                service.group === "INSTALLATION" || service.group === "Installation"
+                  ? "Installation"
+                  : "Service & Maintenance",
+            }));
+          }
         }
         return [];
       },
@@ -191,30 +340,101 @@ export const servicesApi = baseApi.injectEndpoints({
       },
       providesTags: (_result, _error, slug) => [{ type: "Service", id: slug }],
     }),
-    getAvailableSlots: builder.query<GetSlotsResponse, string>({
-      query: (date) => `/schedule/slots?date=${date}`,
+    getAvailableSlots: builder.query<
+      GetSlotsResponse,
+      string | { date: string; technicianId?: string }
+    >({
+      query: (arg) => {
+        const date = typeof arg === "string" ? arg : arg.date;
+        const technicianId =
+          typeof arg === "object" && arg.technicianId && arg.technicianId !== "all"
+            ? arg.technicianId
+            : undefined;
+        const params: Record<string, string> = { date };
+        if (technicianId) params.technicianId = technicianId;
+        return {
+          url: "/schedule/slots",
+          params,
+        };
+      },
       transformResponse: (
         response: ApiResponse<GetSlotsResponse> | GetSlotsResponse
       ) => {
         return unwrapData(response);
       },
-      providesTags: (_result, _error, date) => [
-        { type: "Schedule", id: date },
+      providesTags: (_result, _error, arg) => [
+        { type: "Schedule", id: typeof arg === "string" ? arg : arg.date },
       ],
     }),
     getDispatchBoard: builder.query<DispatchBoardDto, GetScheduleBoardParams>({
-      query: (params) => ({
-        url: "/schedule/board",
-        params,
-      }),
+      query: (params) => {
+        const queryParams: Record<string, string> = {};
+        const from = params.dateFrom || params.startDate;
+        const to = params.dateTo || params.endDate;
+        if (from) queryParams.dateFrom = from;
+        if (to) queryParams.dateTo = to;
+        if (params.technicianId && params.technicianId !== "all") {
+          queryParams.technicianId = params.technicianId;
+        }
+        if (params.status && params.status !== "all") {
+          queryParams.status = params.status;
+        }
+        return {
+          url: "/schedule/board",
+          params: queryParams,
+        };
+      },
       transformResponse: (
-        response: ApiResponse<DispatchBoardDto> | DispatchBoardDto
+        response:
+          | {
+              success?: boolean;
+              data?: {
+                appointments?: DispatchAppointmentDto[];
+                technicians?: DispatchTechnicianDto[];
+              };
+              meta?: DispatchBoardMeta;
+            }
+          | DispatchBoardDto
       ) => {
-        return unwrapData(response);
+        if (
+          response &&
+          typeof response === "object" &&
+          "data" in response &&
+          response.data
+        ) {
+          return {
+            appointments: response.data.appointments || [],
+            technicians: response.data.technicians || [],
+            meta: response.meta,
+          };
+        }
+        const unwrapped = unwrapData(response as ApiResponse<DispatchBoardDto>);
+        if (unwrapped && typeof unwrapped === "object") {
+          const appts =
+            "appointments" in unwrapped && Array.isArray(unwrapped.appointments)
+              ? (unwrapped.appointments as DispatchAppointmentDto[])
+              : [];
+          const techs =
+            "technicians" in unwrapped && Array.isArray(unwrapped.technicians)
+              ? (unwrapped.technicians as DispatchTechnicianDto[])
+              : [];
+          return {
+            appointments: appts,
+            technicians: techs,
+            meta: (unwrapped as DispatchBoardDto).meta,
+          };
+        }
+        return {
+          appointments: [],
+          technicians: [],
+        };
       },
       providesTags: [{ type: "Schedule", id: "BOARD" }],
     }),
-    createAppointment: builder.mutation<Appointment, CreateAppointmentRequest>({
+    createAppointment: builder.mutation<
+      { success: boolean; message: string; data?: Appointment },
+      CreateAppointmentRequest
+    >({
       query: (body) => ({
         url: "/schedule",
         method: "POST",
@@ -223,7 +443,14 @@ export const servicesApi = baseApi.injectEndpoints({
       transformResponse: (
         response: ApiResponse<Appointment> | Appointment
       ) => {
-        return unwrapData(response);
+        const data = unwrapData(response);
+        return {
+          success: true,
+          message:
+            (response as ApiResponse<unknown>)?.message ||
+            "Appointment scheduled successfully",
+          data: data as Appointment,
+        };
       },
       invalidatesTags: [
         { type: "Schedule", id: "BOARD" },
@@ -232,7 +459,7 @@ export const servicesApi = baseApi.injectEndpoints({
     }),
     updateAppointment: builder.mutation<
       Appointment,
-      { appointmentId: string; body: Partial<CreateAppointmentRequest> }
+      { appointmentId: string; body: UpdateAppointmentRequest }
     >({
       query: ({ appointmentId, body }) => ({
         url: `/schedule/${appointmentId}`,
@@ -248,12 +475,12 @@ export const servicesApi = baseApi.injectEndpoints({
     }),
     assignTechnicianToAppointment: builder.mutation<
       Appointment,
-      { appointmentId: string; technicianId: string }
+      AssignTechnicianRequest
     >({
-      query: ({ appointmentId, technicianId }) => ({
+      query: ({ appointmentId, technicianId, notes }) => ({
         url: `/schedule/${appointmentId}/assign`,
         method: "POST",
-        body: { technicianId },
+        body: { technicianId, notes },
       }),
       transformResponse: (
         response: ApiResponse<Appointment> | Appointment
@@ -264,12 +491,12 @@ export const servicesApi = baseApi.injectEndpoints({
     }),
     cancelAppointment: builder.mutation<
       { success: boolean; message: string },
-      { appointmentId: string; reason?: string }
+      CancelAppointmentRequest
     >({
-      query: ({ appointmentId, reason }) => ({
+      query: ({ appointmentId, cancellationReason, reason }) => ({
         url: `/schedule/${appointmentId}/cancel`,
         method: "POST",
-        body: { reason },
+        body: { cancellationReason: cancellationReason || reason },
       }),
       transformResponse: (
         response:

@@ -3,6 +3,7 @@ import type {
   AdminScheduleRecord,
   AdminServiceOrder,
   Technician,
+  TechnicianAvailability,
 } from "@/types/domain";
 
 import { getSharedAdminScheduleRecords, getSharedAdminServiceOrders } from "@/data/mock/admin-schedule-state";
@@ -117,15 +118,16 @@ function getTechnicianSchedulesInternal(technicianId: string) {
     );
 }
 
-export function getTechnicianActiveAvailability(technician: AdminTechnician) {
-  if (technician.status === "INACTIVE") return "OFF_DUTY" as const;
-  if (technician.availability === "OFF_DUTY") return "OFF_DUTY" as const;
+export function getTechnicianActiveAvailability(technician: AdminTechnician): TechnicianAvailability {
+  if (technician.status === "INACTIVE") return "OFF_DUTY";
+  if (technician.availability === "OFF_DUTY") return "OFF_DUTY";
+  if (technician.availability === "ON_BREAK") return "ON_BREAK";
   const today = getMockTodayIso();
   const hasActiveScheduleToday = getTechnicianSchedulesInternal(technician.id).some(
     (schedule) =>
       schedule.currentSchedule.date === today && isActiveScheduleStatus(schedule.status),
   );
-  return hasActiveScheduleToday ? ("BUSY" as const) : ("AVAILABLE" as const);
+  return hasActiveScheduleToday ? "BUSY" : "AVAILABLE";
 }
 
 export function getTechnicianSchedules(technicianId: string): AdminScheduleRecord[] {

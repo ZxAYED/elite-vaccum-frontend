@@ -29,6 +29,7 @@ const toneByStatus: Record<string, string> = {
   sent: "bg-amber-50 text-amber-800 border border-amber-200",
   viewed: "bg-cyan-50 text-cyan-800 border border-cyan-200",
   accepted: "bg-emerald-50 text-emerald-800 border border-emerald-200",
+  "awaiting-payment": "bg-amber-50 text-amber-900 border border-amber-300",
   expired: "bg-slate-100 text-slate-600 border border-slate-200",
   urgent: "bg-rose-50 text-rose-700 border border-rose-200",
   priority: "bg-indigo-50 text-indigo-800 border border-indigo-200",

@@ -23,13 +23,14 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ElementType } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -484,14 +485,41 @@ function ServiceFormDialog({
 export default function AdminServicesPage() {
   useSharedBusinessStoreVersion();
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [statusFilter, setStatusFilter] = useState<ServiceFilter>("all");
   const [sort, setSort] = useState<ServiceSort>("display-order");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceOffering | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ServiceOffering | null>(null);
 
-  // RTK Query hooks
-  const { data: apiServices, isLoading: isLoadingApiServices } = useGetAllServicesListQuery();
+  // Debounce search query to prevent redundant backend API requests
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  // Dynamic backend filtering query params
+  const filterParams = useMemo(
+    () => ({
+      search: debouncedQuery.trim() || undefined,
+      status: statusFilter !== "all" ? statusFilter : undefined,
+      sort,
+    }),
+    [debouncedQuery, statusFilter, sort],
+  );
+
+  // RTK Query hook with dynamic backend filtering
+  const {
+    data: apiServices,
+    isLoading: isLoadingApiServices,
+    isFetching: isFetchingApiServices,
+  } = useGetAllServicesListQuery(filterParams);
+
+  // Full catalog query for true KPI overview totals
+  const { data: allCatalogServices } = useGetAllServicesListQuery(undefined);
+
   const [createServiceApi, { isLoading: isCreating }] = useCreateServiceMutation();
   const [updateServiceApi, { isLoading: isUpdating }] = useUpdateServiceMutation();
   const [deleteServiceApi, { isLoading: isDeleting }] = useDeleteServiceMutation();
@@ -499,12 +527,12 @@ export default function AdminServicesPage() {
   const mockServices = getSharedPublicServices();
   const serviceRequests = getSharedServiceRequests();
 
-  const services: ServiceOffering[] = useMemo(() => {
-    if (apiServices && apiServices.length > 0) {
-      return apiServices;
+  const catalogForTotals: ServiceOffering[] = useMemo(() => {
+    if (allCatalogServices && allCatalogServices.length > 0) {
+      return allCatalogServices;
     }
     return mockServices;
-  }, [apiServices, mockServices]);
+  }, [allCatalogServices, mockServices]);
 
   const requestCounts = useMemo(() => {
     return serviceRequests.reduce<Record<string, number>>(
@@ -516,10 +544,14 @@ export default function AdminServicesPage() {
     );
   }, [serviceRequests]);
 
-  const filteredServices = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  // Dynamic backend-returned services, with fallback if API is not populated or offline
+  const filteredServices: ServiceOffering[] = useMemo(() => {
+    if (apiServices) {
+      return apiServices;
+    }
 
-    return services
+    const normalizedQuery = debouncedQuery.trim().toLowerCase();
+    return mockServices
       .filter((service) => {
         const matchesSearch =
           normalizedQuery.length === 0 ||
@@ -549,10 +581,10 @@ export default function AdminServicesPage() {
             );
         }
       });
-  }, [query, services, sort, statusFilter]);
+  }, [apiServices, debouncedQuery, mockServices, sort, statusFilter]);
 
   const totals = useMemo(() => {
-    return services.reduce(
+    return catalogForTotals.reduce(
       (stats, service) => {
         stats.total += 1;
         if (service.status === "ACTIVE") stats.active += 1;
@@ -563,7 +595,7 @@ export default function AdminServicesPage() {
       },
       { active: 0, inactive: 0, referenced: 0, total: 0 },
     );
-  }, [requestCounts, services]);
+  }, [catalogForTotals, requestCounts]);
 
   function openCreateDialog() {
     setEditingService(null);
@@ -600,43 +632,66 @@ export default function AdminServicesPage() {
 
     if (existing) {
       const identifier = existing.id || existing.serviceId || existing.slug;
+      const id = toast.loading(`Updating service "${values.title}", please wait...`);
+
       try {
-        await updateServiceApi({
+        const res = await updateServiceApi({
           id: identifier,
           body: payload,
         }).unwrap();
-        toast.success(`Service "${values.title}" updated successfully.`);
+        toast.success(
+          (res as { message?: string })?.message ||
+            `Service "${values.title}" updated successfully.`,
+          { id },
+        );
       } catch {
         // Fallback to local store
         updateSharedServiceCatalog(existing.slug, localValues);
-        toast.success(`Service "${values.title}" updated in local catalog.`);
+        toast.success(`Service "${values.title}" updated in local catalog.`, { id });
+      } finally {
+        setDialogOpen(false);
+        setEditingService(null);
       }
       return;
     }
 
+    const id = toast.loading(`Creating service "${values.title}", please wait...`);
+
     try {
-      await createServiceApi(payload).unwrap();
-      toast.success(`Service "${values.title}" created successfully.`);
+      const res = await createServiceApi(payload).unwrap();
+      toast.success(
+        (res as { message?: string })?.message ||
+          `Service "${values.title}" created successfully.`,
+        { id },
+      );
     } catch {
       // Fallback to local store
       createSharedServiceCatalog(localValues);
-      toast.success(`Service "${values.title}" created in local catalog.`);
+      toast.success(`Service "${values.title}" created in local catalog.`, { id });
+    } finally {
+      setDialogOpen(false);
+      setEditingService(null);
     }
   }
 
   async function toggleStatus(service: ServiceOffering) {
     const newStatus = service.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     const identifier = service.id || service.serviceId || service.slug;
+    const id = toast.loading(`Updating "${service.title}" status to ${newStatus}, please wait...`);
 
     try {
-      await updateServiceApi({
+      const res = await updateServiceApi({
         id: identifier,
         body: { status: newStatus },
       }).unwrap();
-      toast.success(`Service "${service.title}" set to ${newStatus}.`);
+      toast.success(
+        (res as { message?: string })?.message ||
+          `Service "${service.title}" set to ${newStatus}.`,
+        { id },
+      );
     } catch {
       toggleSharedServiceCatalogStatus(service.slug);
-      toast.success(`Service "${service.title}" toggled to ${newStatus} (local).`);
+      toast.success(`Service "${service.title}" toggled to ${newStatus} (local).`, { id });
     }
   }
 
@@ -647,6 +702,7 @@ export default function AdminServicesPage() {
   async function confirmDelete() {
     if (!deleteTarget) return;
     const identifier = deleteTarget.id || deleteTarget.serviceId || deleteTarget.slug;
+    const id = toast.loading(`Deleting service "${deleteTarget.title}", please wait...`);
 
     try {
       const res = await deleteServiceApi(identifier).unwrap();
@@ -654,13 +710,18 @@ export default function AdminServicesPage() {
         toast.info(
           res.message ||
             `Service has existing request history and was automatically deactivated to INACTIVE to preserve records.`,
+          { id },
         );
       } else {
-        toast.success(res?.message || `Service "${deleteTarget.title}" deleted.`);
+        toast.success(res?.message || `Service "${deleteTarget.title}" deleted.`, {
+          id,
+        });
       }
     } catch {
       deleteSharedServiceCatalog(deleteTarget.slug);
-      toast.success(`Service "${deleteTarget.title}" deleted from local catalog.`);
+      toast.success(`Service "${deleteTarget.title}" deleted from local catalog.`, {
+        id,
+      });
     } finally {
       setDeleteTarget(null);
     }
@@ -668,6 +729,7 @@ export default function AdminServicesPage() {
 
   function clearFilters() {
     setQuery("");
+    setDebouncedQuery("");
     setStatusFilter("all");
     setSort("display-order");
   }
@@ -714,12 +776,19 @@ export default function AdminServicesPage() {
 
         <div className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_18px_56px_-44px_rgba(28,79,80,0.34)]">
           <div className="grid gap-3 lg:grid-cols-[1fr_24rem_18rem]">
-            <AdminSearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder="Search by service name or slug..."
-              ariaLabel="Search services"
-            />
+            <div className="relative">
+              <AdminSearchInput
+                value={query}
+                onChange={setQuery}
+                placeholder="Search by service name or slug..."
+                ariaLabel="Search services"
+              />
+              {isFetchingApiServices ? (
+                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="size-4 animate-spin text-teal-600" />
+                </div>
+              ) : null}
+            </div>
 
             <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-1">
               {statusFilterOptions.map((option) => (
@@ -756,36 +825,34 @@ export default function AdminServicesPage() {
             </Select>
           </div>
 
-          {isLoadingApiServices && services.length === 0 ? (
+          {isLoadingApiServices && catalogForTotals.length === 0 ? (
             <div className="mt-5 flex items-center justify-center py-16">
               <Loader2 className="size-8 animate-spin text-teal-700" />
             </div>
-          ) : services.length === 0 ? (
-            <div className="mt-5 rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
-              <Archive className="mx-auto text-teal-700" size={34} />
-              <h2 className="mt-4 text-xl font-semibold text-teal-950">
-                No services in catalog yet
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Create services customers can request.
-              </p>
-              <Button className="mt-5" onClick={openCreateDialog}>
-                Add Service
-              </Button>
-            </div>
+          ) : catalogForTotals.length === 0 ? (
+            <EmptyState
+              icon={Archive}
+              title="No services in catalog yet"
+              description="Create services customers can request and browse in the public catalog."
+              action={{
+                label: "Add Service",
+                onClick: openCreateDialog,
+              }}
+              tone="dashed"
+              className="mt-5 py-12"
+            />
           ) : filteredServices.length === 0 ? (
-            <div className="mt-5 rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
-              <Archive className="mx-auto text-teal-700" size={34} />
-              <h2 className="mt-4 text-xl font-semibold text-teal-950">
-                No services match your filters.
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Try a different search term or status.
-              </p>
-              <Button className="mt-5" variant="outline" onClick={clearFilters}>
-                Clear Filters
-              </Button>
-            </div>
+            <EmptyState
+              icon={Archive}
+              title="No services match your filters"
+              description="Try adjusting your search query, status filter, or reset your filters."
+              action={{
+                label: "Clear Filters",
+                onClick: clearFilters,
+              }}
+              tone="dashed"
+              className="mt-5 py-12"
+            />
           ) : (
             <>
               <div className="mt-5 hidden overflow-hidden rounded-lg border border-teal-100 lg:block">
@@ -940,7 +1007,7 @@ export default function AdminServicesPage() {
           onOpenChange={setDialogOpen}
           onSave={saveService}
           open={dialogOpen}
-          services={services}
+          services={catalogForTotals}
           isSubmitting={isCreating || isUpdating}
         />
       ) : null}

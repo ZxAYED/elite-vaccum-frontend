@@ -14,12 +14,14 @@ import { cn } from "@/lib/utils";
 export interface DatePickerProps {
   value?: string;
   onChange?: (value: string) => void;
-  minDate?: string;
-  maxDate?: string;
+  minDate?: string | Date;
+  maxDate?: string | Date;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
   error?: boolean;
+  size?: "default" | "sm";
+  align?: "start" | "center" | "end";
 }
 
 function formatDateString(isoOrDateStr?: string): string {
@@ -46,10 +48,12 @@ export function DatePicker({
   onChange,
   minDate,
   maxDate,
-  placeholder = "Select service date...",
+  placeholder = "Select date...",
   disabled,
   className,
   error,
+  size = "default",
+  align = "start",
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -75,15 +79,18 @@ export function DatePicker({
           type="button"
           disabled={disabled}
           className={cn(
-            "flex h-12 w-full items-center justify-between rounded-2xl border border-teal-100 bg-slate-50 px-4 text-left text-sm text-slate-800 shadow-none transition focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50",
+            "flex w-full items-center justify-between text-left text-sm text-slate-800 shadow-none transition focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50",
+            size === "sm"
+              ? "h-9.5 rounded-xl border border-slate-200 bg-white px-3"
+              : "h-12 rounded-2xl border border-teal-100 bg-slate-50 px-4",
             error && "border-rose-400 bg-rose-50/20 text-rose-900 focus-visible:ring-rose-400",
             className,
           )}
         >
-          <span className={cn("truncate", !value && "text-slate-400")}>
+          <span className={cn("truncate font-normal", !value && "text-slate-400")}>
             {value ? formattedDisplay : placeholder}
           </span>
-          <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="flex items-center gap-1.5 text-slate-400 shrink-0 ml-2">
             {value && (
               <span
                 role="button"
@@ -98,17 +105,21 @@ export function DatePicker({
                     onChange?.("");
                   }
                 }}
-                className="rounded-full p-0.5 hover:bg-slate-200 hover:text-slate-700"
+                className="rounded-full p-0.5 hover:bg-slate-200 hover:text-slate-700 cursor-pointer"
                 aria-label="Clear date"
               >
                 <X size={14} />
               </span>
             )}
-            <CalendarIcon size={17} className="text-teal-700" />
+            <CalendarIcon size={size === "sm" ? 15 : 17} className="text-teal-700" />
           </div>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-2" align="start">
+      <PopoverContent
+        className="z-[70] w-auto p-1.5 shadow-2xl rounded-2xl border border-teal-100 bg-white"
+        align={align}
+        sideOffset={6}
+      >
         <Calendar
           selected={value}
           onSelect={handleSelect}

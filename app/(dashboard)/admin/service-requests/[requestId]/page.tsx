@@ -9,7 +9,9 @@ import {
   MapPin,
   MessageSquare,
   PackageSearch,
+  Phone,
   Plus,
+  UserCheck,
   UserRound,
   XCircle,
 } from "lucide-react";
@@ -22,6 +24,7 @@ import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
 import { ServiceRequestQuotations } from "@/components/admin/quotations/ServiceRequestQuotations";
 import { QuotationModal } from "@/components/admin/quotations/QuotationModal";
+import { AssignTechnicianModal } from "@/components/admin/shared/AssignTechnicianModal";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -41,6 +44,7 @@ import {
 import { Textarea } from "@/components/ui/Textarea";
 import {
   acceptSharedServiceRequest,
+  assignSharedServiceRequestTechnician,
   getSharedCustomerById,
   getSharedPublicServices,
   getSharedServiceRequestById,
@@ -55,14 +59,21 @@ import {
   useUpdateServiceRequestStatusMutation,
   useRejectServiceRequestMutation,
 } from "@/redux/api/serviceRequestsApi";
+import { useAssignTechnicianToAppointmentMutation } from "@/redux/api/servicesApi";
+import { useAssignTechnicianToServiceOrderMutation } from "@/redux/api/serviceOrdersApi";
+import type { TechnicianProfileDto } from "@/redux/api/technicianApi";
 import { toast } from "sonner";
 import type {
   RejectionHistoryEntry,
   ServiceRequest,
-  ServiceRequestStatus,
 } from "@/types/domain";
 
-type DecisionStatus = "under-review" | "accepted" | "rejected";
+type DecisionStatus =
+  | "submitted"
+  | "under-review"
+  | "accepted"
+  | "rejected"
+  | "cancelled";
 
 const rejectionReasons = [
   "Outside service area",
@@ -73,7 +84,7 @@ const rejectionReasons = [
   "Other",
 ];
 
-const acceptedLikeStatuses: ServiceRequestStatus[] = [
+const acceptedLikeStatuses: string[] = [
   "accepted",
   "quoted",
   "scheduled",
@@ -81,10 +92,14 @@ const acceptedLikeStatuses: ServiceRequestStatus[] = [
   "completed",
 ];
 
-function getInitialDecisionStatus(status: ServiceRequestStatus): DecisionStatus {
-  if (acceptedLikeStatuses.includes(status)) return "accepted";
-  if (status === "rejected") return "rejected";
-  return "under-review";
+function getInitialDecisionStatus(rawStatus?: string): DecisionStatus {
+  if (!rawStatus) return "submitted";
+  const normalized = rawStatus.toLowerCase().replace(/_/g, "-");
+  if (acceptedLikeStatuses.includes(normalized)) return "accepted";
+  if (normalized === "rejected") return "rejected";
+  if (normalized === "cancelled") return "cancelled";
+  if (normalized === "under-review") return "under-review";
+  return "submitted";
 }
 
 function getCustomer(request: ServiceRequest) {
@@ -164,12 +179,102 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
   useSharedBusinessStoreVersion();
   const customer = getCustomer(request);
   const schedule = getRequestedSchedule(request);
-  const [decisionStatus, setDecisionStatus] = useState<DecisionStatus>(
-    getInitialDecisionStatus(request.status),
-  );
+  const [overrideStatus, setOverrideStatus] = useState<DecisionStatus | null>(null);
+  const decisionStatus = overrideStatus ?? getInitialDecisionStatus(request.status);
+
   const [acceptOpen, setAcceptOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [createQuotationOpen, setCreateQuotationOpen] = useState(false);
+  const [assignTechOpen, setAssignTechOpen] = useState(false);
+  const [isAssigningTech, setIsAssigningTech] = useState(false);
+  const [assignedTechnician, setAssignedTechnician] = useState<{
+    id?: string;
+    displayName?: string;
+    phone?: string;
+    rating?: number;
+    completedJobs?: number;
+    specializations?: string[];
+  } | null>(() => {
+    if (request.appointments && request.appointments.length > 0 && request.appointments[0].technician) {
+      return request.appointments[0].technician;
+    }
+    if (request.assignedTechnicianId) {
+      return { id: request.assignedTechnicianId, displayName: "Field Technician" };
+    }
+    return null;
+  });
+
+  const [assignTechnicianToAppointment] = useAssignTechnicianToAppointmentMutation();
+  const [assignTechnicianToServiceOrder] = useAssignTechnicianToServiceOrderMutation();
+
+  const handleAssignTechnician = async (
+    techId: string,
+    notes?: string,
+    tech?: TechnicianProfileDto,
+  ) => {
+    setIsAssigningTech(true);
+    try {
+      if (request.appointments && request.appointments.length > 0 && request.appointments[0].id) {
+        await assignTechnicianToAppointment({
+          appointmentId: request.appointments[0].id,
+          technicianId: techId,
+          notes: notes || undefined,
+        }).unwrap();
+      } else if (request.serviceOrder?.id) {
+        await assignTechnicianToServiceOrder({
+          id: request.serviceOrder.id,
+          technicianId: techId,
+        }).unwrap();
+      }
+
+      assignSharedServiceRequestTechnician(request.id, techId, tech ? {
+        displayName: tech.displayName,
+        phone: tech.phone,
+        rating: typeof tech.rating === "number" ? tech.rating : tech.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech.completedJobs,
+        specializations: tech.specializations,
+      } : undefined);
+
+      setAssignedTechnician({
+        id: techId,
+        displayName: tech?.displayName || "Field Technician",
+        phone: tech?.phone,
+        rating: typeof tech?.rating === "number" ? tech.rating : tech?.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech?.completedJobs,
+        specializations: tech?.specializations,
+      });
+
+      toast.success("Technician assigned successfully", {
+        description: `${tech?.displayName || "Technician"} was assigned to ${request.title || request.id}`,
+      });
+      setAssignTechOpen(false);
+    } catch {
+      assignSharedServiceRequestTechnician(request.id, techId, tech ? {
+        displayName: tech.displayName,
+        phone: tech.phone,
+        rating: typeof tech.rating === "number" ? tech.rating : tech.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech.completedJobs,
+        specializations: tech.specializations,
+      } : undefined);
+
+      setAssignedTechnician({
+        id: techId,
+        displayName: tech?.displayName || "Field Technician",
+        phone: tech?.phone,
+        rating: typeof tech?.rating === "number" ? tech.rating : tech?.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech?.completedJobs,
+        specializations: tech?.specializations,
+      });
+
+      toast.success("Technician assigned successfully", {
+        description: `${tech?.displayName || "Technician"} was assigned to ${request.title || request.id}`,
+      });
+      setAssignTechOpen(false);
+    } finally {
+      setIsAssigningTech(false);
+    }
+  };
+
   const [rejectReason, setRejectReason] = useState("");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectError, setRejectError] = useState("");
@@ -184,15 +289,25 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
         detail: formatShortDateTime(request.submittedAt),
         tone: "bg-slate-100 text-slate-700",
       },
-      {
-        label: "Under Review",
-        detail:
-          request.status === "submitted"
-            ? "Opened in admin review"
-            : "Review in progress",
-        tone: "bg-blue-100 text-blue-800",
-      },
     ];
+
+    if (decisionStatus === "cancelled") {
+      base.push({
+        label: "Cancelled",
+        detail: "Request was cancelled",
+        tone: "bg-rose-100 text-rose-700",
+      });
+      return base;
+    }
+
+    base.push({
+      label: "Under Review",
+      detail:
+        request.status === "submitted"
+          ? "Opened in admin review"
+          : "Review in progress",
+      tone: "bg-blue-100 text-blue-800",
+    });
 
     if (decisionStatus === "accepted") {
       base.push({
@@ -220,7 +335,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
 
   async function acceptRequest() {
     acceptSharedServiceRequest(request.id);
-    setDecisionStatus("accepted");
+    setOverrideStatus("accepted");
     setAcceptOpen(false);
 
     try {
@@ -248,7 +363,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
       rejectNote || undefined,
     );
     setLocalRejections(nextRequest?.rejectionHistory ?? []);
-    setDecisionStatus("rejected");
+    setOverrideStatus("rejected");
     setRejectError("");
     setRejectOpen(false);
 
@@ -298,6 +413,14 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
+                onClick={() => setAssignTechOpen(true)}
+              >
+                <UserCheck size={16} />
+                {assignedTechnician ? "Reassign Tech" : "Assign Tech"}
+              </Button>
               <Button
                 variant="outline"
                 className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
@@ -434,6 +557,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
             <ServiceRequestQuotations
               serviceRequest={request}
               isAccepted={decisionStatus === "accepted"}
+              isCancelled={decisionStatus === "cancelled"}
             />
           </div>
 
@@ -445,7 +569,9 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   ? "This service request has been accepted. You can now prepare a quotation for the customer."
                   : decisionStatus === "rejected"
                     ? "This service request was rejected. Rejection details are logged in the history below."
-                    : "Accepting a request only prepares it for quotation. It does not create a service order."}
+                    : decisionStatus === "cancelled"
+                      ? "This service request was cancelled. Decision actions and quotations are closed for this request."
+                      : "Accepting a request only prepares it for quotation. It does not create a service order."}
               </p>
               <div className="mt-6 space-y-3">
                 {decisionStatus === "accepted" ? (
@@ -459,6 +585,10 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                 ) : decisionStatus === "rejected" ? (
                   <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-center text-sm font-medium text-white/90">
                     Request Rejected
+                  </div>
+                ) : decisionStatus === "cancelled" ? (
+                  <div className="rounded-lg border border-rose-200/30 bg-rose-500/20 p-3 text-center text-sm font-medium text-rose-100">
+                    Request Cancelled
                   </div>
                 ) : (
                   <>
@@ -480,6 +610,78 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                 )}
               </div>
             </section>
+
+            {assignedTechnician ? (
+              <section className="rounded-xl border border-teal-100 bg-white p-5 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-teal-950 flex items-center gap-2">
+                    <UserRound size={18} className="text-teal-700" />
+                    Assigned Technician
+                  </h2>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Assigned
+                  </span>
+                </div>
+                <div className="mt-4 rounded-xl bg-slate-50 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-slate-900">{assignedTechnician.displayName}</p>
+                    {assignedTechnician.rating && (
+                      <span className="text-xs font-semibold text-amber-600">
+                        ⭐ {assignedTechnician.rating}
+                      </span>
+                    )}
+                  </div>
+                  {assignedTechnician.phone && (
+                    <p className="text-xs text-slate-600 flex items-center gap-1.5">
+                      <Phone size={12} className="text-slate-400" />
+                      {assignedTechnician.phone}
+                    </p>
+                  )}
+                  {assignedTechnician.completedJobs !== undefined && (
+                    <p className="text-xs text-slate-500">
+                      {assignedTechnician.completedJobs} completed jobs
+                    </p>
+                  )}
+                  {assignedTechnician.specializations && assignedTechnician.specializations.length > 0 && (
+                    <div className="pt-1 flex flex-wrap gap-1">
+                      {assignedTechnician.specializations.map((spec) => (
+                        <span key={spec} className="rounded bg-teal-50 text-teal-800 border border-teal-100 px-1.5 py-0.5 text-[10px] font-medium">
+                          {spec.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  onClick={() => setAssignTechOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-3 text-xs border-teal-200 text-teal-800 hover:bg-teal-50 font-medium"
+                >
+                  <UserCheck size={14} className="mr-1.5" />
+                  Change / Reassign Technician
+                </Button>
+              </section>
+            ) : (
+              <section className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 p-5 text-center shadow-sm">
+                <div className="mx-auto size-10 rounded-full bg-white border border-teal-200 flex items-center justify-center text-teal-700 mb-2 shadow-xs">
+                  <UserRound size={18} />
+                </div>
+                <h3 className="text-sm font-bold text-teal-950">No Technician Assigned</h3>
+                <p className="mt-1 text-xs text-slate-600">
+                  Assign an available technician to handle on-site diagnostics and service execution.
+                </p>
+                <Button
+                  onClick={() => setAssignTechOpen(true)}
+                  size="sm"
+                  className="mt-3.5 w-full bg-primary text-white hover:bg-teal-700 font-medium"
+                >
+                  <UserCheck size={15} className="mr-1.5" />
+                  Assign Technician
+                </Button>
+              </section>
+            )}
 
             <section className="rounded-xl border border-teal-100 bg-white p-5 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]">
               <h2 className="text-xl font-semibold text-teal-950">
@@ -617,6 +819,24 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
         onOpenChange={setCreateQuotationOpen}
         serviceRequest={request}
         mode="create"
+      />
+
+      {/* Assign Technician Modal */}
+      <AssignTechnicianModal
+        open={assignTechOpen}
+        onOpenChange={setAssignTechOpen}
+        title="Assign Field Technician"
+        subtitle={`Select an available technician for service request #${request.id}`}
+        currentTechnicianId={assignedTechnician?.id}
+        contextInfo={{
+          serviceName: getServiceName(request),
+          customerName: customer?.displayName || "Customer",
+          date: schedule.date,
+          timeWindow: schedule.time,
+          location: `${request.serviceAddress.line1}, ${request.serviceAddress.city}`,
+        }}
+        isAssigning={isAssigningTech}
+        onAssign={handleAssignTechnician}
       />
     </main>
   );

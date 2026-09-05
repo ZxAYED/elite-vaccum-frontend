@@ -2,8 +2,6 @@ import { Monitor, ShieldCheck, Smartphone } from "lucide-react";
 
 import type { Customer, User } from "@/types/domain";
 
-import { mockCustomers } from "@/data/mock/customers";
-
 export interface SavedProperty {
   id: string;
   name: string;
@@ -46,10 +44,7 @@ const fallbackCustomer: Customer = {
   addresses: [],
 };
 
-export const mockCurrentCustomer: Customer =
-  mockCustomers.find((customer) => customer.id === "cust-1001") ??
-  mockCustomers[0] ??
-  fallbackCustomer;
+export const mockCurrentCustomer: Customer = fallbackCustomer;
 
 export const mockSavedProperties: SavedProperty[] = [
   {

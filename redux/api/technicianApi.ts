@@ -101,6 +101,27 @@ export interface TechnicianProfileDto {
   avatarUrl?: string;
   bio?: string;
   specializations?: string[];
+  rating?: string | number;
+  completedJobs?: number;
+  isVerified?: boolean;
+  adminNotes?: string;
+  defaultAvailability?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    role?: string;
+    isActive?: boolean;
+  };
+  _count?: {
+    assignedRequests?: number;
+    assignedJobs?: number;
+    appointments?: number;
+    serviceReports?: number;
+  };
   stats?: {
     completedJobs: number;
     jobsThisMonth: number;

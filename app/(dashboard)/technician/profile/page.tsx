@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Camera, Mail, Phone, ShieldCheck, Trash2, Wrench } from "lucide-react";
 
 import {
@@ -10,6 +10,13 @@ import {
 } from "@/components/technician/TechnicianRouteShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { toast } from "sonner";
+import {
+  useGetTechnicianProfileQuery,
+  useUpdateTechnicianProfileMutation,
+  useUploadTechnicianPhotoMutation,
+  useRemoveTechnicianPhotoMutation,
+} from "@/redux/api/technicianApi";
 import {
   getCurrentTechnicianProfile,
   getTechnicianJobsThisMonth,
@@ -29,35 +36,42 @@ const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 export default function TechnicianProfilePage() {
   useSharedAdminScheduleStateVersion();
   const technician = getCurrentTechnicianProfile();
-  const jobsThisMonth = getTechnicianJobsThisMonth();
-  const upcomingAssignments = getTechnicianUpcomingOrders().length;
+  const { data: apiProfile } = useGetTechnicianProfileQuery();
+  const [updateProfileApi, { isLoading: isUpdatingProfile }] =
+    useUpdateTechnicianProfileMutation();
+  const [uploadPhotoApi] = useUploadTechnicianPhotoMutation();
+  const [removePhotoApi, { isLoading: isRemovingPhoto }] =
+    useRemoveTechnicianPhotoMutation();
+
+  const jobsThisMonth = apiProfile?.stats?.jobsThisMonth ?? getTechnicianJobsThisMonth();
+  const upcomingAssignments =
+    apiProfile?.stats?.upcomingAssignments ?? getTechnicianUpcomingOrders().length;
 
   const [editMode, setEditMode] = useState(false);
-  const [fullName, setFullName] = useState(technician.displayName);
-  const [phone, setPhone] = useState(technician.phone);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [fullName, setFullName] = useState(apiProfile?.displayName ?? technician.displayName);
+  const [phone, setPhone] = useState(apiProfile?.phone ?? technician.phone);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(
+    apiProfile?.avatarUrl ?? null,
+  );
   const [avatarError, setAvatarError] = useState("");
 
-  const initials = useMemo(
-    () =>
-      technician.displayName
-        .split(" ")
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [technician.displayName],
-  );
+  const activeName = apiProfile?.displayName ?? technician.displayName;
+  const initials = activeName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   useEffect(() => {
     return () => {
-      if (avatarPreview) {
+      if (avatarPreview && avatarPreview.startsWith("blob:")) {
         URL.revokeObjectURL(avatarPreview);
       }
     };
   }, [avatarPreview]);
 
-  function handlePhotoChange(file: File | null) {
+  async function handlePhotoChange(file: File | null) {
     if (!file) return;
 
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
@@ -70,19 +84,53 @@ export default function TechnicianProfilePage() {
       return;
     }
 
-    if (avatarPreview) {
+    if (avatarPreview && avatarPreview.startsWith("blob:")) {
       URL.revokeObjectURL(avatarPreview);
     }
 
     setAvatarPreview(URL.createObjectURL(file));
     setAvatarError("");
+
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    try {
+      await uploadPhotoApi(formData).unwrap();
+      toast.success("Profile photo uploaded.");
+    } catch {
+      toast.info("Photo updated locally.");
+    }
   }
 
-  function handleSaveProfile() {
+  async function handleRemovePhoto() {
+    if (avatarPreview && avatarPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+    setAvatarPreview(null);
+    try {
+      await removePhotoApi().unwrap();
+      toast.success("Profile photo removed.");
+    } catch {
+      toast.info("Photo removed locally.");
+    }
+  }
+
+  async function handleSaveProfile() {
     updateCurrentTechnicianProfile({
       displayName: fullName.trim(),
       phone: phone.trim(),
     });
+
+    try {
+      await updateProfileApi({
+        displayName: fullName.trim(),
+        phone: phone.trim(),
+      }).unwrap();
+      toast.success("Profile details updated.");
+    } catch {
+      toast.info("Profile updated locally.");
+    }
+
     setEditMode(false);
   }
 
@@ -173,13 +221,11 @@ export default function TechnicianProfilePage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-                    setAvatarPreview(null);
-                  }}
+                  disabled={isRemovingPhoto}
+                  onClick={handleRemovePhoto}
                 >
                   <Trash2 size={15} />
-                  Remove Photo
+                  {isRemovingPhoto ? "Removing..." : "Remove Photo"}
                 </Button>
               </div>
 
@@ -200,7 +246,9 @@ export default function TechnicianProfilePage() {
                 <Input value={phone} onChange={(event) => setPhone(event.target.value)} />
               </label>
               <div className="md:col-span-2 flex justify-end">
-                <Button onClick={handleSaveProfile}>Save Profile</Button>
+                <Button disabled={isUpdatingProfile} onClick={handleSaveProfile}>
+                  {isUpdatingProfile ? "Saving..." : "Save Profile"}
+                </Button>
               </div>
             </div>
           ) : null}

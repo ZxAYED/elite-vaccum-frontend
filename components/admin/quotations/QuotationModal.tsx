@@ -5,6 +5,7 @@ import { Loader2, Plus, Trash2, ReceiptText, Send } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Dialog,
   DialogContent,
@@ -134,12 +135,20 @@ function QuotationModalForm({
     ];
   });
 
-  const [discountUsd, setDiscountUsd] = useState<number>(() => {
-    return mode === "edit" && initialQuotation ? initialQuotation.discountUsd || 0 : 0;
+  const [discountUsd, setDiscountUsd] = useState<number | string>(() => {
+    if (mode === "edit" && initialQuotation) {
+      const d = Number(initialQuotation.discountUsd);
+      return Number.isNaN(d) ? 0 : d;
+    }
+    return 0;
   });
 
-  const [taxUsd, setTaxUsd] = useState<number>(() => {
-    return mode === "edit" && initialQuotation ? initialQuotation.taxUsd || 0 : 0;
+  const [taxUsd, setTaxUsd] = useState<number | string>(() => {
+    if (mode === "edit" && initialQuotation) {
+      const t = Number(initialQuotation.taxUsd);
+      return Number.isNaN(t) ? 0 : t;
+    }
+    return 0;
   });
 
   const [notes, setNotes] = useState<string>(() => {
@@ -159,11 +168,14 @@ function QuotationModalForm({
 
   const [errorMsg, setErrorMsg] = useState<string>("");
 
+  const numericDiscount = Number(discountUsd) || 0;
+  const numericTax = Number(taxUsd) || 0;
+
   const subtotal = lineItems.reduce(
     (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPriceUsd) || 0),
     0,
   );
-  const total = Math.max(0, subtotal + (Number(taxUsd) || 0) - (Number(discountUsd) || 0));
+  const total = Math.max(0, subtotal + numericTax - numericDiscount);
 
   function handleAddLineItem() {
     setLineItems((prev) => [
@@ -195,7 +207,7 @@ function QuotationModalForm({
     );
   }
 
-  async function handleSubmit(asDraft: boolean = false) {
+  async function handleSubmit() {
     const invalidItems = lineItems.filter(
       (item) => !item.description.trim() || Number(item.quantity) <= 0,
     );
@@ -214,11 +226,15 @@ function QuotationModalForm({
       }),
     );
 
-    const targetStatus = asDraft ? "draft" : "sent";
+    const toastId = toast.loading(
+      mode === "edit"
+        ? "Updating quotation, please wait..."
+        : "Creating quotation, please wait...",
+    );
 
     if (mode === "edit" && initialQuotation) {
       try {
-        await reviseQuotationMutation({
+        const res = await reviseQuotationMutation({
           id: initialQuotation.id,
           body: {
             serviceRequestId: serviceRequest.id,
@@ -227,77 +243,124 @@ function QuotationModalForm({
               quantity: li.quantity,
               unitPriceUsd: li.unitPriceUsd,
             })),
-            discountUsd: Number(discountUsd) || 0,
-            taxUsd: Number(taxUsd) || 0,
+            discountUsd: numericDiscount,
+            taxUsd: numericTax,
             notes: notes.trim() || undefined,
+            expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
           },
         }).unwrap();
-      } catch {
-        // Fallback handled locally
+
+        let updated: AdminQuotation | undefined;
+        try {
+          updated = upsertSharedQuotation({
+            id: initialQuotation.id,
+            requestId: serviceRequest.id,
+            serviceId:
+              serviceRequest.serviceId ||
+              ((serviceRequest as unknown as Record<string, unknown>).serviceSlug as string) ||
+              "serv-101",
+            customerId: serviceRequest.customerId || "cust-default",
+            lineItems: formattedLineItems,
+            discountUsd: numericDiscount,
+            taxUsd: numericTax,
+            notes: notes.trim() || undefined,
+            expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+            status: initialQuotation.status,
+            revisionReason: "Admin revised quotation on service request page",
+          });
+        } catch (localStoreErr) {
+          console.warn("Local mock store synchronization skipped:", localStoreErr);
+        }
+
+        const successMsg =
+          (res as unknown as { message?: string })?.message ||
+          (res as unknown as { quotation?: { message?: string } })?.quotation?.message ||
+          "Quotation revised successfully and revision history captured";
+
+        toast.success(successMsg, { id: toastId });
+
+        const quoteObj =
+          (res as unknown as { quotation?: AdminQuotation })?.quotation ||
+          ((res as AdminQuotation)?.id ? (res as AdminQuotation) : updated);
+        if (quoteObj) {
+          onSuccess?.(quoteObj);
+        }
+        onClose();
+      } catch (err: unknown) {
+        const errObj = err as {
+          data?: { message?: string; error?: string };
+          message?: string;
+        };
+        const msg =
+          errObj?.data?.message ||
+          errObj?.message ||
+          "Failed to update quotation.";
+        toast.error(msg, { id: toastId, duration: 8000 });
+        setErrorMsg(msg);
       }
-
-      const updated = upsertSharedQuotation({
-        id: initialQuotation.id,
-        requestId: serviceRequest.id,
-        serviceId:
-          serviceRequest.serviceId ||
-          (serviceRequest as unknown as Record<string, unknown>).serviceSlug as string ||
-          "serv-101",
-        customerId: serviceRequest.customerId || "cust-default",
-        lineItems: formattedLineItems,
-        discountUsd: Number(discountUsd) || 0,
-        taxUsd: Number(taxUsd) || 0,
-        notes: notes.trim() || undefined,
-        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
-        status: initialQuotation.status === "draft" && !asDraft ? "sent" : initialQuotation.status,
-        revisionReason: "Admin revised quotation on service request page",
-      });
-
-      toast.success("Quotation updated successfully");
-      onSuccess?.(updated);
-      onClose();
     } else {
-      let createdFromApi: AdminQuotation | null = null;
       try {
-        createdFromApi = await createQuotationMutation({
+        const createdFromApi = await createQuotationMutation({
           serviceRequestId: serviceRequest.id,
           lineItems: formattedLineItems.map((li) => ({
             description: li.description,
             quantity: li.quantity,
             unitPriceUsd: li.unitPriceUsd,
           })),
-          discountUsd: Number(discountUsd) || 0,
-          taxUsd: Number(taxUsd) || 0,
+          discountUsd: numericDiscount,
+          taxUsd: numericTax,
           notes: notes.trim() || undefined,
+          expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
         }).unwrap();
-      } catch {
-        // Fallback handled locally
+
+        const createdQuote =
+          (createdFromApi as unknown as { quotation?: AdminQuotation })?.quotation ||
+          (createdFromApi as AdminQuotation);
+
+        let localCreated: AdminQuotation | undefined;
+        try {
+          localCreated = upsertSharedQuotation({
+            id: createdQuote?.id || `QUO-${Date.now().toString(36).toUpperCase()}`,
+            requestId: serviceRequest.id,
+            serviceId:
+              serviceRequest.serviceId ||
+              ((serviceRequest as unknown as Record<string, unknown>).serviceSlug as string) ||
+              "serv-101",
+            customerId: serviceRequest.customerId || "cust-default",
+            lineItems: formattedLineItems,
+            discountUsd: numericDiscount,
+            taxUsd: numericTax,
+            notes: notes.trim() || undefined,
+            expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+            status: "sent",
+          });
+        } catch (localStoreErr) {
+          console.warn("Local mock store synchronization skipped:", localStoreErr);
+        }
+
+        const finalQuotation = createdQuote || localCreated;
+        const successMsg =
+          (createdFromApi as unknown as { message?: string })?.message ||
+          (createdFromApi as unknown as { quotation?: { message?: string } })?.quotation?.message ||
+          `Quotation ${finalQuotation?.id || ""} created & issued to customer.`;
+
+        toast.success(successMsg, { id: toastId });
+        if (finalQuotation) {
+          onSuccess?.(finalQuotation);
+        }
+        onClose();
+      } catch (err: unknown) {
+        const errObj = err as {
+          data?: { message?: string; error?: string; code?: string };
+          message?: string;
+        };
+        const msg =
+          errObj?.data?.message ||
+          errObj?.message ||
+          "Failed to create quotation.";
+        toast.error(msg, { id: toastId, duration: 8000 });
+        setErrorMsg(msg);
       }
-
-      const localCreated = upsertSharedQuotation({
-        id: createdFromApi?.id || `QUO-${Date.now().toString(36).toUpperCase()}`,
-        requestId: serviceRequest.id,
-        serviceId:
-          serviceRequest.serviceId ||
-          (serviceRequest as unknown as Record<string, unknown>).serviceSlug as string ||
-          "serv-101",
-        customerId: serviceRequest.customerId || "cust-default",
-        lineItems: formattedLineItems,
-        discountUsd: Number(discountUsd) || 0,
-        taxUsd: Number(taxUsd) || 0,
-        notes: notes.trim() || undefined,
-        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
-        status: targetStatus,
-      });
-
-      toast.success(
-        asDraft ? "Quotation saved as draft" : "Quotation created & issued to customer",
-        {
-          description: `Quote ID: ${localCreated.id} · Total: ${formatCurrencyUsd(total)}`,
-        },
-      );
-      onSuccess?.(localCreated);
-      onClose();
     }
   }
 
@@ -413,8 +476,11 @@ function QuotationModalForm({
               type="number"
               min="0"
               step="0.01"
-              value={discountUsd}
-              onChange={(e) => setDiscountUsd(Math.max(0, Number(e.target.value)))}
+              value={discountUsd === 0 && mode === "create" ? "" : discountUsd}
+              onChange={(e) => {
+                const val = e.target.value;
+                setDiscountUsd(val === "" ? "" : Math.max(0, Number(val)));
+              }}
               placeholder="0.00"
               className="bg-white h-9.5"
             />
@@ -425,8 +491,11 @@ function QuotationModalForm({
               type="number"
               min="0"
               step="0.01"
-              value={taxUsd}
-              onChange={(e) => setTaxUsd(Math.max(0, Number(e.target.value)))}
+              value={taxUsd === 0 && mode === "create" ? "" : taxUsd}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTaxUsd(val === "" ? "" : Math.max(0, Number(val)));
+              }}
               placeholder="0.00"
               className="bg-white h-9.5"
             />
@@ -438,16 +507,16 @@ function QuotationModalForm({
             <span>Subtotal</span>
             <span>{formatCurrencyUsd(subtotal)}</span>
           </div>
-          {discountUsd > 0 ? (
+          {numericDiscount > 0 ? (
             <div className="flex justify-between text-xs text-emerald-600">
               <span>Discount</span>
-              <span>-{formatCurrencyUsd(discountUsd)}</span>
+              <span>-{formatCurrencyUsd(numericDiscount)}</span>
             </div>
           ) : null}
-          {taxUsd > 0 ? (
+          {numericTax > 0 ? (
             <div className="flex justify-between text-xs text-slate-500">
               <span>Tax</span>
-              <span>+{formatCurrencyUsd(taxUsd)}</span>
+              <span>+{formatCurrencyUsd(numericTax)}</span>
             </div>
           ) : null}
           <div className="flex justify-between text-base font-semibold text-primary pt-1">
@@ -469,15 +538,17 @@ function QuotationModalForm({
             className="bg-white text-sm"
           />
         </label>
-        <label className="space-y-1.5 text-sm font-medium text-slate-700">
+        <div className="space-y-1.5 text-sm font-medium text-slate-700">
           <span>Quotation Expiration Date</span>
-          <Input
-            type="date"
+          <DatePicker
             value={expiresAt}
-            onChange={(e) => setExpiresAt(e.target.value)}
-            className="bg-white h-9.5"
+            onChange={(val) => setExpiresAt(val)}
+            minDate={new Date().toISOString().slice(0, 10)}
+            size="sm"
+            placeholder="Select expiration date..."
+            className="bg-white"
           />
-        </label>
+        </div>
       </div>
 
       <DialogFooter className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:space-x-2">
@@ -491,20 +562,9 @@ function QuotationModalForm({
         </Button>
 
         <div className="flex items-center gap-2">
-          {mode === "create" ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleSubmit(true)}
-              disabled={isLoading}
-            >
-              Save as Draft
-            </Button>
-          ) : null}
-
           <Button
             type="button"
-            onClick={() => handleSubmit(false)}
+            onClick={handleSubmit}
             disabled={isLoading}
           >
             {isLoading ? (

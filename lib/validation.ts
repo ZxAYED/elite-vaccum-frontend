@@ -129,6 +129,8 @@ export const productSchema = z.object({
     .max(100000, "Price is too high."),
   availability: z.enum(["in-stock", "special-order"]),
   status: z.enum(["active", "draft", "archived"]),
+  quantity: z.number().int().min(0).optional(),
+  isFeatured: z.boolean().optional(),
   taxable: z.boolean(),
   shippingLabel: z
     .string()
@@ -176,7 +178,7 @@ export const technicianSchema = z.object({
     message: "Phone is required.",
   }),
   status: z.enum(["ACTIVE", "INACTIVE"]),
-  availability: z.enum(["AVAILABLE", "BUSY", "OFF_DUTY"]),
+  availability: z.enum(["AVAILABLE", "BUSY", "ON_BREAK", "OFF_DUTY"]),
   notes: z
     .string()
     .trim()

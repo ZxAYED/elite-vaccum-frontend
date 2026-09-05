@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDays, Plus, Send, Trash2 } from "lucide-react";
+import { Plus, Send, Trash2 } from "lucide-react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useMemo, useState } from "react";
 
@@ -16,11 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/Popover";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Textarea } from "@/components/ui/Textarea";
 import { calculateQuotationTotals } from "@/data/mock/quotations";
 import { formatCurrencyUsd } from "@/lib/formatters";
@@ -28,7 +24,7 @@ import {
   quotationBuilderSchema,
   type QuotationBuilderValues,
 } from "@/lib/validation";
-import { cn } from "@/lib/utils";
+
 import type { AdminQuotation } from "@/types/domain";
 
 interface QuotationBuilderProps {
@@ -46,7 +42,6 @@ export function QuotationBuilder({
 }: QuotationBuilderProps) {
   const [confirmSendOpen, setConfirmSendOpen] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
-  const [expiryOpen, setExpiryOpen] = useState(false);
 
   const form = useForm<QuotationBuilderValues>({
     resolver: zodResolver(quotationBuilderSchema),
@@ -258,68 +253,47 @@ export function QuotationBuilder({
                 {...form.register("discountUsd", { valueAsNumber: true })}
               />
             </label>
-            <label className="space-y-1.5 text-slate-700">
-              <span>Optional expiry</span>
-              <Popover open={expiryOpen} onOpenChange={setExpiryOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className={cn(
-                      "flex h-12 w-full items-center justify-between rounded-[var(--radius-control)] border border-teal-100 bg-white px-4 text-left text-sm text-slate-800 shadow-[0_18px_36px_-30px_rgba(28,79,80,0.25)] outline-none transition hover:border-teal-200 focus-visible:border-teal-200 focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]",
-                      !watchedExpiry && "text-slate-400",
-                    )}
-                  >
-                    <span>{watchedExpiry || "Select expiry date"}</span>
-                    <CalendarDays size={16} className="text-slate-400" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[18rem] p-3">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-primary">
-                        Quotation expiry
-                      </p>
-                      {watchedExpiry ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            form.setValue("expiresAt", "");
-                            setExpiryOpen(false);
-                          }}
-                          className="text-xs font-medium text-slate-500 transition hover:text-teal-700"
-                        >
-                          Clear
-                        </button>
-                      ) : null}
-                    </div>
-                    <Input
-                      type="date"
-                      value={watchedExpiry}
-                      onChange={(event) => {
-                        form.setValue("expiresAt", event.target.value, {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        });
-                        if (event.target.value) {
-                          setExpiryOpen(false);
-                        }
-                      }}
-                    />
-                    <p className="text-xs leading-5 text-slate-500">
-                      Expiry remains optional and is shown only when the quotation
-                      includes a date.
-                    </p>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </label>
+            <div className="space-y-1.5 text-slate-700">
+              <span className="text-sm font-medium">Optional expiry</span>
+              <DatePicker
+                value={watchedExpiry}
+                onChange={(val) => {
+                  form.setValue("expiresAt", val, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+                minDate={new Date().toISOString().slice(0, 10)}
+                placeholder="Select expiry date"
+              />
+              <p className="text-xs leading-5 text-slate-500">
+                Expiry remains optional and is shown only when the quotation
+                includes a date.
+              </p>
+            </div>
             {form.formState.errors.discountUsd?.message ? (
               <p className="text-sm text-red-600">
                 {form.formState.errors.discountUsd.message}
               </p>
             ) : null}
-            <div className="border-t border-teal-100 pt-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-2 border-t border-teal-100 pt-4 text-sm">
+              <div className="flex items-center justify-between text-slate-500">
+                <span>Subtotal</span>
+                <span>{formatCurrencyUsd(totals.subtotalUsd)}</span>
+              </div>
+              {totals.discountUsd > 0 ? (
+                <div className="flex items-center justify-between text-emerald-600">
+                  <span>Discount</span>
+                  <span>-{formatCurrencyUsd(totals.discountUsd)}</span>
+                </div>
+              ) : null}
+              {totals.taxUsd > 0 ? (
+                <div className="flex items-center justify-between text-slate-500">
+                  <span>Tax</span>
+                  <span>+{formatCurrencyUsd(totals.taxUsd)}</span>
+                </div>
+              ) : null}
+              <div className="flex items-center justify-between border-t border-teal-100/60 pt-2">
                 <span className="font-semibold text-slate-700">Total</span>
                 <strong className="text-2xl text-primary">
                   {formatCurrencyUsd(totals.totalUsd)}

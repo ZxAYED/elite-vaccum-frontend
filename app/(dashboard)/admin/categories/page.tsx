@@ -50,6 +50,13 @@ import {
   toggleSharedCategoryStatus,
   updateSharedCategory,
 } from "@/data/mock/shared-business-store";
+import {
+  useGetCategoriesQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+} from "@/redux/api/categoriesApi";
+import { toast } from "sonner";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { cn } from "@/lib/utils";
 import {
@@ -320,7 +327,19 @@ export default function AdminCategoriesPage() {
     category: ProductCategory;
     count: number;
   } | null>(null);
-  const categories = getSharedCategories();
+  const { data: apiCategoriesData, refetch: refetchCategories } = useGetCategoriesQuery({ limit: 100 });
+  const [createCategoryMutation] = useCreateCategoryMutation();
+  const [updateCategoryMutation] = useUpdateCategoryMutation();
+  const [deleteCategoryMutation] = useDeleteCategoryMutation();
+
+  const sharedCategories = getSharedCategories();
+  const categories = useMemo(() => {
+    if (apiCategoriesData?.items && apiCategoriesData.items.length > 0) {
+      return apiCategoriesData.items;
+    }
+    return sharedCategories;
+  }, [apiCategoriesData?.items, sharedCategories]);
+
   const products = getSharedProducts();
 
   const productCounts = useMemo(() => {
@@ -393,17 +412,42 @@ export default function AdminCategoriesPage() {
     setDialogOpen(true);
   }
 
-  function saveCategory(values: ProductCategoryValues, editingId?: string) {
+  async function saveCategory(values: ProductCategoryValues, editingId?: string) {
     if (editingId) {
       updateSharedCategory(editingId, values);
+      try {
+        await updateCategoryMutation({ id: editingId, data: values }).unwrap();
+        toast.success("Category updated successfully");
+        refetchCategories();
+      } catch {
+        // Fallback to local store
+      }
       return;
     }
 
     createSharedCategory(values);
+    try {
+      await createCategoryMutation(values).unwrap();
+      toast.success("Category created successfully");
+      refetchCategories();
+    } catch {
+      // Fallback to local store
+    }
   }
 
-  function toggleStatus(category: ProductCategory) {
+  async function toggleStatus(category: ProductCategory) {
     toggleSharedCategoryStatus(category.id);
+    const nextStatus = category.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    try {
+      await updateCategoryMutation({
+        id: category.id,
+        data: { status: nextStatus },
+      }).unwrap();
+      toast.success(`Category set to ${nextStatus.toLowerCase()}`);
+      refetchCategories();
+    } catch {
+      // Fallback to local store
+    }
   }
 
   function requestDelete(category: ProductCategory) {
@@ -416,10 +460,18 @@ export default function AdminCategoriesPage() {
     setDeleteTarget(category);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
-    deleteSharedCategory(deleteTarget.id);
+    const targetId = deleteTarget.id;
+    deleteSharedCategory(targetId);
     setDeleteTarget(null);
+    try {
+      await deleteCategoryMutation(targetId).unwrap();
+      toast.success("Category deleted successfully");
+      refetchCategories();
+    } catch {
+      // Fallback to local store
+    }
   }
 
   return (

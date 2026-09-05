@@ -204,6 +204,33 @@ export const productsApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { id }) => [{ type: "Product", id }],
     }),
+    getMyProductReview: builder.query<
+      {
+        hasReviewed: boolean;
+        product?: {
+          id: string;
+          name: string;
+          sku: string;
+          model?: string;
+          priceUsd: number;
+          primaryImage?: { id: string; key: string; url: string; alt?: string; isPrimary?: boolean };
+        };
+        review?: {
+          id: string;
+          rating: number;
+          title?: string;
+          body: string;
+          preview?: string;
+          status: string;
+          submittedAt: string;
+          publishedAt?: string;
+        };
+      },
+      string
+    >({
+      query: (id) => `/products/${id}/my-review`,
+      providesTags: (_result, _error, id) => [{ type: "Product", id }],
+    }),
   }),
 });
 
@@ -218,4 +245,5 @@ export const {
   useDeleteProductMutation,
   useDeleteProductImagesMutation,
   useDeleteProductImageMutation,
+  useGetMyProductReviewQuery,
 } = productsApi;

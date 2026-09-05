@@ -37,7 +37,9 @@ export type QuoteStatus =
   | "viewed"
   | "accepted"
   | "rejected"
-  | "expired";
+  | "expired"
+  | "awaiting_payment"
+  | "awaiting-payment";
 export type AppointmentStatus =
   | "requested"
   | "confirmed"
@@ -47,7 +49,7 @@ export type AppointmentStatus =
   | "cancelled";
 export type TechnicianStatus = "available" | "on-job" | "offline";
 export type AdminTechnicianStatus = "ACTIVE" | "INACTIVE";
-export type TechnicianAvailability = "AVAILABLE" | "BUSY" | "OFF_DUTY";
+export type TechnicianAvailability = "AVAILABLE" | "BUSY" | "ON_BREAK" | "OFF_DUTY";
 export type OrderStatus =
   | "pending"
   | "confirmed"
@@ -224,11 +226,13 @@ export interface Product {
   summary: string;
   description: string;
   priceUsd: number;
+  quantity?: number;
   status: ProductStatus;
   availability?: ProductAvailability;
   taxable?: boolean;
+  isFeatured?: boolean;
   shippingLabel?: string;
-  images?: string[];
+  images?: Array<string | { id?: string; url: string }>;
   popularityRank?: number;
   addedAt?: string;
   imageAlt: string;
@@ -480,6 +484,7 @@ export interface Quote {
   issuedAt: string;
   expiresAt: string;
   notes?: string;
+  paidAt?: string;
 }
 
 export interface FlexibleQuotationLineItem {
@@ -612,6 +617,15 @@ export interface Notification {
   createdAt: string;
   isRead: boolean;
   ctaLabel?: string;
+  metadata?: {
+    serviceRequestId?: string;
+    quotationId?: string;
+    requestId?: string;
+    orderId?: string;
+    businessId?: string;
+    quotationBusinessId?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface ReviewModerationHistoryEntry {

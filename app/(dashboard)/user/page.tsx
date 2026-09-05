@@ -80,7 +80,7 @@ export default function DashboardOverview() {
         : "No quotation needs review right now.",
       icon: DollarSign,
       href: quoteReady
-        ? `/user/services/${quoteReady.request.id}/quotation`
+        ? `/user/services/${quoteReady.request.id}#quotation`
         : "/user/quotations",
       action: quoteReady ? "Review Quote" : "Open Quotes",
       tone: "amber",

@@ -40,6 +40,13 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import {
+  useGetOverviewReportQuery,
+  useGetSalesReportQuery,
+  useGetServiceOperationsReportQuery,
+  useGetTechniciansReportQuery,
+  useGetCustomersReportQuery,
+} from "@/redux/api/reportsApi";
+import {
   getAdminReportsSnapshot,
   type AdminReportsDateRange,
   type AdminProductReportRow,
@@ -132,10 +139,45 @@ export function AdminReportsClient() {
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  const snapshot = useMemo(
+  const apiPeriod = dateRange === "year" || dateRange === "all" ? "1y" : dateRange;
+  const { data: apiOverview } = useGetOverviewReportQuery({ period: apiPeriod });
+  const { data: apiSales } = useGetSalesReportQuery({ period: apiPeriod });
+  const { data: apiServices } = useGetServiceOperationsReportQuery({ period: apiPeriod });
+  const { data: apiTechnicians } = useGetTechniciansReportQuery({ period: apiPeriod });
+  const { data: apiCustomers } = useGetCustomersReportQuery({ period: apiPeriod });
+
+  const rawSnapshot = useMemo(
     () => getAdminReportsSnapshot(dateRange, typeFilter),
     [dateRange, typeFilter],
   );
+
+  const snapshot = useMemo(() => {
+    return {
+      ...rawSnapshot,
+      overview: {
+        ...rawSnapshot.overview,
+        totalRevenue: apiOverview?.totalRevenueUsd ?? rawSnapshot.overview.totalRevenue,
+        totalOrders: apiOverview?.totalOrders ?? rawSnapshot.overview.totalOrders,
+      },
+      sales: {
+        ...rawSnapshot.sales,
+        averageOrderValue: apiSales?.averageOrderValueUsd ?? rawSnapshot.sales.averageOrderValue,
+      },
+      services: {
+        ...rawSnapshot.services,
+        totalRequests: apiServices?.totalRequests ?? rawSnapshot.services.totalRequests,
+      },
+      technicians: {
+        ...rawSnapshot.technicians,
+        assignedJobs: apiTechnicians?.activeJobsCount ?? rawSnapshot.technicians.assignedJobs,
+        completedJobs: apiTechnicians?.completedJobsCount ?? rawSnapshot.technicians.completedJobs,
+      },
+      customers: {
+        ...rawSnapshot.customers,
+        totalCustomers: apiCustomers?.totalCustomers ?? rawSnapshot.customers.totalCustomers,
+      },
+    };
+  }, [rawSnapshot, apiOverview, apiSales, apiServices, apiTechnicians, apiCustomers]);
 
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLowerCase();

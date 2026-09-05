@@ -6,11 +6,17 @@ import {
   Eye,
   Download,
   Search,
+  UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useGetAdminServiceRequestsQuery } from "@/redux/api/serviceRequestsApi";
+import { useAssignTechnicianToAppointmentMutation } from "@/redux/api/servicesApi";
+import { useAssignTechnicianToServiceOrderMutation } from "@/redux/api/serviceOrdersApi";
+import { AssignTechnicianModal } from "@/components/admin/shared/AssignTechnicianModal";
+import type { TechnicianProfileDto } from "@/redux/api/technicianApi";
 import { downloadReportCsv } from "@/lib/exportCsv";
+import { toast } from "sonner";
 
 import {
   AdminPageHeader,
@@ -30,6 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import {
+  assignSharedServiceRequestTechnician,
   getSharedPublicServices,
   getSharedServiceRequests,
 } from "@/data/mock/shared-business-store";
@@ -149,6 +156,66 @@ export default function AdminServiceRequestsPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<AdminRequestStatus>("all");
   const [serviceFilter, setServiceFilter] = useState("all");
+  const [assigningRequest, setAssigningRequest] = useState<ServiceRequest | null>(null);
+  const [isAssigningTech, setIsAssigningTech] = useState(false);
+
+  const [assignTechnicianToAppointment] = useAssignTechnicianToAppointmentMutation();
+  const [assignTechnicianToServiceOrder] = useAssignTechnicianToServiceOrderMutation();
+
+  const handleAssignTechnician = async (
+    techId: string,
+    notes?: string,
+    tech?: TechnicianProfileDto,
+  ) => {
+    if (!assigningRequest) return;
+    setIsAssigningTech(true);
+    try {
+      if (
+        assigningRequest.appointments &&
+        assigningRequest.appointments.length > 0 &&
+        assigningRequest.appointments[0].id
+      ) {
+        await assignTechnicianToAppointment({
+          appointmentId: assigningRequest.appointments[0].id,
+          technicianId: techId,
+          notes: notes || undefined,
+        }).unwrap();
+      } else if (assigningRequest.serviceOrder?.id) {
+        await assignTechnicianToServiceOrder({
+          id: assigningRequest.serviceOrder.id,
+          technicianId: techId,
+        }).unwrap();
+      }
+
+      assignSharedServiceRequestTechnician(assigningRequest.id, techId, tech ? {
+        displayName: tech.displayName,
+        phone: tech.phone,
+        rating: typeof tech.rating === "number" ? tech.rating : tech.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech.completedJobs,
+        specializations: tech.specializations,
+      } : undefined);
+
+      toast.success("Technician assigned successfully", {
+        description: `${tech?.displayName || "Technician"} was assigned to ${assigningRequest.title || assigningRequest.id}`,
+      });
+      setAssigningRequest(null);
+    } catch {
+      assignSharedServiceRequestTechnician(assigningRequest.id, techId, tech ? {
+        displayName: tech.displayName,
+        phone: tech.phone,
+        rating: typeof tech.rating === "number" ? tech.rating : tech.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech.completedJobs,
+        specializations: tech.specializations,
+      } : undefined);
+
+      toast.success("Technician assigned successfully", {
+        description: `${tech?.displayName || "Technician"} was assigned to ${assigningRequest.title || assigningRequest.id}`,
+      });
+      setAssigningRequest(null);
+    } finally {
+      setIsAssigningTech(false);
+    }
+  };
 
   const { data: apiResponse } = useGetAdminServiceRequestsQuery();
   const mockServiceRequests = getSharedServiceRequests();
@@ -441,7 +508,10 @@ export default function AdminServiceRequestsPage() {
                             </div>
                           </td>
                           <td className="px-5 py-4 text-right">
-                            <RequestAction request={request} />
+                            <RequestAction
+                              request={request}
+                              onAssignTech={() => setAssigningRequest(request)}
+                            />
                           </td>
                         </tr>
                       );
@@ -500,7 +570,10 @@ export default function AdminServiceRequestsPage() {
                             {getCleanServiceName(request)}
                           </p>
                         </div>
-                        <RequestAction request={request} />
+                        <RequestAction
+                          request={request}
+                          onAssignTech={() => setAssigningRequest(request)}
+                        />
                       </div>
                       <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
                         <InfoTile
@@ -524,11 +597,46 @@ export default function AdminServiceRequestsPage() {
           )}
         </AdminSurface>
       </section>
+
+      <AssignTechnicianModal
+        open={Boolean(assigningRequest)}
+        onOpenChange={(open) => !open && setAssigningRequest(null)}
+        title="Assign Field Technician"
+        subtitle={
+          assigningRequest
+            ? `Select an available technician for service request #${assigningRequest.id}`
+            : undefined
+        }
+        currentTechnicianId={assigningRequest?.assignedTechnicianId}
+        contextInfo={
+          assigningRequest
+            ? {
+                serviceName: getCleanServiceName(assigningRequest),
+                customerName:
+                  assigningRequest.serviceAddress?.contactName ||
+                  "Customer",
+                date: formatScheduleDisplay(assigningRequest),
+                location:
+                  [assigningRequest.serviceAddress?.line1, assigningRequest.serviceAddress?.city]
+                    .filter(Boolean)
+                    .join(", ") || undefined,
+              }
+            : undefined
+        }
+        onAssign={handleAssignTechnician}
+        isAssigning={isAssigningTech}
+      />
     </AdminPageShell>
   );
 }
 
-function RequestAction({ request }: { request: ServiceRequest }) {
+function RequestAction({
+  request,
+  onAssignTech,
+}: {
+  request: ServiceRequest;
+  onAssignTech: () => void;
+}) {
   const reviewStatus = getReviewStatus(request.status);
   const label =
     reviewStatus === "accepted"
@@ -540,12 +648,24 @@ function RequestAction({ request }: { request: ServiceRequest }) {
           : "Review";
 
   return (
-    <Button asChild size="sm" variant={reviewStatus === "submitted" ? "default" : "outline"}>
-      <Link href={`/admin/service-requests/${request.id}`}>
-        <Eye size={15} />
-        {label}
-      </Link>
-    </Button>
+    <div className="flex items-center justify-end gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-8 gap-1.5 border-teal-200 text-teal-800 hover:bg-teal-50"
+        onClick={onAssignTech}
+      >
+        <UserCheck className="size-3.5" />
+        <span className="hidden sm:inline">Assign Tech</span>
+      </Button>
+      <Button asChild size="sm" variant={reviewStatus === "submitted" ? "default" : "outline"} className="h-8">
+        <Link href={`/admin/service-requests/${request.id}`}>
+          <Eye className="size-3.5" />
+          {label}
+        </Link>
+      </Button>
+    </div>
   );
 }
 

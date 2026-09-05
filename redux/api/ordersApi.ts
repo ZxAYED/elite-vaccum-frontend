@@ -23,6 +23,8 @@ export interface StoreOrderDto {
   shippingFeeUsd: string;
   taxUsd: string;
   discountUsd?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
   deliveryAddress?: DeliveryAddressDto;
   shippingProvider?: string;
   trackingNumber?: string;
@@ -34,7 +36,7 @@ export interface StoreOrderDto {
 
 export interface CreateOrderRequest {
   deliveryAddressId: string;
-  paymentMethod: "CARD" | "COD" | "CHECK" | "BANK_TRANSFER";
+  paymentMethod: "STRIPE" | "COD" | "CARD" | string;
   customerNotes?: string;
 }
 
@@ -189,6 +191,13 @@ export const ordersApi = baseApi.injectEndpoints({
       query: (orderId) => `/store/invoices/orders/${orderId}`,
       providesTags: (_result, _error, orderId) => [{ type: "Invoice", id: orderId }],
     }),
+    generateOrderInvoice: builder.mutation<Record<string, unknown>, string>({
+      query: (orderId) => ({
+        url: `/store/invoices/orders/${orderId}/generate`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, orderId) => [{ type: "Invoice", id: orderId }],
+    }),
   }),
 });
 
@@ -204,4 +213,5 @@ export const {
   useGetReturnStatusQuery,
   useApproveReturnRefundMutation,
   useGetOrderInvoiceQuery,
+  useGenerateOrderInvoiceMutation,
 } = ordersApi;

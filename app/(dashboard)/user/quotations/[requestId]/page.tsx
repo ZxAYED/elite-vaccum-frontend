@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 import {
   ArrowLeft,
   CalendarDays,
+  CheckCircle2,
+  Clock,
   FileText,
   HelpCircle,
   Loader2,
@@ -30,7 +32,13 @@ import type { QuoteStatus } from "@/types/domain";
 
 export default function QuotationDetailPage() {
   const params = useParams<{ requestId: string }>();
+  const searchParams = useSearchParams();
   const idOrRequestId = params.requestId;
+  const paymentSuccess = searchParams.get("payment") === "success";
+  const paymentCancelled =
+    searchParams.get("payment") === "cancelled" ||
+    searchParams.get("payment") === "cancel" ||
+    searchParams.get("payment") === "failed";
 
   // 1. Live RTK Queries
   const { data: myQuotations, isLoading: isLoadingMyQuotes } =
@@ -202,6 +210,83 @@ export default function QuotationDetailPage() {
           </div>
         }
       />
+
+      {/* PAYMENT SUCCESS BANNER */}
+      {paymentSuccess && (
+        <section className="mb-6 rounded-xl border border-emerald-300 bg-emerald-50/90 p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                <CheckCircle2 size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-emerald-950">
+                    Payment Successful — Service Appointment Scheduled!
+                  </h2>
+                  <span className="rounded-md bg-emerald-200/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-900">
+                    Paid &amp; Confirmed
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-emerald-800 leading-relaxed max-w-2xl">
+                  Thank you for your payment. Your quotation is confirmed, your appointment schedule has been locked, and your service order is active.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <Button
+                asChild
+                size="sm"
+                className="rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-semibold text-xs sm:text-sm shadow-xs h-9 px-4"
+              >
+                <Link href="/user/billing">
+                  <FileText size={14} className="mr-1.5" />
+                  View Paid Receipt
+                </Link>
+              </Button>
+              {serviceOrder && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg border-emerald-300 text-emerald-900 hover:bg-emerald-100/60 font-semibold text-xs sm:text-sm h-9 px-4"
+                >
+                  <Link href={`/user/orders/${(serviceOrder as unknown as { id: string }).id}`}>
+                    View Service Order
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* PAYMENT CANCELLED / INCOMPLETE BANNER */}
+      {paymentCancelled && (
+        <section className="mb-6 rounded-xl border border-amber-300 bg-amber-50/90 p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white shadow-xs">
+                <Clock size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-amber-950">
+                    Payment Incomplete or Cancelled
+                  </h2>
+                  <span className="rounded-md bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-900">
+                    Checkout Incomplete
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-amber-800 leading-relaxed max-w-2xl">
+                  Your checkout session was cancelled or could not be completed. You can review the quotation breakdown and accept again whenever you are ready.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">
         <div className="space-y-6">

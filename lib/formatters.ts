@@ -65,9 +65,11 @@ function safeFallback(dateLike?: Date | string | null): string {
   return "—";
 }
 
-export function formatCurrencyUsd(amount: number) {
-  if (typeof amount !== "number" || Number.isNaN(amount)) return "$0";
-  return usdFormatter.format(amount);
+export function formatCurrencyUsd(amount?: number | string | null) {
+  if (amount === undefined || amount === null || amount === "") return "$0";
+  const numeric = typeof amount === "number" ? amount : Number(amount);
+  if (Number.isNaN(numeric)) return "$0";
+  return usdFormatter.format(numeric);
 }
 
 export function formatShortDate(dateLike?: Date | string | null): string {

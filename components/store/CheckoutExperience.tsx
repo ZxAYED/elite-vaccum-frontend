@@ -31,6 +31,7 @@ import type { Address, User } from "@/types/domain";
 import type { CartProduct } from "@/data/mock/customer-portal";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCreateStoreOrderMutation } from "@/redux/api/ordersApi";
+import { useValidateCartMutation } from "@/redux/api/cartApi";
 import {
   useCreateAddressMutation,
   useGetSavedAddressesQuery,
@@ -83,6 +84,7 @@ export function CheckoutExperience({
 
   const { data: savedAddressesData } = useGetSavedAddressesQuery();
   const [createAddressMutation] = useCreateAddressMutation();
+  const [validateCartMutation] = useValidateCartMutation();
   const [createOrderMutation, { isLoading: isCreatingOrder }] =
     useCreateStoreOrderMutation();
 
@@ -90,13 +92,13 @@ export function CheckoutExperience({
     if (savedAddressesData && savedAddressesData.length > 0) {
       return savedAddressesData.map((a) => ({
         id: a.id,
-        label: `${a.street}, ${a.city}`,
-        line1: a.street,
-        line2: a.apartment ?? "",
+        label: a.label || `${a.line1 || a.street || "Address"}, ${a.city}`,
+        line1: a.line1 || a.street || "",
+        line2: a.line2 ?? a.apartment ?? "",
         city: a.city,
         state: a.state,
-        postalCode: a.zipCode,
-        country: "US",
+        postalCode: a.postalCode || a.zipCode || "",
+        country: a.country || "US",
         isDefault: a.isDefault ?? false,
       }));
     }
@@ -187,9 +189,20 @@ export function CheckoutExperience({
     }
 
     try {
+      const validation = await validateCartMutation().unwrap();
+      if (validation && !validation.isValid && validation.invalidItems?.length) {
+        toast.error("Some items in your cart are no longer available. Please review your cart.");
+        setIsSubmitting(false);
+        return;
+      }
+    } catch {
+      // Continue if offline or mock environment
+    }
+
+    try {
       const orderResult = await createOrderMutation({
         deliveryAddressId: targetAddressId || "addr-default",
-        paymentMethod: "CARD",
+        paymentMethod: "STRIPE",
         customerNotes: "Online storefront web order",
       }).unwrap();
 

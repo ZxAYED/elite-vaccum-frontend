@@ -23,6 +23,12 @@ import { z } from "zod";
 import { FormField } from "@/components/forms/FormField";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
+import { toast } from "sonner";
+import {
+  useUpdateServiceOrderStatusMutation,
+  useUpdateServiceOrderEtaMutation,
+} from "@/redux/api/serviceOrdersApi";
+import { useSubmitFieldReportMutation } from "@/redux/api/technicianApi";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -297,7 +303,11 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
     });
   }
 
-  function handleStatusUpdate(
+  const [updateStatusApi, { isLoading: isUpdatingStatus }] = useUpdateServiceOrderStatusMutation();
+  const [updateEtaApi, { isLoading: isUpdatingEta }] = useUpdateServiceOrderEtaMutation();
+  const [submitReportApi, { isLoading: isSubmittingReport }] = useSubmitFieldReportMutation();
+
+  async function handleStatusUpdate(
     toStatus: Exclude<ServiceOrderStatus, "completed" | "cancelled">,
   ) {
     const result = updateTechnicianOperationalStatus({
@@ -312,9 +322,19 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
     }
 
     setStatusError("");
+
+    try {
+      await updateStatusApi({
+        id: order.id,
+        status: toStatus.toUpperCase().replace(/-/g, "_"),
+      }).unwrap();
+      toast.success(`Job status updated to ${toStatus.replace(/-/g, " ")}`);
+    } catch {
+      toast.info(`Updated status locally (${toStatus.replace(/-/g, " ")})`);
+    }
   }
 
-  function handleEtaDialogSubmit() {
+  async function handleEtaDialogSubmit() {
     const minutesValue = customEtaMode
       ? etaForm.getValues("minutes")
       : Number(etaPreset);
@@ -330,6 +350,16 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
       updatedBy: technician.displayName,
     });
     setEtaDialogOpen(false);
+
+    try {
+      await updateEtaApi({
+        id: order.id,
+        minutes: parsed.data.minutes,
+      }).unwrap();
+      toast.success(`ETA broadcasted: ${parsed.data.minutes} mins`);
+    } catch {
+      toast.info(`ETA set locally (${parsed.data.minutes} mins)`);
+    }
   }
 
   function handleReportSave(values: z.infer<typeof reportSchema>) {
@@ -351,7 +381,7 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
     replaceTechnicianPartsUsage(order.id, parts);
   }
 
-  function handleSubmitReport() {
+  async function handleSubmitReport() {
     const values = reportForm.getValues();
     const parsed = reportSchema.safeParse(values);
 
@@ -373,6 +403,26 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
     const result = submitTechnicianServiceReport(order.id, technician.displayName);
     if (!result.error) {
       setConfirmSubmitOpen(false);
+    }
+
+    try {
+      await submitReportApi({
+        serviceOrderId: order.id,
+        body: {
+          diagnosisFindings: parsed.data.diagnosisFindings,
+          workPerformed: parsed.data.workPerformed,
+          technicianNotes: parsed.data.technicianNotes,
+          recommendations: parsed.data.recommendations,
+          partsUsed: parsed.data.partsUsed.map((p) => ({
+            partName: p.name,
+            quantity: p.quantity,
+            costUsd: 0,
+          })),
+        },
+      }).unwrap();
+      toast.success("Field diagnostic report submitted successfully!");
+    } catch {
+      toast.info("Report saved locally and job marked complete.");
     }
   }
 
@@ -630,6 +680,7 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
                 ) : null}
                 {primaryAction && primaryAction.nextStatus !== "report-submitted" && !locked ? (
                   <Button
+                    disabled={isUpdatingStatus}
                     onClick={() =>
                       handleStatusUpdate(
                         primaryAction.nextStatus as Exclude<
@@ -639,7 +690,7 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
                       )
                     }
                   >
-                    {primaryAction.label}
+                    {isUpdatingStatus ? "Updating..." : primaryAction.label}
                   </Button>
                 ) : null}
                 {order.status === "in-progress" && !locked ? (
@@ -1166,7 +1217,9 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
             <Button variant="outline" onClick={() => setEtaDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEtaDialogSubmit}>Save ETA</Button>
+            <Button disabled={isUpdatingEta} onClick={handleEtaDialogSubmit}>
+              {isUpdatingEta ? "Saving..." : "Save ETA"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1183,7 +1236,9 @@ export function TechnicianJobDetailClient({ order }: { order: AdminServiceOrder 
             <Button variant="outline" onClick={() => setConfirmSubmitOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmitReport}>Confirm Submit</Button>
+            <Button disabled={isSubmittingReport} onClick={handleSubmitReport}>
+              {isSubmittingReport ? "Submitting..." : "Confirm Submit"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -25,12 +25,10 @@ import {
 } from "recharts";
 
 import styles from "./adminDashboard.module.css";
-import { mockCustomers } from "@/data/mock/customers";
 import {
   adminRevenueByMonth,
   adminServiceDistribution,
 } from "@/data/mock/dashboard";
-import { mockOrders } from "@/data/mock/orders";
 import { mockTechnicians } from "@/data/mock/technicians";
 import { formatCurrencyUsd } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
@@ -109,13 +107,8 @@ export default function AdminDashboardPage() {
   const activeTechnicians = mockTechnicians.filter(
     (technician) => technician.status !== "offline",
   ).length;
-  const scheduledOrders = mockOrders.filter(
-    (order) => order.status === "scheduled",
-  ).length;
-  const confirmedOrders = mockOrders.filter(
-    (order) => order.status === "confirmed",
-  ).length;
-  const pendingOrders = mockOrders.filter((order) => order.status === "pending").length;
+  const confirmedOrders = 0;
+  const pendingOrders = 0;
   const statCards = [
     {
       label: "Six-Month Revenue",
@@ -125,8 +118,8 @@ export default function AdminDashboardPage() {
     },
     {
       label: "Tracked Orders",
-      value: String(mockOrders.length),
-      trend: `${scheduledOrders} scheduled visits`,
+      value: "0",
+      trend: "0 scheduled visits",
       icon: FileText,
     },
     {
@@ -137,7 +130,7 @@ export default function AdminDashboardPage() {
     },
     {
       label: "Active Customers",
-      value: String(mockCustomers.length),
+      value: "0",
       trend: "Customer accounts in portal",
       icon: Users,
     },
@@ -155,23 +148,14 @@ export default function AdminDashboardPage() {
     },
   ];
 
-  const recentRequests = mockOrders.slice(0, 4).map((order) => {
-    const customer = mockCustomers.find(
-      (item) => item.id === order.customerId,
-    )?.displayName;
-    const technician = mockTechnicians.find(
-      (item) => item.id === order.technicianId,
-    )?.displayName;
-
-    return {
-      amount: formatCurrencyUsd(order.totalUsd),
-      customer: customer ?? "Pending customer",
-      id: `#${order.id}`,
-      service: order.summary,
-      status: order.status,
-      technician: technician ?? "Unassigned",
-    };
-  });
+  const recentRequests: Array<{
+    amount: string;
+    customer: string;
+    id: string;
+    service: string;
+    status: string;
+    technician: string;
+  }> = [];
 
   return (
     <div>

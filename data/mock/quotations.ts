@@ -1,8 +1,7 @@
 import { mockServices } from "@/data/mock/services";
-import { mockCustomers } from "@/data/mock/customers";
-import { mockServiceRequests } from "@/data/mock/service-requests";
 import type {
   AdminQuotation,
+  Customer,
   FlexibleQuotationLineItem,
   QuoteStatus,
   ServiceRequest,
@@ -12,19 +11,21 @@ export type AdminQuotationFilterStatus = "all" | QuoteStatus;
 
 export function calculateQuotationTotals(
   lineItems: FlexibleQuotationLineItem[],
-  taxUsd: number,
-  discountUsd: number,
+  taxUsd: number | string,
+  discountUsd: number | string,
 ) {
-  const subtotalUsd = lineItems.reduce(
-    (sum, item) => sum + item.quantity * item.unitPriceUsd,
+  const numTax = Number(taxUsd) || 0;
+  const numDiscount = Number(discountUsd) || 0;
+  const subtotalUsd = (lineItems || []).reduce(
+    (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPriceUsd) || 0),
     0,
   );
-  const totalUsd = Math.max(0, subtotalUsd + taxUsd - discountUsd);
+  const totalUsd = Math.max(0, subtotalUsd + numTax - numDiscount);
 
   return {
     subtotalUsd: Number(subtotalUsd.toFixed(2)),
-    taxUsd: Number(taxUsd.toFixed(2)),
-    discountUsd: Number(discountUsd.toFixed(2)),
+    taxUsd: Number(numTax.toFixed(2)),
+    discountUsd: Number(numDiscount.toFixed(2)),
     totalUsd: Number(totalUsd.toFixed(2)),
   };
 }
@@ -39,12 +40,14 @@ export function getQuotationForRequest(requestId: string) {
   return mockAdminQuotations.find((quotation) => quotation.serviceRequestId === requestId);
 }
 
-export function getQuotationRequest(quotation: AdminQuotation) {
-  return mockServiceRequests.find((request) => request.id === quotation.serviceRequestId);
+export function getQuotationRequest(_quotation?: AdminQuotation): ServiceRequest | undefined {
+  void _quotation;
+  return undefined;
 }
 
-export function getQuotationCustomer(quotation: AdminQuotation) {
-  return mockCustomers.find((customer) => customer.id === quotation.customerId);
+export function getQuotationCustomer(_quotation?: AdminQuotation): Customer | undefined {
+  void _quotation;
+  return undefined;
 }
 
 export function getQuotationService(quotation: AdminQuotation) {

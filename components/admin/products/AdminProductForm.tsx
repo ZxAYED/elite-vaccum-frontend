@@ -61,7 +61,9 @@ export function AdminProductForm({
     [categories, initialProduct?.categoryId],
   );
   const [imagePreviews, setImagePreviews] = useState<string[]>(
-    initialProduct?.images?.length ? initialProduct.images : [],
+    initialProduct?.images?.length
+      ? initialProduct.images.map((img) => (typeof img === "string" ? img : img.url))
+      : [],
   );
 
   const {
@@ -87,7 +89,10 @@ export function AdminProductForm({
       status: initialProduct?.status ?? "active",
       taxable: initialProduct?.taxable ?? false,
       shippingLabel: initialProduct?.shippingLabel ?? "",
-      images: initialProduct?.images?.join("\n") ?? "",
+      images:
+        initialProduct?.images
+          ?.map((img) => (typeof img === "string" ? img : img.url))
+          .join("\n") ?? "",
     },
   });
 

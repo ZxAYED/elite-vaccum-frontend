@@ -25,14 +25,10 @@ import type {
   ServiceUrgency,
 } from "@/types/domain";
 
-import { mockCustomers } from "@/data/mock/customers";
 import { calculateQuotationTotals, mockAdminQuotations } from "@/data/mock/quotations";
 import { mockProductCategories, mockProducts } from "@/data/mock/products";
 import { publicServiceOfferings } from "@/data/mock/public-services";
-import { mockCustomerReviews } from "@/data/mock/reviews";
-import { mockServiceRequests } from "@/data/mock/service-requests";
 import { mockServices } from "@/data/mock/services";
-import { sharedProductOrderSeed } from "@/data/mock/shared-product-order-seed";
 
 type SharedState = {
   customers: Customer[];
@@ -126,14 +122,14 @@ function isCustomerActionableQuotationStatus(status: QuoteStatus) {
 
 function createInitialState(): SharedState {
   return {
-    customers: clone(mockCustomers),
+    customers: [],
     categories: clone(mockProductCategories),
     products: clone(mockProducts),
     publicServices: clone(publicServiceOfferings),
     services: clone(mockServices),
-    serviceRequests: clone(mockServiceRequests),
+    serviceRequests: [],
     quotations: clone(mockAdminQuotations),
-    reviews: clone(mockCustomerReviews),
+    reviews: [],
   };
 }
 
@@ -704,10 +700,77 @@ export function rejectSharedServiceRequest(
   return getSharedServiceRequestById(requestId);
 }
 
+export function assignSharedServiceRequestTechnician(
+  requestId: string,
+  technicianId: string,
+  technician?: {
+    displayName?: string;
+    phone?: string;
+    rating?: number;
+    completedJobs?: number;
+    specializations?: string[];
+  },
+) {
+  hydrate();
+  state = {
+    ...state,
+    serviceRequests: state.serviceRequests.map((request) => {
+      if (request.id !== requestId) return request;
+
+      const updatedAppointments =
+        request.appointments && request.appointments.length > 0
+          ? request.appointments.map((appt, i) =>
+              i === 0
+                ? {
+                    ...appt,
+                    status: "TECHNICIAN_ASSIGNED",
+                    technician: technician
+                      ? {
+                          id: technicianId,
+                          displayName: technician.displayName || "Field Technician",
+                          phone: technician.phone,
+                          rating: technician.rating,
+                          completedJobs: technician.completedJobs,
+                          specializations: technician.specializations,
+                        }
+                      : appt.technician,
+                  }
+                : appt,
+            )
+          : [
+              {
+                id: `appt-${request.id}`,
+                status: "TECHNICIAN_ASSIGNED",
+                startAt: request.preferredDate
+                  ? `${request.preferredDate}T09:00:00.000Z`
+                  : new Date().toISOString(),
+                technician: technician
+                  ? {
+                      id: technicianId,
+                      displayName: technician.displayName || "Field Technician",
+                      phone: technician.phone,
+                      rating: technician.rating,
+                      completedJobs: technician.completedJobs,
+                      specializations: technician.specializations,
+                    }
+                  : undefined,
+              },
+            ];
+
+      return {
+        ...request,
+        assignedTechnicianId: technicianId,
+        appointments: updatedAppointments,
+      };
+    }),
+  };
+  emit();
+  return getSharedServiceRequestById(requestId);
+}
+
 export function upsertSharedQuotation(input: QuotationMutationInput) {
   hydrate();
   const request = getSharedServiceRequestById(input.requestId);
-  if (!request) throw new Error(`Unknown service request ${input.requestId}`);
 
   const now = new Date().toISOString();
   const existing =
@@ -784,14 +847,16 @@ export function upsertSharedQuotation(input: QuotationMutationInput) {
     : [nextQuotation, ...state.quotations];
 
   state = { ...state, quotations };
-  state = {
-    ...state,
-    serviceRequests: state.serviceRequests.map((item) =>
-      item.id === request.id
-        ? { ...item, status: normalizeServiceRequestStatus(nextQuotation.status) }
-        : item,
-    ),
-  };
+  if (request) {
+    state = {
+      ...state,
+      serviceRequests: state.serviceRequests.map((item) =>
+        item.id === request.id
+          ? { ...item, status: normalizeServiceRequestStatus(nextQuotation.status) }
+          : item,
+      ),
+    };
+  }
   emit();
   return nextQuotation;
 }
@@ -1147,9 +1212,7 @@ export function deleteSharedProduct(productId: string) {
     state.reviews.some(
       (review) => review.type === "PRODUCT" && review.relatedEntityId === productId,
     );
-  const isReferencedByHistoricalOrder = sharedProductOrderSeed.some((order) =>
-    order.items.some((item) => item.productId === productId),
-  );
+  const isReferencedByHistoricalOrder = false;
   if (isReferencedByReview || isReferencedByHistoricalOrder) {
     return false;
   }

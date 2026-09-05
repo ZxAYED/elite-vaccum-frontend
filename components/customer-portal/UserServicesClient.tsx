@@ -364,7 +364,7 @@ export function UserServicesClient() {
                           size="sm"
                           className="rounded-md bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-xs text-xs sm:text-sm"
                         >
-                          <Link href={`/user/quotations/${quotation.id}`}>
+                          <Link href={`/user/services/${request.id}#quotation`}>
                             <FileText size={14} className="mr-1" />
                             Review Quotation
                           </Link>

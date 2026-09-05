@@ -34,6 +34,8 @@ import {
   updateTechnicianSettingsState,
 } from "@/data/mock/technician-dashboard";
 import { useSharedAdminScheduleStateVersion } from "@/hooks/useSharedAdminScheduleStateVersion";
+import { toast } from "sonner";
+import { useUpdateTechnicianAvailabilityMutation } from "@/redux/api/technicianApi";
 
 const passwordFormSchema = z
   .object({
@@ -61,8 +63,10 @@ export default function TechnicianSettingsPage() {
   const notificationPreferences = getTechnicianNotificationPreferences();
   const settings = getTechnicianSettingsState();
 
+  const [updateAvailabilityApi] = useUpdateTechnicianAvailabilityMutation();
+
   const [availability, setAvailability] = useState(
-    technician.availability === "OFF_DUTY" ? "OFF_DUTY" : "AVAILABLE",
+    technician.availability === "OFF_DUTY" ? "OFF_DUTY" : technician.availability ?? "AVAILABLE",
   );
   const [timezone, setTimezone] = useState(settings.timezone);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -172,12 +176,22 @@ export default function TechnicianSettingsPage() {
                 <span className="text-sm font-semibold text-slate-700">Status</span>
                 <Select
                   value={availability}
-                  onValueChange={(value) => {
+                  onValueChange={async (value) => {
                     setAvailability(value);
                     updateCurrentTechnicianProfile({
-                      availability: value as "AVAILABLE" | "OFF_DUTY",
+                      availability: value as "AVAILABLE" | "OFF_DUTY" | "BUSY" | "ON_BREAK",
                     });
                     setSettingsVersion((current) => current + 1);
+
+                    try {
+                      await updateAvailabilityApi({
+                        availability: value as "AVAILABLE" | "BUSY" | "ON_BREAK" | "OFF_DUTY",
+                        timezone,
+                      }).unwrap();
+                      toast.success(`Availability updated to ${value.replace("_", " ")}`);
+                    } catch {
+                      toast.info(`Availability updated locally (${value.replace("_", " ")})`);
+                    }
                   }}
                 >
                   <SelectTrigger className="bg-slate-50 shadow-none">
@@ -185,6 +199,8 @@ export default function TechnicianSettingsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="AVAILABLE">Available</SelectItem>
+                    <SelectItem value="BUSY">Busy</SelectItem>
+                    <SelectItem value="ON_BREAK">On Break</SelectItem>
                     <SelectItem value="OFF_DUTY">Off Duty</SelectItem>
                   </SelectContent>
                 </Select>

@@ -19,11 +19,13 @@ export interface CreateQuotationRequest {
   discountUsd?: number;
   taxUsd?: number;
   notes?: string;
+  expiresAt?: string;
 }
 
 export interface AcceptQuotationResponse {
   success: boolean;
   message: string;
+  checkoutUrl?: string;
   serviceOrder?: {
     id: string;
     businessId: string;
@@ -39,13 +41,22 @@ interface ApiResponse<T> {
 }
 
 function unwrapData<T>(response: ApiResponse<T> | T): T {
-  if (
-    response &&
-    typeof response === "object" &&
-    "data" in response &&
-    response.data !== undefined
-  ) {
-    return response.data as T;
+  if (response && typeof response === "object") {
+    const resObj = response as Record<string, unknown>;
+    if ("data" in resObj && resObj.data !== undefined) {
+      return resObj.data as T;
+    }
+    if (
+      "quotation" in resObj &&
+      resObj.quotation !== undefined &&
+      typeof resObj.quotation === "object"
+    ) {
+      return {
+        ...(resObj.quotation as object),
+        message: resObj.message,
+        success: resObj.success,
+      } as T;
+    }
   }
   return response as T;
 }
@@ -181,18 +192,65 @@ export const quotationsApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      transformResponse: (
-        response:
-          | ApiResponse<AcceptQuotationResponse>
-          | AcceptQuotationResponse
-      ) => {
-        return unwrapData(response);
+      transformResponse: (response: unknown) => {
+        const raw =
+          response && typeof response === "object"
+            ? (response as Record<string, unknown>)
+            : {};
+        const data =
+          raw.data && typeof raw.data === "object"
+            ? (raw.data as Record<string, unknown>)
+            : {};
+        const quotation =
+          raw.quotation && typeof raw.quotation === "object"
+            ? (raw.quotation as Record<string, unknown>)
+            : {};
+
+        // Resiliently resolve checkoutUrl across any response structure
+        const checkoutUrl =
+          raw.checkoutUrl ||
+          raw.checkout_url ||
+          raw.checkoutURL ||
+          raw.url ||
+          raw.sessionUrl ||
+          raw.session_url ||
+          raw.stripeUrl ||
+          raw.stripe_url ||
+          data.checkoutUrl ||
+          data.checkout_url ||
+          data.checkoutURL ||
+          data.url ||
+          data.sessionUrl ||
+          data.session_url ||
+          data.stripeUrl ||
+          data.stripe_url ||
+          quotation.checkoutUrl ||
+          quotation.checkout_url;
+
+        const message =
+          raw.message ||
+          data.message ||
+          "Quotation accepted successfully. Please complete payment to confirm your service order.";
+
+        const success = raw.success ?? data.success ?? true;
+
+        const serviceOrder = raw.serviceOrder || data.serviceOrder;
+
+        return {
+          ...data,
+          ...raw,
+          checkoutUrl: checkoutUrl ? String(checkoutUrl) : undefined,
+          message: String(message),
+          success: Boolean(success),
+          serviceOrder: serviceOrder as AcceptQuotationResponse["serviceOrder"],
+        };
       },
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Quotation", id },
         { type: "Quotation", id: "MY_LIST" },
         { type: "Quotation", id: "ADMIN_LIST" },
         { type: "ServiceOrder" },
+        { type: "ServiceRequest" },
       ],
     }),
     rejectQuotation: builder.mutation<
@@ -221,6 +279,7 @@ export const quotationsApi = baseApi.injectEndpoints({
         { type: "Quotation", id },
         { type: "Quotation", id: "MY_LIST" },
         { type: "Quotation", id: "ADMIN_LIST" },
+        { type: "ServiceRequest" },
       ],
     }),
     deleteQuotation: builder.mutation<

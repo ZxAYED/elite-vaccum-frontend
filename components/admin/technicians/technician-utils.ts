@@ -42,6 +42,14 @@ export function getTechnicianAvailabilityMeta(technician: AdminTechnician) {
     } as const;
   }
 
+  if (availability === "ON_BREAK") {
+    return {
+      badgeStatus: "rescheduled",
+      label: "On Break",
+      helper: "Temporarily paused on break.",
+    } as const;
+  }
+
   if (availability === "OFF_DUTY") {
     return {
       badgeStatus: "draft",

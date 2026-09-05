@@ -54,6 +54,13 @@ import {
 } from "@/data/mock/technicians";
 import type { TechnicianValues } from "@/lib/validation";
 import type { AdminTechnician } from "@/types/domain";
+import { toast } from "sonner";
+import {
+  useGetAdminTechniciansListQuery,
+  useCreateTechnicianMutation,
+  useUpdateTechnicianMutation,
+  useDeleteTechnicianMutation,
+} from "@/redux/api/technicianApi";
 
 import { TechnicianFormDialog } from "./TechnicianFormDialog";
 import {
@@ -78,6 +85,13 @@ export function AdminTechniciansClient() {
   const [deactivateTargetId, setDeactivateTargetId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
+  useGetAdminTechniciansListQuery({
+    search: search.trim() || undefined,
+  });
+  const [createTechnicianApi] = useCreateTechnicianMutation();
+  const [updateTechnicianApi] = useUpdateTechnicianMutation();
+  const [deleteTechnicianApi] = useDeleteTechnicianMutation();
+
   function syncTechnicians() {
     setTechnicians(clone(getAdminTechnicians()));
   }
@@ -100,7 +114,7 @@ export function AdminTechniciansClient() {
     setFormOpen(true);
   }
 
-  function save(values: TechnicianValues) {
+  async function save(values: TechnicianValues) {
     if (editingTechnicianId) {
       updateAdminTechnician(editingTechnicianId, {
         displayName: values.fullName,
@@ -110,6 +124,23 @@ export function AdminTechniciansClient() {
         availability: values.availability,
         notes: values.notes || undefined,
       });
+
+      try {
+        await updateTechnicianApi({
+          id: editingTechnicianId,
+          body: {
+            displayName: values.fullName,
+            email: values.email,
+            phone: values.phone,
+            status: values.status,
+            availability: values.availability,
+            bio: values.notes || undefined,
+          },
+        }).unwrap();
+        toast.success("Technician updated successfully.");
+      } catch {
+        toast.info("Technician updated locally.");
+      }
     } else {
       createAdminTechnician({
         userId: `user-${values.fullName.toLowerCase().replace(/\s+/g, "-")}`,
@@ -124,11 +155,64 @@ export function AdminTechniciansClient() {
         verified: true,
         specializations: ["General Service"],
       });
+
+      try {
+        await createTechnicianApi({
+          displayName: values.fullName,
+          email: values.email,
+          phone: values.phone,
+          status: values.status,
+          availability: values.availability,
+          bio: values.notes || undefined,
+        }).unwrap();
+        toast.success("Technician created successfully.");
+      } catch {
+        toast.info("Technician created locally.");
+      }
     }
 
     syncTechnicians();
     setFormOpen(false);
     setEditingTechnicianId(null);
+  }
+
+  async function handleToggleStatus(target: AdminTechnician) {
+    const nextStatus = target.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const nextAvailability = target.status === "ACTIVE" ? "OFF_DUTY" : "AVAILABLE";
+
+    updateAdminTechnician(target.id, {
+      status: nextStatus,
+      availability: nextAvailability,
+    });
+
+    try {
+      await updateTechnicianApi({
+        id: target.id,
+        body: { status: nextStatus, availability: nextAvailability },
+      }).unwrap();
+      toast.success(
+        `Technician ${nextStatus === "ACTIVE" ? "activated" : "deactivated"}.`,
+      );
+    } catch {
+      toast.info(`Status updated locally.`);
+    }
+
+    syncTechnicians();
+    setDeactivateTargetId(null);
+  }
+
+  async function handleDelete(targetId: string) {
+    deleteAdminTechnician(targetId);
+
+    try {
+      await deleteTechnicianApi(targetId).unwrap();
+      toast.success("Technician deleted successfully.");
+    } catch {
+      toast.info("Technician deleted locally.");
+    }
+
+    syncTechnicians();
+    setDeleteTargetId(null);
   }
 
   const filteredTechnicians = useMemo(() => {
@@ -490,18 +574,7 @@ export function AdminTechniciansClient() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    updateAdminTechnician(deactivateTarget.id, {
-                      status:
-                        deactivateTarget.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-                      availability:
-                        deactivateTarget.status === "ACTIVE"
-                          ? "OFF_DUTY"
-                          : "AVAILABLE",
-                    });
-                    syncTechnicians();
-                    setDeactivateTargetId(null);
-                  }}
+                  onClick={() => handleToggleStatus(deactivateTarget)}
                   variant={deactivateTarget.status === "ACTIVE" ? "destructive" : "default"}
                 >
                   {deactivateTarget.status === "ACTIVE"
@@ -541,11 +614,7 @@ export function AdminTechniciansClient() {
                 </Button>
                 {canDeleteTechnician(deleteTarget.id) ? (
                   <Button
-                    onClick={() => {
-                      deleteAdminTechnician(deleteTarget.id);
-                      syncTechnicians();
-                      setDeleteTargetId(null);
-                    }}
+                    onClick={() => handleDelete(deleteTarget.id)}
                     variant="destructive"
                   >
                     Delete Technician

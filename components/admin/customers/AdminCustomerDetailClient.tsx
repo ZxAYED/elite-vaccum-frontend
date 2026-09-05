@@ -18,8 +18,11 @@ import {
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+
+import { useGetCustomerByIdQuery, useUpdateCustomerProfileMutation } from "@/redux/api/customersApi";
 
 import {
   AdminPageHeader,
@@ -50,7 +53,6 @@ import {
 import { Textarea } from "@/components/ui/Textarea";
 import { getAdminOrders, getAdminOrderInvoice } from "@/data/mock/admin-orders";
 import { getSharedAdminScheduleRecords } from "@/data/mock/admin-schedule-state";
-import { mockPayments } from "@/data/mock/payments";
 import {
   archiveSharedCustomerProperty,
   archiveSharedCustomerUnit,
@@ -191,19 +193,14 @@ function getCustomerSchedules(customerId: string) {
 
 function getCustomerBillingRows(customerId: string) {
   const orders = getCustomerOrders(customerId);
-  const paymentRows = mockPayments
-    .filter((payment) => payment.customerId === customerId)
-    .map((payment) => {
-      const order = orders.find((entry) => entry.id === payment.orderId);
-      return {
-        amount: payment.amountUsd,
-        date: payment.processedAt,
-        id: payment.id,
-        kind: order?.type ?? "Service",
-        sourceId: payment.orderId,
-        status: payment.status,
-      };
-    });
+  const paymentRows: Array<{
+    amount: number;
+    date: string;
+    id: string;
+    kind: string;
+    sourceId: string;
+    status: string;
+  }> = [];
 
   const invoiceRows = orders.flatMap((order) => {
     const invoice = getAdminOrderInvoice(order);
@@ -231,6 +228,7 @@ function OverviewForm({
 }: {
   customer: Customer;
 }) {
+  const [updateCustomerProfile, { isLoading: isUpdating }] = useUpdateCustomerProfileMutation();
   const form = useForm<CustomerOverviewValues>({
     resolver: zodResolver(customerOverviewSchema),
     defaultValues: {
@@ -247,7 +245,30 @@ function OverviewForm({
     },
   });
 
-  function onSubmit(values: CustomerOverviewValues) {
+  async function onSubmit(values: CustomerOverviewValues) {
+    try {
+      await updateCustomerProfile({
+        id: customer.id,
+        data: {
+          firstName: values.firstName,
+          lastName: values.lastName,
+          displayName: `${values.firstName} ${values.lastName}`.trim(),
+          email: values.email,
+          phone: values.phone,
+          cellphone: normalizeOptional(values.cellphone),
+          company: normalizeOptional(values.company),
+          preferredContactMethod: values.preferredContactMethod,
+          bestContactTime: normalizeOptional(values.bestContactTime),
+          customerPreferences: normalizeOptional(values.customerPreferences),
+          status: values.status,
+        },
+      }).unwrap();
+      toast.success("Customer profile updated successfully");
+    } catch (error) {
+      console.warn("Could not persist customer update to backend API, falling back to local store:", error);
+      toast.info("Customer profile updated locally");
+    }
+
     updateSharedCustomer(customer.id, {
       bestContactTime: normalizeOptional(values.bestContactTime),
       cellphone: normalizeOptional(values.cellphone),
@@ -393,7 +414,9 @@ function OverviewForm({
         </FormField>
 
         <div className="flex justify-end">
-          <Button type="submit">Save Account Info</Button>
+          <Button disabled={isUpdating} type="submit">
+            {isUpdating ? "Saving..." : "Save Account Info"}
+          </Button>
         </div>
       </form>
     </AdminSurface>
@@ -1065,7 +1088,23 @@ export function AdminCustomerDetailClient({
   customerId: string;
 }) {
   useSharedBusinessStoreVersion();
-  const customer = getSharedCustomerById(customerId);
+  const { data: apiCustomer } = useGetCustomerByIdQuery(customerId);
+  const sharedCustomer = getSharedCustomerById(customerId);
+  const customer = useMemo(() => {
+    if (apiCustomer) {
+      return {
+        ...sharedCustomer,
+        ...apiCustomer,
+        properties: apiCustomer.properties?.length
+          ? apiCustomer.properties
+          : (sharedCustomer?.properties ?? []),
+        internalNotes: apiCustomer.internalNotes?.length
+          ? apiCustomer.internalNotes
+          : (sharedCustomer?.internalNotes ?? []),
+      } as Customer;
+    }
+    return sharedCustomer;
+  }, [apiCustomer, sharedCustomer]);
   const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [propertyDialogOpen, setPropertyDialogOpen] = useState(false);
   const [editingPropertyId, setEditingPropertyId] = useState<string | null>(null);

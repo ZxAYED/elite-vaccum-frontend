@@ -2,13 +2,11 @@
 
 import {
   ArrowUpDown,
-  CheckCircle2,
   Eye,
   Mail,
   Phone,
   Search,
   UserRound,
-  XCircle,
   Download,
 } from "lucide-react";
 import Link from "next/link";
@@ -38,8 +36,13 @@ import {
   toggleSharedCustomerStatus,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import {
+  useGetCustomersQuery,
+  useUpdateCustomerProfileMutation,
+} from "@/redux/api/customersApi";
 import { formatLongDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Customer } from "@/types/domain";
 
 type CustomerStatusFilter = "all" | "active" | "inactive" | "lead";
@@ -99,18 +102,43 @@ function StatusPill({ status }: { status: Customer["status"] }) {
         getCustomerStatusTone(status),
       )}
     >
-      {status === "active" ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className="size-1.5 rounded-full bg-current" />
+      {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Lead"}
     </span>
   );
 }
 
 export function AdminCustomersClient() {
   useSharedBusinessStoreVersion();
-  const customers = getSharedCustomers();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerStatusFilter>("all");
   const [sort, setSort] = useState<CustomerSort>("activity-recent");
+
+  const { data: apiCustomersData } = useGetCustomersQuery({
+    search: query.trim() || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter.toUpperCase(),
+    limit: 50,
+  });
+  const [updateCustomerProfileMutation] = useUpdateCustomerProfileMutation();
+
+  const sharedCustomers = getSharedCustomers();
+  const customers = (apiCustomersData?.items && apiCustomersData.items.length > 0)
+    ? apiCustomersData.items
+    : sharedCustomers;
+
+  async function handleToggleStatus(customer: Customer) {
+    const nextStatus = customer.status === "active" ? "inactive" : "active";
+    try {
+      await updateCustomerProfileMutation({
+        id: customer.id,
+        data: { status: nextStatus },
+      }).unwrap();
+    } catch {
+      // Fallback
+    }
+    toggleSharedCustomerStatus(customer.id);
+    toast.success(`Customer status updated to ${nextStatus}.`);
+  }
 
   const stats = useMemo(() => {
     return customers.reduce(
@@ -364,7 +392,7 @@ export function AdminCustomersClient() {
                               </Link>
                             </Button>
                             <Button
-                              onClick={() => toggleSharedCustomerStatus(customer.id)}
+                              onClick={() => void handleToggleStatus(customer)}
                               size="sm"
                               variant={customer.status === "active" ? "outline" : "default"}
                             >
@@ -452,7 +480,7 @@ export function AdminCustomersClient() {
                       </Button>
                       <Button
                         className="flex-1"
-                        onClick={() => toggleSharedCustomerStatus(customer.id)}
+                        onClick={() => void handleToggleStatus(customer)}
                         size="sm"
                         variant={customer.status === "active" ? "outline" : "default"}
                       >

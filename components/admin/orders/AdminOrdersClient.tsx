@@ -65,8 +65,14 @@ import {
 } from "@/data/mock/admin-orders";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatCurrencyUsd, formatShortDate } from "@/lib/formatters";
+import {
+  useGetAdminOrdersListQuery,
+  useCancelOrderMutation,
+} from "@/redux/api/ordersApi";
 import type {
+  AdminProductOrder,
   AdminUnifiedOrder,
+  ProductOrderStatus,
 } from "@/types/domain";
 
 type OrderSortValue =
@@ -277,9 +283,68 @@ export function AdminOrdersClient() {
   const [cancellationDraft, setCancellationDraft] =
     useState<CancellationDraft | null>(null);
   const [cancelledOrderIds, setCancelledOrderIds] = useState<string[]>([]);
+
+  const queryParams = useMemo(() => {
+    const p: { status?: string; search?: string } = {};
+    if (statusFilter !== "all") {
+      p.status = statusFilter.toUpperCase();
+    }
+    if (search.trim()) {
+      p.search = search.trim();
+    }
+    return p;
+  }, [statusFilter, search]);
+
+  const { data: apiOrdersData } = useGetAdminOrdersListQuery(queryParams);
+  const [cancelOrderApi] = useCancelOrderMutation();
+
   const orders = useMemo(() => {
     const synced = getAdminOrders();
-    return synced.map((order) => {
+    const liveItems = apiOrdersData?.items;
+
+    let combined = [...synced];
+    if (liveItems && liveItems.length > 0) {
+      const liveOrders: AdminProductOrder[] = liveItems.map((so) => ({
+        id: so.businessId || so.id,
+        type: "PRODUCT" as const,
+        customerId: so.customerId || "cust-live",
+        status: (so.status.toLowerCase() as ProductOrderStatus) || "pending",
+        total: {
+          subtotalUsd: Number(so.subtotalUsd) || 0,
+          shippingUsd: Number(so.shippingFeeUsd) || 0,
+          taxUsd: Number(so.taxUsd) || 0,
+          totalUsd: Number(so.totalUsd) || 0,
+        },
+        createdAt: so.createdAt,
+        invoiceId: `INV-${so.businessId || so.id}`,
+        paymentStatus: so.status === "PENDING" ? "authorized" : "paid",
+        items: so.items.map((item, idx) => ({
+          id: `item-${idx}`,
+          productId: item.productId,
+          name: item.name,
+          sku: item.sku || "SKU-LIVE",
+          summary: item.name,
+          quantity: item.quantity,
+          unitPriceUsd: Number(item.priceUsd) || 0,
+          imageSrc: item.imageUrl || "/product.png",
+        })),
+        shippingAddress: {
+          id: so.deliveryAddress?.id || "addr-live",
+          label: so.deliveryAddress?.label || "Shipping Address",
+          line1: so.deliveryAddress?.line1 || "742 Evergreen Terrace",
+          city: so.deliveryAddress?.city || "Springfield",
+          state: so.deliveryAddress?.state || "OR",
+          postalCode: so.deliveryAddress?.postalCode || "97477",
+          country: so.deliveryAddress?.country || "USA",
+        },
+        shippingTimeline: [],
+      }));
+
+      const liveIds = new Set(liveOrders.map((o) => o.id));
+      combined = [...liveOrders, ...synced.filter((o) => !liveIds.has(o.id))];
+    }
+
+    return combined.map((order) => {
       if (!cancelledOrderIds.includes(order.id)) return order;
       return {
         ...order,
@@ -290,7 +355,7 @@ export function AdminOrdersClient() {
         },
       } as AdminUnifiedOrder;
     });
-  }, [cancelledOrderIds]);
+  }, [apiOrdersData, cancelledOrderIds]);
 
   const filteredOrders = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -341,7 +406,7 @@ export function AdminOrdersClient() {
     });
   }
 
-  function submitCancellation() {
+  async function submitCancellation() {
     if (!cancellationDraft) return;
     if (!cancellationDraft.reason) {
       setCancellationDraft((current) =>
@@ -351,11 +416,15 @@ export function AdminOrdersClient() {
       );
       return;
     }
+    const targetId = cancellationDraft.orderId;
     setCancelledOrderIds((current) =>
-      current.includes(cancellationDraft.orderId)
-        ? current
-        : [...current, cancellationDraft.orderId],
+      current.includes(targetId) ? current : [...current, targetId],
     );
+    try {
+      await cancelOrderApi(targetId).unwrap();
+    } catch {
+      // Fallback gracefully for local mock orders
+    }
     setCancellationDraft(null);
   }
 

@@ -48,13 +48,18 @@ import { QuotationModal } from "./QuotationModal";
 interface ServiceRequestQuotationsProps {
   serviceRequest: ServiceRequest;
   isAccepted?: boolean;
+  isCancelled?: boolean;
 }
 
 export function ServiceRequestQuotations({
   serviceRequest,
   isAccepted = false,
+  isCancelled = false,
 }: ServiceRequestQuotationsProps) {
   useSharedBusinessStoreVersion();
+
+  const requestStatus = (serviceRequest.status || "").toLowerCase().replace(/_/g, "-");
+  const isRequestCancelled = isCancelled || requestStatus === "cancelled";
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
@@ -102,6 +107,10 @@ export function ServiceRequestQuotations({
   }, [serviceRequest, apiResponse]);
 
   function handleCreateClick() {
+    if (isRequestCancelled) {
+      toast.error("Quotations cannot be created for cancelled requests.");
+      return;
+    }
     setActiveQuotation(null);
     setModalMode("create");
     setModalOpen(true);
@@ -114,8 +123,9 @@ export function ServiceRequestQuotations({
   }
 
   async function handleSendDraft(quotation: AdminQuotation) {
+    const toastId = toast.loading("Sending quotation to customer, please wait...");
     try {
-      await reviseQuotationMutation({
+      const res = await reviseQuotationMutation({
         id: quotation.id,
         body: {
           serviceRequestId: quotation.serviceRequestId,
@@ -125,41 +135,60 @@ export function ServiceRequestQuotations({
           notes: quotation.notes,
         },
       }).unwrap();
-    } catch {
-      // Fallback handled locally
+
+      upsertSharedQuotation({
+        id: quotation.id,
+        requestId: quotation.serviceRequestId,
+        serviceId: quotation.serviceId,
+        customerId: quotation.customerId,
+        lineItems: quotation.lineItems,
+        discountUsd: quotation.discountUsd,
+        taxUsd: quotation.taxUsd,
+        notes: quotation.notes,
+        terms: quotation.terms,
+        expiresAt: quotation.expiresAt || undefined,
+        status: "sent",
+      });
+
+      toast.success(
+        (res as unknown as { message?: string })?.message ||
+          `Quotation ${quotation.id} sent to customer.`,
+        { id: toastId },
+      );
+    } catch (err: unknown) {
+      const errObj = err as { data?: { message?: string }; message?: string };
+      const msg =
+        errObj?.data?.message ||
+        errObj?.message ||
+        "Failed to send quotation to customer.";
+      toast.error(msg, { id: toastId });
     }
-
-    upsertSharedQuotation({
-      id: quotation.id,
-      requestId: quotation.serviceRequestId,
-      serviceId: quotation.serviceId,
-      customerId: quotation.customerId,
-      lineItems: quotation.lineItems,
-      discountUsd: quotation.discountUsd,
-      taxUsd: quotation.taxUsd,
-      notes: quotation.notes,
-      terms: quotation.terms,
-      expiresAt: quotation.expiresAt || undefined,
-      status: "sent",
-    });
-
-    toast.success("Quotation sent to customer", {
-      description: `Quotation ${quotation.id} is now awaiting customer review.`,
-    });
   }
 
   async function handleConfirmDelete() {
     if (!deleteTargetId) return;
 
+    const toastId = toast.loading("Deleting quotation, please wait...");
     try {
-      await deleteQuotationMutation(deleteTargetId).unwrap();
-    } catch {
-      // Fallback handled locally
+      const res = await deleteQuotationMutation(deleteTargetId).unwrap();
+      deleteSharedQuotation(deleteTargetId);
+      toast.success(
+        (res as unknown as { message?: string })?.message ||
+          "Quotation deleted successfully.",
+        { id: toastId },
+      );
+    } catch (err: unknown) {
+      const errObj = err as { data?: { message?: string }; message?: string };
+      deleteSharedQuotation(deleteTargetId);
+      toast.info(
+        errObj?.data?.message ||
+          errObj?.message ||
+          "Quotation removed from local records.",
+        { id: toastId },
+      );
+    } finally {
+      setDeleteTargetId(null);
     }
-
-    deleteSharedQuotation(deleteTargetId);
-    toast.success("Quotation deleted successfully");
-    setDeleteTargetId(null);
   }
 
   return (
@@ -185,14 +214,16 @@ export function ServiceRequestQuotations({
           </div>
         </div>
 
-        <Button
-          onClick={handleCreateClick}
-          size="sm"
-          className="gap-1.5 self-start sm:self-auto"
-        >
-          <Plus size={16} />
-          Create Quotation
-        </Button>
+        {!isRequestCancelled && (
+          <Button
+            onClick={handleCreateClick}
+            size="sm"
+            className="gap-1.5 self-start sm:self-auto"
+          >
+            <Plus size={16} />
+            Create Quotation
+          </Button>
+        )}
       </div>
 
       {/* Content */}
@@ -204,19 +235,23 @@ export function ServiceRequestQuotations({
               No quotations created yet
             </h3>
             <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-              {isAccepted
-                ? "This service request has been accepted. Prepare and send an itemized quotation to the customer."
-                : "Accept this service request first, or create a proposal draft now."}
+              {isRequestCancelled
+                ? "This service request has been cancelled. Quotations cannot be created for cancelled requests."
+                : isAccepted
+                  ? "This service request has been accepted. Prepare and send an itemized quotation to the customer."
+                  : "Accept this service request first, or create a proposal draft now."}
             </p>
-            <Button
-              onClick={handleCreateClick}
-              variant="outline"
-              size="sm"
-              className="mt-4 gap-1.5"
-            >
-              <Plus size={15} />
-              Create First Quotation
-            </Button>
+            {!isRequestCancelled && (
+              <Button
+                onClick={handleCreateClick}
+                variant="outline"
+                size="sm"
+                className="mt-4 gap-1.5"
+              >
+                <Plus size={15} />
+                Create First Quotation
+              </Button>
+            )}
           </div>
         ) : (
           quotations.map((quotation) => (

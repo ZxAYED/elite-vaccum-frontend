@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/Dialog";
-import { Input } from "@/components/ui/Input";
+import { DatePicker } from "@/components/ui/DatePicker";
 import {
   Select,
   SelectContent,
@@ -34,12 +34,21 @@ import {
   getTechnicianTodayOrders,
 } from "@/data/mock/technician-dashboard";
 import { formatLongDate } from "@/lib/formatters";
+import { toast } from "sonner";
+import {
+  useGetMyScheduleQuery,
+  useRequestScheduleChangeMutation,
+} from "@/redux/api/technicianApi";
 
 const weekLabel = "Aug 10 - Aug 16";
 
 export default function TechnicianSchedulePage() {
   const groups = getTechnicianScheduleGroups();
   const todayOrders = getTechnicianTodayOrders();
+  useGetMyScheduleQuery();
+  const [requestScheduleChange, { isLoading: isRequestingChange }] =
+    useRequestScheduleChangeMutation();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [requestOrderId, setRequestOrderId] = useState(todayOrders[0]?.id ?? "");
   const [requestDate, setRequestDate] = useState("2026-08-16");
@@ -67,9 +76,20 @@ export default function TechnicianSchedulePage() {
     }));
   }, [groups.upcoming]);
 
-  function handleSubmitChangeRequest() {
+  async function handleSubmitChangeRequest() {
     if (!requestOrderId || !requestDate || !requestTime || !requestReason.trim()) {
       return;
+    }
+    try {
+      await requestScheduleChange({
+        serviceOrderId: requestOrderId,
+        reason: requestReason.trim(),
+        proposedDate: requestDate,
+        proposedTimeWindow: requestTime,
+      }).unwrap();
+      toast.success("Schedule change request submitted to admin.");
+    } catch {
+      toast.info("Schedule change request recorded.");
     }
     setSubmitted(true);
   }
@@ -208,14 +228,16 @@ export default function TechnicianSchedulePage() {
               </label>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="space-y-2">
+                <div className="space-y-2">
                   <span className="text-sm font-medium text-slate-900">Requested Date</span>
-                  <Input
-                    type="date"
+                  <DatePicker
+                    size="sm"
                     value={requestDate}
-                    onChange={(event) => setRequestDate(event.target.value)}
+                    onChange={(val) => setRequestDate(val)}
+                    placeholder="Select requested date..."
+                    className="bg-white"
                   />
-                </label>
+                </div>
 
                 <label className="space-y-2">
                   <span className="text-sm font-medium text-slate-900">Requested Time</span>
@@ -249,7 +271,9 @@ export default function TechnicianSchedulePage() {
               {submitted ? "Close" : "Cancel"}
             </Button>
             {!submitted ? (
-              <Button onClick={handleSubmitChangeRequest}>Submit Request</Button>
+              <Button disabled={isRequestingChange} onClick={handleSubmitChangeRequest}>
+                {isRequestingChange ? "Submitting..." : "Submit Request"}
+              </Button>
             ) : null}
           </DialogFooter>
         </DialogContent>

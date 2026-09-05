@@ -18,6 +18,13 @@ interface NotificationPayload {
   type?: string;
   ctaLabel?: string;
   ctaUrl?: string;
+  metadata?: {
+    serviceRequestId?: string;
+    quotationId?: string;
+    requestId?: string;
+    orderId?: string;
+    [key: string]: unknown;
+  };
   createdAt?: string;
 }
 
@@ -88,15 +95,43 @@ export function useNotificationSocket() {
 
       const title = notification.title || "New Notification";
       const message = notification.message || "";
-      const ctaUrl = notification.ctaUrl;
-      const ctaLabel = notification.ctaLabel || "View";
+      const meta = notification.metadata || {};
+      const serviceReqId =
+        (meta.serviceRequestId as string) ||
+        (meta.requestId as string) ||
+        (meta.businessId as string);
+
+      const titleLower = title.toLowerCase();
+      const messageLower = message.toLowerCase();
+      const isQuote =
+        Boolean(meta.quotationId) ||
+        titleLower.includes("quotation") ||
+        titleLower.includes("quote") ||
+        messageLower.includes("quotation") ||
+        messageLower.includes("quote");
+
+      let resolvedCtaUrl = notification.ctaUrl;
+      let resolvedCtaLabel = notification.ctaLabel;
+
+      if (!resolvedCtaUrl && serviceReqId) {
+        if (isQuote) {
+          resolvedCtaUrl = `/user/services/${serviceReqId}#quotation`;
+          resolvedCtaLabel = resolvedCtaLabel || "Review Quotation";
+        } else {
+          resolvedCtaUrl = `/user/services/${serviceReqId}`;
+          resolvedCtaLabel = resolvedCtaLabel || "View Request";
+        }
+      } else if (!resolvedCtaUrl && meta.orderId) {
+        resolvedCtaUrl = `/user/orders/${meta.orderId}`;
+        resolvedCtaLabel = resolvedCtaLabel || "View Order";
+      }
 
       toast(title, {
         description: message,
-        action: ctaUrl
+        action: resolvedCtaUrl
           ? {
-              label: ctaLabel,
-              onClick: () => router.push(ctaUrl),
+              label: resolvedCtaLabel || "View",
+              onClick: () => router.push(resolvedCtaUrl!),
             }
           : undefined,
         duration: 5000,

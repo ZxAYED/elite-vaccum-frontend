@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ArrowLeft,
@@ -53,8 +53,6 @@ import {
 import {
   useGetMyQuotationsQuery,
   useGetQuotationByIdQuery,
-  useAcceptQuotationMutation,
-  useRejectQuotationMutation,
 } from "@/redux/api/quotationsApi";
 import { useGetMyServiceOrdersQuery } from "@/redux/api/serviceOrdersApi";
 import {
@@ -63,6 +61,7 @@ import {
   formatMonthDay,
   formatShortDateTime,
 } from "@/lib/formatters";
+import { formatStatusLabel } from "@/lib/status-labels";
 import { toast } from "sonner";
 import type { AdminQuotation, QuoteStatus } from "@/types/domain";
 
@@ -79,13 +78,17 @@ function getSymptomIcon(symptom: string) {
 
 export default function ServiceRequestDetailPage() {
   const params = useParams<{ requestId: string }>();
+  const searchParams = useSearchParams();
   const requestId = params.requestId;
+  const paymentSuccess = searchParams.get("payment") === "success";
+  const paymentCancelled =
+    searchParams.get("payment") === "cancelled" ||
+    searchParams.get("payment") === "cancel" ||
+    searchParams.get("payment") === "failed";
 
   const [copiedId, setCopiedId] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
-  const [rejectQuoteOpen, setRejectQuoteOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
 
   // 1. Live RTK Queries (Strictly API-driven, zero mock data)
   const { data: request, isLoading: isLoadingRequest } =
@@ -101,10 +104,7 @@ export default function ServiceRequestDetailPage() {
 
   const { data: myOrdersResponse } = useGetMyServiceOrdersQuery();
 
-  // Mutations
   const [cancelRequestMutation, { isLoading: isCancellingRequest }] = useCancelServiceRequestMutation();
-  const [acceptQuoteMutation, { isLoading: isAcceptingQuote }] = useAcceptQuotationMutation();
-  const [rejectQuoteMutation, { isLoading: isRejectingQuote }] = useRejectQuotationMutation();
 
   // 2. Resolve Active Quotation from request relation or standalone APIs
   const quotation: AdminQuotation | undefined = useMemo(() => {
@@ -143,13 +143,14 @@ export default function ServiceRequestDetailPage() {
 
   const isLoading = isLoadingRequest || (isLoadingQuotes && !request);
 
-  const displayId = request?.businessId || request?.id || requestId;
+  // Show only service ID as requested by user (never REQ-20260903-XXXX)
+  const displayId = request?.id || requestId;
 
   function handleCopyId() {
     if (!displayId) return;
     navigator.clipboard.writeText(displayId);
     setCopiedId(true);
-    toast.success("Request ID copied to clipboard");
+    toast.success("Service ID copied to clipboard");
     setTimeout(() => setCopiedId(false), 2000);
   }
 
@@ -169,36 +170,6 @@ export default function ServiceRequestDetailPage() {
     }
   }
 
-  // Handle Accept Quotation Direct Action
-  async function handleAcceptQuoteDirect() {
-    if (!quotation) return;
-    try {
-      const res = await acceptQuoteMutation({ id: quotation.id }).unwrap();
-      toast.success(res.message || "Quotation accepted!", {
-        description: "Your service order has been generated.",
-      });
-    } catch {
-      toast.error("Failed to accept quotation. Please try again.");
-    }
-  }
-
-  // Handle Reject Quotation Direct Action
-  async function handleRejectQuoteDirect() {
-    if (!quotation || !rejectReason.trim()) return;
-    try {
-      await rejectQuoteMutation({
-        id: quotation.id,
-        reason: rejectReason.trim(),
-      }).unwrap();
-      toast.success("Quotation declined", {
-        description: "Our team will evaluate updated estimates.",
-      });
-      setRejectQuoteOpen(false);
-      setRejectReason("");
-    } catch {
-      toast.error("Failed to decline quotation.");
-    }
-  }
 
   // 5. Loading Skeleton
   if (isLoading) {
@@ -326,9 +297,7 @@ export default function ServiceRequestDetailPage() {
   const normStatus = (request.status || "").toLowerCase().replace(/_/g, "-");
   const canCancel = normStatus === "submitted" || normStatus === "under-review";
 
-  // Quote status checks
-  const quoteStatusNorm = (quotation?.status || "").toLowerCase().replace(/_/g, "-");
-  const isQuoteSent = quoteStatusNorm === "sent" || quoteStatusNorm === "under-review" || quoteStatusNorm === "draft" || quoteStatusNorm === "quoted";
+
 
   // Cancellation Reason extraction & cleaning
   const rawNotes = request.additionalNotes || reqAny.additionalNotes || "";
@@ -449,6 +418,84 @@ export default function ServiceRequestDetailPage() {
         </div>
       </section>
 
+      {/* PAYMENT SUCCESS BANNER (Shown when returning from Stripe checkout) */}
+      {paymentSuccess && (
+        <section className="rounded-xl border border-emerald-300 bg-emerald-50/90 p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                <CheckCircle2 size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-emerald-950">
+                    Payment Successful — Service Appointment Scheduled!
+                  </h2>
+                  <span className="rounded-md bg-emerald-200/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-900">
+                    Paid &amp; Confirmed
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-emerald-800 leading-relaxed max-w-2xl">
+                  Thank you for your payment. Your quotation is confirmed, your appointment schedule has been locked, and your service order is active.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+              <Button
+                asChild
+                size="sm"
+                className="rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 font-semibold text-xs sm:text-sm shadow-xs h-9 px-4"
+              >
+                <Link href="/user/billing">
+                  <FileText size={14} className="mr-1.5" />
+                  View Paid Receipt
+                </Link>
+              </Button>
+              {serviceOrder && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="rounded-lg border-emerald-300 text-emerald-900 hover:bg-emerald-100/60 font-semibold text-xs sm:text-sm h-9 px-4"
+                >
+                  <Link href={`/user/orders/${serviceOrder.id}`}>
+                    View Service Order
+                    <ExternalLink size={13} className="ml-1.5" />
+                  </Link>
+                </Button>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* PAYMENT CANCELLED / INCOMPLETE BANNER */}
+      {paymentCancelled && (
+        <section className="rounded-xl border border-amber-300 bg-amber-50/90 p-5 sm:p-6 shadow-xs">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-amber-600 text-white shadow-xs">
+                <Clock size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-amber-950">
+                    Payment Incomplete or Cancelled
+                  </h2>
+                  <span className="rounded-md bg-amber-200/80 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-amber-900">
+                    Checkout Incomplete
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm font-medium text-amber-800 leading-relaxed max-w-2xl">
+                  Your checkout session was cancelled or could not be completed. You can review the quotation breakdown below and click &ldquo;Accept &amp; Confirm&rdquo; whenever you are ready to retry.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* 2. CANCELLATION REASON SHOWCASE BANNER (Dedicated high-impact UI/UX) */}
       {(cancellationReason || normStatus === "cancelled") && (
         <section className="rounded-lg border border-rose-200 bg-rose-50/70 p-5 sm:p-6 shadow-xs">
@@ -516,11 +563,11 @@ export default function ServiceRequestDetailPage() {
                     </span>
                     <StatusBadge status={serviceOrder.status} />
                   </div>
-                  <h3 className="text-base font-semibold text-slate-800 mt-1">
+                  <h3 className="text-base font-semibold text-primary mt-1">
                     Active Service Order Dispatched
                   </h3>
                   <p className="text-xs sm:text-sm font-medium text-slate-600">
-                    Scheduled for: <span className="font-semibold text-purple-950">{soScheduledAt ? formatShortDateTime(soScheduledAt) : currentSchedule}</span>
+                    Scheduled for: <span className="font-semibold text-primary">{soScheduledAt ? formatShortDateTime(soScheduledAt) : currentSchedule}</span>
                     {soTotal ? ` · Total: ${formatCurrencyUsd(Number(soTotal))}` : ""}
                   </p>
                 </div>
@@ -537,82 +584,138 @@ export default function ServiceRequestDetailPage() {
         );
       })()}
 
-      {/* 3. KEY METRICS HIGHLIGHT BAR - 4 DISTINCT PILLARS (ZERO DUPLICATION) */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Metric 1: Authoritative Service Schedule */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-800">
-            <Calendar size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Service Schedule
-            </p>
-            <p className="mt-0.5 text-sm sm:text-base font-semibold text-slate-800 truncate">
-              {currentSchedule}
-            </p>
-            <p className="text-[11px] font-medium text-teal-700">
-              {primaryAppointment ? "Confirmed Dispatch Slot" : "Requested Arrival Window"}
-            </p>
-          </div>
-        </div>
+      {/* 3. KEY METRICS HIGHLIGHT BAR - 4 ENHANCED PILLARS (2-LINE EYE-CATCHING LAYOUT) */}
+      {(() => {
+        const isCancelled = normStatus === "cancelled";
+        const normQuoteStatus = (quotation?.status || "").toLowerCase().replace(/_/g, "-");
+        const isQuoteAccepted = normQuoteStatus === "accepted" || Boolean(serviceOrder);
+        const isQuoteRejected = normQuoteStatus === "rejected" || normStatus === "rejected";
+        const isQuotationReady = Boolean(quotation) && (normQuoteStatus === "sent" || normQuoteStatus === "quoted" || normQuoteStatus === "viewed");
 
-        {/* Metric 2: Assigned Specialist */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-sky-50 text-sky-800">
-            <User size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Field Specialist
-            </p>
-            <p className="mt-0.5 text-sm sm:text-base font-semibold text-slate-800 truncate">
-              {assignedTech ? assignedTech.displayName : "Specialist In Queue"}
-            </p>
-            <p className="text-[11px] font-medium text-slate-500">
-              {assignedTech ? "Certified Technician Assigned" : "Auto-dispatching specialist"}
-            </p>
-          </div>
-        </div>
+        // Specialist display logic:
+        // ONLY quotation accept will show "Admin will assign a technician soon" (when no technician is assigned yet).
+        // Rest of statuses show meaningful status copy.
+        let specialistTitle = "Specialist In Queue";
+        let specialistSubtitle = "Admin will assign a technician soon";
 
-        {/* Metric 3: Quotation Status */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-800">
-            <FileCheck2 size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Official Quotation
-            </p>
-            <p className="mt-0.5 text-sm sm:text-base font-semibold text-teal-950 truncate">
-              {quotation
-                ? formatCurrencyUsd(Number(quotation.totalUsd))
-                : "Diagnostic Review"}
-            </p>
-            <p className="text-[11px] font-medium text-amber-800">
-              {quotation ? `Status: ${quotation.status}` : "Scope & Parts In Preparation"}
-            </p>
-          </div>
-        </div>
+        if (assignedTech) {
+          specialistTitle = assignedTech.displayName;
+          specialistSubtitle = assignedTech.phone ? `Direct: ${assignedTech.phone}` : "Certified Technician Assigned";
+        } else if (isCancelled) {
+          specialistTitle = "No Specialist Assigned";
+          specialistSubtitle = "Service request cancelled";
+        } else if (isQuoteRejected) {
+          specialistTitle = "Quote Declined";
+          specialistSubtitle = "No specialist assigned";
+        } else if (isQuoteAccepted) {
+          specialistTitle = "Specialist In Queue";
+          specialistSubtitle = "Admin will assign a technician soon";
+        } else if (isQuotationReady) {
+          specialistTitle = "Pending Approval";
+          specialistSubtitle = "Awaiting quote decision";
+        } else {
+          specialistTitle = "Diagnostic Review";
+          specialistSubtitle = "Evaluating service scope";
+        }
 
-        {/* Metric 4: Case Progression Stage */}
-        <div className="flex items-center gap-3.5 rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-800">
-            <CheckCircle2 size={18} />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-              Workflow Stage
-            </p>
-            <p className="mt-0.5 text-sm sm:text-base font-semibold text-slate-800 truncate">
-              {serviceOrder ? "Order Dispatched" : quotation ? "Quotation Ready" : "Intake Review"}
-            </p>
-            <p className="text-[11px] font-medium text-emerald-700">
-              {serviceOrder ? "Stage 4 of 4: On-Site" : quotation ? "Stage 3 of 4: Decision" : "Stage 2 of 4: Triage"}
-            </p>
-          </div>
-        </div>
-      </section>
+        const scheduleSubtitle = isCancelled
+          ? "Dispatch Slot Released"
+          : primaryAppointment
+          ? "Confirmed Dispatch Slot"
+          : "Requested Arrival Window";
+
+        const quoteTitle = isCancelled
+          ? (quotation ? formatCurrencyUsd(Number(quotation.totalUsd)) : "Cancelled")
+          : quotation
+          ? formatCurrencyUsd(Number(quotation.totalUsd))
+          : "Diagnostic Review";
+
+        const quoteSubtitle = isCancelled
+          ? "Request Cancelled"
+          : quotation
+          ? `Status: ${formatStatusLabel(quotation.status)}`
+          : "Scope & Parts In Preparation";
+
+        const workflowTitle = isCancelled
+          ? "Request Cancelled"
+          : serviceOrder
+          ? "Order Dispatched"
+          : quotation
+          ? "Quotation Ready"
+          : "Intake Review";
+
+        const workflowSubtitle = isCancelled
+          ? "Case Closed"
+          : serviceOrder
+          ? "Stage 4 of 4: On-Site"
+          : quotation
+          ? "Stage 3 of 4: Decision"
+          : "Stage 2 of 4: Triage";
+
+        return (
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Metric 1: Authoritative Service Schedule */}
+            <div className="flex items-center gap-4 rounded-xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:shadow-md transition-all duration-200">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
+                <Calendar size={22} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-base sm:text-lg font-bold text-primary truncate">
+                  {currentSchedule}
+                </p>
+                <p className={`mt-1 text-xs sm:text-sm font-medium truncate ${isCancelled ? "text-rose-600" : "text-teal-700"}`}>
+                  {scheduleSubtitle}
+                </p>
+              </div>
+            </div>
+
+            {/* Metric 2: Assigned Specialist */}
+            <div className="flex items-center gap-4 rounded-xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:shadow-md transition-all duration-200">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-800">
+                <User size={22} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-base sm:text-lg font-bold text-primary truncate">
+                  {specialistTitle}
+                </p>
+                <p className={`mt-1 text-xs sm:text-sm font-medium truncate ${isCancelled || isQuoteRejected ? "text-slate-500" : "text-slate-600"}`}>
+                  {specialistSubtitle}
+                </p>
+              </div>
+            </div>
+
+            {/* Metric 3: Quotation Status */}
+            <div className="flex items-center gap-4 rounded-xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:shadow-md transition-all duration-200">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800">
+                <FileCheck2 size={22} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-base sm:text-lg font-bold text-primary truncate">
+                  {quoteTitle}
+                </p>
+                <p className={`mt-1 text-xs sm:text-sm font-medium truncate ${isCancelled ? "text-rose-600" : "text-amber-800"}`}>
+                  {quoteSubtitle}
+                </p>
+              </div>
+            </div>
+
+            {/* Metric 4: Case Progression Stage */}
+            <div className="flex items-center gap-4 rounded-xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-xs hover:shadow-md transition-all duration-200">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800">
+                <CheckCircle2 size={22} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-base sm:text-lg font-bold text-primary truncate">
+                  {workflowTitle}
+                </p>
+                <p className={`mt-1 text-xs sm:text-sm font-medium ${isCancelled ? "text-slate-500" : "text-emerald-700"}`}>
+                  {workflowSubtitle}
+                </p>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* 4. MAIN DASHBOARD GRID (8 Cols Left / 4 Cols Right) */}
       <div className="grid grid-cols-1 gap-6 sm:gap-7 lg:grid-cols-12">
@@ -620,7 +723,7 @@ export default function ServiceRequestDetailPage() {
         <div className="space-y-6 sm:space-y-7 lg:col-span-8">
           
           {/* A. DIAGNOSTIC PIPELINE / QUOTATIONS SECTION */}
-          <section className="overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-xs">
+          <section id="quotation" className="scroll-mt-20 overflow-hidden rounded-lg border border-slate-200/80 bg-white shadow-xs">
             {quotation ? (
               /* ACTIVE QUOTATION PANEL */
               <div className="p-5 sm:p-6 bg-white">
@@ -633,45 +736,17 @@ export default function ServiceRequestDetailPage() {
                       </span>
                       <StatusBadge status={quotation.status} />
                     </div>
-                    <h2 className="text-2xl sm:text-3xl font-semibold text-slate-800">
+                    <h2 className="text-2xl sm:text-3xl font-semibold text-primary">
                       {formatCurrencyUsd(Number(quotation.totalUsd))}
                     </h2>
                     <p className="text-xs sm:text-sm font-medium text-slate-500">
-                      Quote Ref: <span className="font-mono font-semibold text-amber-950">{quotation.businessId || quotation.id}</span>
+                      Quote Ref: <span className="font-mono font-semibold text-primary">{quotation.businessId || quotation.id}</span>
                       {quotation.expiresAt ? ` · Guaranteed through ${formatLongDate(quotation.expiresAt)}` : ""}
                     </p>
                   </div>
 
                   {/* Action / Links */}
                   <div className="flex flex-wrap items-center gap-2">
-                    {isQuoteSent && (
-                      <>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={handleAcceptQuoteDirect}
-                          disabled={isAcceptingQuote}
-                          className="rounded-md bg-emerald-600 text-white font-medium hover:bg-emerald-700 shadow-xs text-xs sm:text-sm"
-                        >
-                          {isAcceptingQuote ? (
-                            <Loader2 size={14} className="animate-spin mr-1.5" />
-                          ) : (
-                            <CheckCircle2 size={14} className="mr-1.5" />
-                          )}
-                          Accept Quote
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setRejectQuoteOpen(true)}
-                          className="rounded-md border-rose-200 text-rose-700 hover:bg-rose-50 font-medium text-xs sm:text-sm"
-                        >
-                          <XCircle size={14} className="mr-1.5" />
-                          Decline
-                        </Button>
-                      </>
-                    )}
                     <Button asChild variant="outline" size="sm" className="rounded-md text-slate-800 hover:bg-slate-50 font-medium text-xs sm:text-sm">
                       <Link href={`/user/quotations/${quotation.id}`}>
                         <FileText size={14} className="mr-1.5" />
@@ -685,7 +760,7 @@ export default function ServiceRequestDetailPage() {
                 {quotation.lineItems && quotation.lineItems.length > 0 && (
                   <div className="mt-5 space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                      Itemized Diagnostics, Genuine Parts & Certified Labor
+                      Service Breakdown
                     </p>
                     <div className="divide-y divide-slate-100 rounded-lg bg-slate-50/60 overflow-hidden">
                       {quotation.lineItems.map((item, idx) => {
@@ -703,7 +778,7 @@ export default function ServiceRequestDetailPage() {
                             className="flex items-center justify-between p-4 hover:bg-slate-100/60 transition"
                           >
                             <div className="space-y-0.5">
-                              <p className="text-sm font-semibold text-slate-800">{label}</p>
+                              <p className="text-sm font-semibold text-primary">{label}</p>
                               {desc && <p className="text-xs text-slate-500 font-medium">{desc}</p>}
                               {lineAny.quantity ? (
                                 <p className="text-xs font-medium text-amber-800">
@@ -712,7 +787,7 @@ export default function ServiceRequestDetailPage() {
                                 </p>
                               ) : null}
                             </div>
-                            <span className="text-sm sm:text-base font-semibold text-slate-800">
+                            <span className="text-sm sm:text-base font-semibold text-primary">
                               {formatCurrencyUsd(amount)}
                             </span>
                           </div>
@@ -732,8 +807,8 @@ export default function ServiceRequestDetailPage() {
                     <div className="mt-5 rounded-lg bg-slate-50/80 p-4 sm:p-5 space-y-2.5 text-xs sm:text-sm">
                       {quotation.subtotalUsd && (
                         <div className="flex justify-between text-slate-600 font-medium">
-                          <span>Subtotal Parts & Labor</span>
-                          <span className="font-semibold text-slate-800">{formatCurrencyUsd(Number(quotation.subtotalUsd))}</span>
+                          <span>Subtotal Parts &amp; Labor</span>
+                          <span className="font-semibold text-primary">{formatCurrencyUsd(Number(quotation.subtotalUsd))}</span>
                         </div>
                       )}
                       {discountVal ? (
@@ -745,12 +820,12 @@ export default function ServiceRequestDetailPage() {
                       {taxVal ? (
                         <div className="flex justify-between text-slate-600 font-medium">
                           <span>Estimated Tax</span>
-                          <span className="font-semibold text-slate-800">{formatCurrencyUsd(taxVal)}</span>
+                          <span className="font-semibold text-primary">{formatCurrencyUsd(taxVal)}</span>
                         </div>
                       ) : null}
-                      <div className="border-t border-slate-200 pt-3 flex justify-between text-base sm:text-lg font-semibold text-slate-800">
+                      <div className="border-t border-slate-200 pt-3 flex justify-between text-base sm:text-lg font-semibold text-primary">
                         <span>Total Quotation</span>
-                        <span className="text-teal-900 font-semibold">{formatCurrencyUsd(Number(quotation.totalUsd))}</span>
+                        <span className="text-primary font-bold">{formatCurrencyUsd(Number(quotation.totalUsd))}</span>
                       </div>
                     </div>
                   );
@@ -899,22 +974,22 @@ export default function ServiceRequestDetailPage() {
               <div className="space-y-2.5">
                 <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm font-medium">
                   <span className="text-slate-500">Manufacturer / Brand</span>
-                  <span className="font-semibold text-slate-800">{request.equipment?.manufacturer || "Standard Central Vac"}</span>
+                  <span className="font-semibold text-primary">{request.equipment?.manufacturer || "Standard Central Vac"}</span>
                 </div>
 
                 <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm font-medium">
                   <span className="text-slate-500">Model Number</span>
-                  <span className="font-semibold text-slate-800">{request.equipment?.modelNumber || "Not Specified"}</span>
+                  <span className="font-semibold text-primary">{request.equipment?.modelNumber || "Not Specified"}</span>
                 </div>
 
                 <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm font-medium">
                   <span className="text-slate-500">Serial Number</span>
-                  <span className="font-semibold text-slate-800 font-mono">{request.equipment?.serialNumber || "N/A"}</span>
+                  <span className="font-semibold text-primary font-mono">{request.equipment?.serialNumber || "N/A"}</span>
                 </div>
 
                 <div className="flex justify-between rounded-md bg-slate-50 p-3 text-xs sm:text-sm font-medium">
                   <span className="text-slate-500">Unit Installation Location</span>
-                  <span className="font-semibold text-slate-800">{request.equipment?.unitLocation || "Garage / Utility Room"}</span>
+                  <span className="font-semibold text-primary">{request.equipment?.unitLocation || "Garage / Utility Room"}</span>
                 </div>
               </div>
             </section>
@@ -923,24 +998,24 @@ export default function ServiceRequestDetailPage() {
             <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4">
                 <MapPin size={15} className="text-teal-600" />
-                Service Location & Contact Info
+                Service Location &amp; Contact Info
               </div>
 
               <div className="space-y-2.5">
                 <div className="rounded-md bg-slate-50 p-3 text-xs sm:text-sm font-medium">
                   <span className="block text-slate-500 text-xs">Service Property</span>
-                  <p className="mt-0.5 font-semibold text-slate-800">{displayStreet}</p>
+                  <p className="mt-0.5 font-semibold text-primary">{displayStreet}</p>
                   {displayRegion && <p className="text-xs text-slate-500">{displayRegion}</p>}
                 </div>
 
                 <div className="rounded-md bg-slate-50 p-3 text-xs sm:text-sm font-medium">
                   <span className="block text-slate-500 text-xs">Problem Location / Inlets</span>
-                  <p className="mt-0.5 font-semibold text-teal-950">{problemLoc}</p>
+                  <p className="mt-0.5 font-semibold text-primary">{problemLoc}</p>
                 </div>
 
                 {(contactName || contactPhone || contactEmail) && (
                   <div className="rounded-md bg-slate-50 p-3 text-xs sm:text-sm space-y-1 text-slate-600 font-medium">
-                    {contactName && <p className="font-semibold text-slate-800">Contact: {contactName}</p>}
+                    {contactName && <p className="font-semibold text-primary">Contact: {contactName}</p>}
                     {contactPhone && <p className="flex items-center gap-1.5"><Phone size={12} className="text-teal-600" /> {contactPhone}</p>}
                     {contactEmail && <p className="flex items-center gap-1.5"><Mail size={12} className="text-teal-600" /> {contactEmail}</p>}
                   </div>
@@ -952,8 +1027,8 @@ export default function ServiceRequestDetailPage() {
           {/* D. INSPECTION MEDIA GALLERY (Clean Read-Only Display) */}
           <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
             <div className="border-b border-slate-100 pb-4 mb-5">
-              <h3 className="text-base font-semibold text-slate-800">
-                Customer Inspection Photos & Videos
+              <h3 className="text-base font-semibold text-primary">
+                Customer Inspection Photos &amp; Videos
               </h3>
               <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
                 Visual evidence submitted with your central vacuum intake ticket.
@@ -972,27 +1047,29 @@ export default function ServiceRequestDetailPage() {
         <div className="space-y-6 sm:space-y-7 lg:col-span-4">
           {/* 1. FIELD TECHNICIAN / DISPATCH STATUS CARD */}
           {assignedTech ? (
-            <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+            <section className="rounded-xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-700 mb-3.5">
                 <User size={14} className="text-teal-600" />
                 Assigned Service Specialist
               </div>
 
               <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-lg bg-teal-800 text-white font-semibold text-base">
+                <div className="flex size-12 items-center justify-center rounded-xl bg-teal-800 text-white font-bold text-base shadow-xs">
                   {assignedTech.displayName.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-sm sm:text-base font-semibold text-slate-800">
+                  <h3 className="text-sm sm:text-base font-bold text-primary">
                     {assignedTech.displayName}
                   </h3>
                   {assignedTech.rating ? (
                     <div className="flex items-center gap-1 text-xs text-slate-600 mt-0.5 font-medium">
                       <Star className="size-3.5 fill-amber-400 text-amber-500" />
-                      <span className="font-semibold text-slate-800">{assignedTech.rating}</span>
+                      <span className="font-semibold text-primary">{assignedTech.rating}</span>
                       <span>rating</span>
                     </div>
-                  ) : null}
+                  ) : (
+                    <p className="text-xs text-teal-700 font-medium mt-0.5">Certified Field Specialist</p>
+                  )}
                 </div>
               </div>
 
@@ -1006,34 +1083,34 @@ export default function ServiceRequestDetailPage() {
               )}
             </section>
           ) : (
-            <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+            <section className="rounded-xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-teal-700 mb-2">
                 <Wrench size={14} className="text-teal-600" />
                 Technician Dispatch Status
               </div>
-              <p className="text-sm font-semibold text-slate-800">
-                Dispatch Assignment In Queue
+              <p className="text-sm sm:text-base font-bold text-primary">
+                Technician Assignment Pending
               </p>
               <p className="mt-1 text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
-                A certified field technician will be assigned to your service appointment 24–48 hours prior to arrival.
+                Admin will assign a technician soon. Once assigned, their credentials and direct contact details will be shown here.
               </p>
             </section>
           )}
 
-          {/* 2. ACTIVITY LIFECYCLE TIMELINE */}
-          <section className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          {/* 2. ACTIVITY LIFECYCLE TIMELINE (DYNAMIC BASED ON ACTUAL STATUS) */}
+          <section className="rounded-xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">
               Request Activity Timeline
             </h3>
 
-            <div className="mt-4 relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-teal-100">
-              {/* Event 1: Submission */}
+            <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+              {/* Event 1: Intake Submission */}
               <div className="relative">
-                <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-teal-600 text-white ring-4 ring-white">
+                <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-teal-600 text-white ring-4 ring-white shadow-2xs">
                   <Check size={11} strokeWidth={2.5} />
                 </div>
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-slate-800">Intake Request Submitted</p>
+                  <p className="text-xs sm:text-sm font-semibold text-primary">Intake Request Submitted</p>
                   <p className="text-[11px] font-medium text-slate-500">
                     {request.submittedAt || reqAny.createdAt
                       ? formatShortDateTime(request.submittedAt || reqAny.createdAt || "")
@@ -1042,16 +1119,16 @@ export default function ServiceRequestDetailPage() {
                 </div>
               </div>
 
-              {/* Event 2: Quotation */}
+              {/* Event 2: Quotation Issued */}
               {quotation ? (
                 <div className="relative">
-                  <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-amber-500 text-white ring-4 ring-white">
-                    <FileText size={11} />
+                  <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-teal-600 text-white ring-4 ring-white shadow-2xs">
+                    <Check size={11} strokeWidth={2.5} />
                   </div>
                   <div>
-                    <p className="text-xs sm:text-sm font-medium text-slate-800">Quotation Issued</p>
+                    <p className="text-xs sm:text-sm font-semibold text-primary">Quotation Issued</p>
                     <p className="text-[11px] font-medium text-slate-500">
-                      Total: {formatCurrencyUsd(Number(quotation.totalUsd))} ({quotation.status})
+                      Total: {formatCurrencyUsd(Number(quotation.totalUsd))} ({formatStatusLabel(quotation.status)})
                     </p>
                   </div>
                 </div>
@@ -1061,24 +1138,120 @@ export default function ServiceRequestDetailPage() {
                     <Clock size={11} />
                   </div>
                   <div>
-                    <p className="text-xs sm:text-sm font-medium text-slate-700">Awaiting Quotation</p>
+                    <p className="text-xs sm:text-sm font-semibold text-primary">Quotation Preparation</p>
                     <p className="text-[11px] font-medium text-slate-400">Technical diagnostics in review</p>
                   </div>
                 </div>
               )}
 
-              {/* Event 3: Service Order */}
+              {/* Event 3: Quotation Acceptance & Payment */}
+              {quotation ? (() => {
+                const qNorm = (quotation.status || "").toLowerCase().replace(/_/g, "-");
+                if (qNorm === "accepted") {
+                  return (
+                    <div className="relative">
+                      <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white ring-4 ring-white shadow-2xs">
+                        <Check size={11} strokeWidth={2.5} />
+                      </div>
+                      <div>
+                        <p className="text-xs sm:text-sm font-semibold text-primary">Quotation Accepted &amp; Paid</p>
+                        <p className="text-[11px] font-medium text-slate-500">
+                          {quotation.paidAt ? `Paid · ${formatShortDateTime(quotation.paidAt)}` : "Payment confirmed · Scope locked"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                if (qNorm === "awaiting-payment") {
+                  return (
+                    <div className="relative">
+                      <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-amber-500 text-white ring-4 ring-white shadow-2xs">
+                        <Clock size={11} />
+                      </div>
+                      <div>
+                        <p className="text-xs sm:text-sm font-semibold text-primary">Awaiting Payment</p>
+                        <p className="text-[11px] font-medium text-amber-700">Stripe checkout session in progress</p>
+                      </div>
+                    </div>
+                  );
+                }
+                if (qNorm === "rejected") {
+                  return (
+                    <div className="relative">
+                      <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-rose-500 text-white ring-4 ring-white shadow-2xs">
+                        <XCircle size={11} />
+                      </div>
+                      <div>
+                        <p className="text-xs sm:text-sm font-semibold text-primary">Quotation Declined</p>
+                        <p className="text-[11px] font-medium text-rose-600">Scope revision requested</p>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="relative opacity-70">
+                    <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-slate-300 text-white ring-4 ring-white">
+                      <Clock size={11} />
+                    </div>
+                    <div>
+                      <p className="text-xs sm:text-sm font-semibold text-primary">Awaiting Customer Acceptance</p>
+                      <p className="text-[11px] font-medium text-slate-400">Click &ldquo;Accept &amp; Pay&rdquo; to schedule</p>
+                    </div>
+                  </div>
+                );
+              })() : null}
+
+              {/* Event 4: Service Order Provisioned */}
               {serviceOrder ? (
                 <div className="relative">
-                  <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-emerald-600 text-white ring-4 ring-white">
+                  <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-teal-600 text-white ring-4 ring-white shadow-2xs">
                     <Check size={11} strokeWidth={2.5} />
                   </div>
                   <div>
-                    <p className="text-xs sm:text-sm font-medium text-slate-800">Service Order Dispatched</p>
-                    <p className="text-[11px] font-medium text-slate-500">Appointment locked with technician</p>
+                    <p className="text-xs sm:text-sm font-semibold text-primary">Service Order Dispatched</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      Order {(serviceOrder as unknown as Record<string, unknown>).businessId as string || serviceOrder.id} · Scheduled
+                    </p>
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="relative opacity-60">
+                  <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-slate-300 text-white ring-4 ring-white">
+                    <Clock size={11} />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-primary">Service Order Provisioning</p>
+                    <p className="text-[11px] font-medium text-slate-400">Auto-created upon quote acceptance</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Event 5: Technician Assignment (Admin will assign technician) */}
+              {assignedTech ? (
+                <div className="relative">
+                  <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-teal-600 text-white ring-4 ring-white shadow-2xs">
+                    <Check size={11} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-primary">Technician Assigned</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      {assignedTech.displayName} assigned for service
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative opacity-75">
+                  <div className="absolute -left-6 top-0 flex size-5 items-center justify-center rounded-full bg-sky-500 text-white ring-4 ring-white shadow-2xs">
+                    <User size={11} />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-primary">Technician Assignment</p>
+                    <p className="text-[11px] font-medium text-slate-500">
+                      Admin will assign a technician soon
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
@@ -1157,50 +1330,6 @@ export default function ServiceRequestDetailPage() {
                 <Loader2 size={14} className="animate-spin mr-1.5" />
               ) : null}
               Confirm Cancellation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL: DECLINE QUOTATION CONFIRMATION */}
-      <Dialog open={rejectQuoteOpen} onOpenChange={setRejectQuoteOpen}>
-        <DialogContent className="sm:max-w-md rounded-lg">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold text-slate-800">
-              Decline Official Quotation?
-            </DialogTitle>
-            <DialogDescription className="text-xs sm:text-sm font-medium text-slate-600">
-              Please tell our estimating team why you are declining so we can provide revised pricing or alternative maintenance packages.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-3">
-            <textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="e.g. Budget constraints, seeking second opinion, or requested parts clarification..."
-              className="w-full min-h-24 rounded-md border border-slate-200 p-3 text-xs sm:text-sm font-medium focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-            />
-          </div>
-          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-md font-medium"
-              onClick={() => setRejectQuoteOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="rounded-md font-medium"
-              disabled={!rejectReason.trim() || isRejectingQuote}
-              onClick={handleRejectQuoteDirect}
-            >
-              {isRejectingQuote ? (
-                <Loader2 size={14} className="animate-spin mr-1.5" />
-              ) : null}
-              Confirm Decline
             </Button>
           </DialogFooter>
         </DialogContent>
