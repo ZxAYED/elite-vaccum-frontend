@@ -110,7 +110,8 @@ export const FIXED_DAILY_SHIFTS = [
 
 type ScheduleViewMode = "calendar" | "agenda";
 type CalendarRangeMode = "month" | "week" | "day";
-type ScheduleStatusFilter = "all" | ServiceOrderStatus;
+export type AdminScheduleStatus = ServiceOrderStatus | "quoted";
+type ScheduleStatusFilter = "all" | AdminScheduleStatus;
 
 const scheduleFormSchema = z.object({
   serviceOrderId: z.string().min(1, "Select a service order."),
@@ -120,6 +121,7 @@ const scheduleFormSchema = z.object({
   technicianId: z.string().optional(),
   adminNote: z.string().max(400).optional(),
   status: z.enum([
+    "quoted",
     "scheduled",
     "rescheduled",
     "technician-assigned",
@@ -149,7 +151,8 @@ type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
 type RescheduleValues = z.infer<typeof rescheduleSchema>;
 type CancellationValues = z.infer<typeof cancellationSchema>;
 
-const statusOptions: ServiceOrderStatus[] = [
+const statusOptions: AdminScheduleStatus[] = [
+  "quoted",
   "scheduled",
   "rescheduled",
   "technician-assigned",
@@ -159,16 +162,6 @@ const statusOptions: ServiceOrderStatus[] = [
   "report-submitted",
   "completed",
   "cancelled",
-];
-
-const timeOptions = [
-  "09:00 AM",
-  "10:00 AM",
-  "11:00 AM",
-  "01:00 PM",
-  "02:00 PM",
-  "03:00 PM",
-  "04:30 PM",
 ];
 
 function clone<T>(value: T): T {
@@ -256,6 +249,13 @@ function buildDayGrid(anchorDate: Date) {
 
 function formatDayKey(date: Date) {
   return date.toISOString().slice(0, 10);
+}
+
+function isScheduleQuoted(schedule: AdminScheduleRecord | null | undefined): boolean {
+  if (!schedule) return false;
+  const statusStr = String(schedule.status || "").toLowerCase();
+  const reqStatusStr = String((schedule as unknown as { requestStatus?: string }).requestStatus || "").toLowerCase();
+  return statusStr === "quoted" || reqStatusStr === "quoted";
 }
 
 export function AdminScheduleClient() {
@@ -360,17 +360,21 @@ export function AdminScheduleClient() {
         appt.endTime || (appt.endAt ? formatTime(appt.endAt) : "11:00 AM");
       const label = `${startDate} at ${startTimeStr}`;
 
+      const reqStatus = (appt.serviceRequest?.status || "").toLowerCase();
       const rawStatus = (appt.status || "CONFIRMED").toLowerCase();
-      const normalizedStatus: ServiceOrderStatus =
-        rawStatus === "confirmed"
-          ? "scheduled"
-          : rawStatus === "rescheduled"
-          ? "rescheduled"
-          : rawStatus === "completed"
+      const normalizedStatus = (
+        rawStatus === "completed"
           ? "completed"
           : rawStatus === "cancelled"
           ? "cancelled"
-          : (rawStatus.replace(/_/g, "-") as ServiceOrderStatus);
+          : rawStatus === "rescheduled"
+          ? "rescheduled"
+          : rawStatus === "quoted" || reqStatus === "quoted"
+          ? "quoted"
+          : rawStatus === "confirmed"
+          ? "scheduled"
+          : (rawStatus.replace(/_/g, "-") as ServiceOrderStatus)
+      ) as ServiceOrderStatus;
 
       return {
         id: appt.id,
@@ -379,6 +383,7 @@ export function AdminScheduleClient() {
           appt.serviceRequest?.businessId ||
           appt.serviceRequestId,
         serviceRequestId: appt.serviceRequestId,
+        requestStatus: appt.serviceRequest?.status,
         customerId: appt.serviceRequest?.customer?.id || "",
         serviceId: appt.serviceRequestId,
         serviceName:
@@ -660,7 +665,7 @@ export function AdminScheduleClient() {
       endAt: toDateTime(values.date, values.endTime).toISOString(),
       timeWindowLabel: `${values.startTime} - ${values.endTime}`,
       technicianId: values.technicianId || undefined,
-      status: values.status,
+      status: values.status as ServiceOrderStatus,
       adminNote: values.adminNote || undefined,
       deletionEligible: !values.technicianId && values.status === "scheduled",
     });
@@ -884,8 +889,8 @@ export function AdminScheduleClient() {
         </div>
 
         {viewMode === "calendar" ? (
-          <div className="grid gap-4 xl:grid-cols-[1.3fr_0.8fr]">
-            <div className="rounded-xl border border-teal-100 bg-white p-4">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,6fr)_minmax(0,4fr)] items-start">
+            <div className="min-w-0 w-full rounded-xl border border-teal-100 bg-white p-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="inline-flex rounded-xl border border-teal-100 bg-teal-50/50 p-1">
                   {(["month", "week", "day"] as const).map((mode) => (
@@ -1024,7 +1029,7 @@ export function AdminScheduleClient() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 w-full space-y-4">
               <AdminSurface>
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1046,26 +1051,71 @@ export function AdminScheduleClient() {
                       No appointments scheduled on this date.
                     </div>
                   ) : (
-                    selectedDateSchedules.map((schedule) => (
-                      <button
-                        className="w-full rounded-xl border border-teal-100 px-4 py-3.5 text-left transition hover:border-teal-200 hover:bg-teal-50/50"
-                        key={schedule.id}
-                        onClick={() => setDetailScheduleId(schedule.id)}
-                        type="button"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="font-semibold text-slate-900 truncate">
-                              {schedule.serviceName}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-500 truncate">
-                              {schedule.customerName} • {schedule.currentSchedule.time}
-                            </p>
+                    selectedDateSchedules.map((schedule) => {
+                      const isCompletedOrCancelled =
+                        schedule.status === "completed" || schedule.status === "cancelled";
+                      const isQuoted = isScheduleQuoted(schedule);
+
+                      return (
+                        <div
+                          key={schedule.id}
+                          className="rounded-xl border border-teal-100 bg-white p-4 transition hover:border-teal-200 shadow-xs space-y-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-slate-900 truncate">
+                                {schedule.serviceName}
+                              </p>
+                              <p className="mt-1 text-sm text-slate-500 truncate">
+                                {schedule.customerName} • {schedule.currentSchedule.time}
+                              </p>
+                            </div>
+                            <StatusBadge status={schedule.status} />
                           </div>
-                          <StatusBadge status={schedule.status} />
+
+                          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                            <Button
+                              onClick={() => setDetailScheduleId(schedule.id)}
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs font-medium"
+                            >
+                              Details
+                            </Button>
+                            {!isCompletedOrCancelled && (
+                              <Button
+                                onClick={() => openEditSchedule(schedule.id)}
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs font-medium"
+                              >
+                                <Pencil size={13} className="mr-1" />
+                                Edit
+                              </Button>
+                            )}
+                            {!isCompletedOrCancelled && isQuoted && (
+                              <Button
+                                onClick={() => {
+                                  rescheduleForm.reset({
+                                    date: schedule.currentSchedule.date,
+                                    startTime: schedule.currentSchedule.time,
+                                    endTime: formatTime(schedule.endAt),
+                                    reason: "",
+                                    note: "",
+                                  });
+                                  setRescheduleId(schedule.id);
+                                }}
+                                size="sm"
+                                className="h-8 text-xs font-medium bg-primary hover:bg-brand-hover text-white"
+                              >
+                                <CalendarClock size={13} className="mr-1" />
+                                Reschedule
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      </button>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </AdminSurface>
@@ -1129,31 +1179,41 @@ export function AdminScheduleClient() {
                       <Button onClick={() => setDetailScheduleId(schedule.id)} variant="outline">
                         View Details
                       </Button>
-                      <Button
-                        onClick={() => setAssigningSchedule(schedule)}
-                        variant="outline"
-                        className="text-teal-700 border-teal-200 hover:bg-teal-50"
-                      >
-                        <UserCheck size={15} />
-                        Assign Tech
-                      </Button>
-                      <Button onClick={() => openEditSchedule(schedule.id)} variant="outline">
-                        <Pencil size={15} />
-                        Edit
-                      </Button>
-                      <Button onClick={() => {
-                        rescheduleForm.reset({
-                          date: schedule.currentSchedule.date,
-                          startTime: schedule.currentSchedule.time,
-                          endTime: formatTime(schedule.endAt),
-                          reason: "",
-                          note: "",
-                        });
-                        setRescheduleId(schedule.id);
-                      }}>
-                        Reschedule
-                      </Button>
-                      {schedule.status !== "cancelled" && (
+                      {schedule.status !== "completed" && schedule.status !== "cancelled" && (
+                        <>
+                          <Button
+                            onClick={() => setAssigningSchedule(schedule)}
+                            variant="outline"
+                            className="text-teal-700 border-teal-200 hover:bg-teal-50"
+                          >
+                            <UserCheck size={15} />
+                            Assign Tech
+                          </Button>
+                          <Button onClick={() => openEditSchedule(schedule.id)} variant="outline">
+                            <Pencil size={15} />
+                            Edit
+                          </Button>
+                        </>
+                      )}
+                      {schedule.status !== "completed" &&
+                        schedule.status !== "cancelled" &&
+                        isScheduleQuoted(schedule) && (
+                        <Button
+                          onClick={() => {
+                            rescheduleForm.reset({
+                              date: schedule.currentSchedule.date,
+                              startTime: schedule.currentSchedule.time,
+                              endTime: formatTime(schedule.endAt),
+                              reason: "",
+                              note: "",
+                            });
+                            setRescheduleId(schedule.id);
+                          }}
+                        >
+                          Reschedule
+                        </Button>
+                      )}
+                      {schedule.status !== "cancelled" && schedule.status !== "completed" && (
                         <Button
                           onClick={() => {
                             cancellationForm.reset({ reason: "", note: "" });
@@ -1176,137 +1236,131 @@ export function AdminScheduleClient() {
       </AdminSurface>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl p-6">
           <DialogHeader>
-            <DialogTitle>Edit Schedule</DialogTitle>
-            <DialogDescription>
-              Update schedule time, technician assignment, status, and admin notes.
+            <DialogTitle className="text-xl font-bold text-slate-900">Edit Schedule</DialogTitle>
+            <DialogDescription className="text-sm text-slate-500">
+              Update appointment date, standard shift, technician assignment, status, and admin notes.
             </DialogDescription>
           </DialogHeader>
 
           <form
-            className="space-y-4"
+            className="space-y-4 pt-1"
             onSubmit={scheduleForm.handleSubmit(saveSchedule)}
           >
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">
-                Service Order
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Service Order / Request
               </label>
               <Input
                 disabled
                 value={scheduleForm.watch("serviceOrderId")}
-                className="bg-slate-50 font-mono text-xs"
+                className="bg-slate-50 font-mono text-xs text-slate-700 font-semibold"
               />
             </div>
 
-            <div className="space-y-1.5 rounded-xl border border-teal-100 bg-teal-50/40 p-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
-                  Quick Shift Preset (5 Standard Shifts)
-                </span>
-                <span className="text-[11px] text-teal-700">Click to set start & end time</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {FIXED_DAILY_SHIFTS.map((shift) => (
-                  <Button
-                    key={shift.slot}
-                    type="button"
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-900">
+                Appointment Date <span className="text-rose-600">*</span>
+              </label>
+              <Controller
+                control={scheduleForm.control}
+                name="date"
+                render={({ field }) => (
+                  <DatePicker
                     size="sm"
-                    variant="outline"
-                    className="h-7 text-xs border-teal-200 text-teal-800 hover:bg-teal-100 bg-white"
-                    onClick={() => {
-                      scheduleForm.setValue("startTime", shift.startTime, { shouldValidate: true });
-                      scheduleForm.setValue("endTime", shift.endTime, { shouldValidate: true });
-                    }}
-                  >
-                    {shift.slot}
-                  </Button>
-                ))}
-              </div>
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Select appointment date..."
+                    className="bg-white w-full"
+                  />
+                )}
+              />
+              {scheduleForm.formState.errors.date ? (
+                <p className="text-xs text-rose-600">{scheduleForm.formState.errors.date.message}</p>
+              ) : null}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">
-                  Date <span className="text-rose-600">*</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-slate-900">
+                  Quick Shift Preset <span className="text-rose-600">*</span>
                 </label>
-                <Controller
-                  control={scheduleForm.control}
-                  name="date"
-                  render={({ field }) => (
-                    <DatePicker
-                      size="sm"
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Select appointment date..."
-                      className="bg-white"
-                    />
-                  )}
-                />
+                <span className="text-xs text-slate-500 font-medium">Click a shift preset below</span>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">
-                  Start Time <span className="text-rose-600">*</span>
-                </label>
-                <Controller
-                  control={scheduleForm.control}
-                  name="startTime"
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select start time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeOptions.map((time) => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {FIXED_DAILY_SHIFTS.map((shift) => {
+                  const currentStart = scheduleForm.watch("startTime");
+                  const currentEnd = scheduleForm.watch("endTime");
+                  const isSelected =
+                    currentStart === shift.startTime && currentEnd === shift.endTime;
+
+                  return (
+                    <button
+                      key={shift.slot}
+                      type="button"
+                      onClick={() => {
+                        scheduleForm.setValue("startTime", shift.startTime, { shouldValidate: true });
+                        scheduleForm.setValue("endTime", shift.endTime, { shouldValidate: true });
+                      }}
+                      className={cn(
+                        "flex items-center justify-between rounded-xl border p-3 text-left transition-all",
+                        isSelected
+                          ? "border-teal-600 bg-teal-50/90 text-teal-950 font-semibold shadow-sm ring-2 ring-teal-600"
+                          : "border-slate-200 bg-white hover:border-teal-300 hover:bg-slate-50/70 text-slate-700",
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <p className={cn("text-xs font-bold", isSelected ? "text-teal-900" : "text-slate-900")}>
+                          {shift.startTime} – {shift.endTime}
+                        </p>
+                        <p className={cn("text-[11px] mt-0.5", isSelected ? "text-teal-700" : "text-slate-500")}>
+                          {shift.label.split("(")[1]?.replace(")", "") || "Standard Shift"}
+                        </p>
+                      </div>
+                      <div
+                        className={cn(
+                          "size-4 rounded-full border flex items-center justify-center transition-colors",
+                          isSelected
+                            ? "border-teal-600 bg-teal-600 text-white"
+                            : "border-slate-300 bg-white",
+                        )}
+                      >
+                        {isSelected && <div className="size-1.5 rounded-full bg-white" />}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">
-                  End Time <span className="text-rose-600">*</span>
-                </label>
-                <Controller
-                  control={scheduleForm.control}
-                  name="endTime"
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select end time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeOptions.map((time) => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
+
+              {scheduleForm.watch("startTime") && scheduleForm.watch("endTime") ? (
+                <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 border border-teal-100">
+                  <Clock3 size={14} className="text-teal-700 shrink-0" />
+                  <span>Selected Window: {scheduleForm.watch("startTime")} – {scheduleForm.watch("endTime")}</span>
+                </div>
+              ) : null}
+
+              {scheduleForm.formState.errors.startTime || scheduleForm.formState.errors.endTime ? (
+                <p className="text-xs text-rose-600">Please select an operational shift preset.</p>
+              ) : null}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-slate-900">
                   Technician
                 </label>
                 <Controller
                   control={scheduleForm.control}
                   name="technicianId"
                   render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <SelectTrigger className="w-full bg-white">
                         <SelectValue placeholder="Unassigned" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {technicianOptions.map((option) => (
                           <SelectItem
                             disabled={!option.active}
@@ -1321,8 +1375,8 @@ export function AdminScheduleClient() {
                   )}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-900">
+              <div className="space-y-1.5">
+                <label className="text-sm font-semibold text-slate-900">
                   Status <span className="text-rose-600">*</span>
                 </label>
                 <Controller
@@ -1330,7 +1384,7 @@ export function AdminScheduleClient() {
                   name="status"
                   render={({ field }) => (
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full bg-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1346,10 +1400,12 @@ export function AdminScheduleClient() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">Admin Note</label>
+            <div className="space-y-1.5">
+              <label className="text-sm font-semibold text-slate-900">Admin Note</label>
               <Textarea
-                placeholder="Optional schedule note"
+                placeholder="Optional internal dispatch or scheduling notes..."
+                rows={3}
+                className="bg-white"
                 {...scheduleForm.register("adminNote")}
               />
             </div>
@@ -1360,11 +1416,11 @@ export function AdminScheduleClient() {
               </div>
             ) : null}
 
-            <DialogFooter>
+            <DialogFooter className="pt-2">
               <Button onClick={() => setCreateOpen(false)} type="button" variant="outline">
                 Close
               </Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit" className="bg-primary hover:bg-brand-hover text-white">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1561,7 +1617,7 @@ export function AdminScheduleClient() {
                   {/* Footer Action Bar */}
                   <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-slate-100">
                     <div>
-                      {selectedSchedule.status !== "cancelled" && (
+                      {selectedSchedule.status !== "cancelled" && selectedSchedule.status !== "completed" && (
                         <Button
                           onClick={() => {
                             cancellationForm.reset({ reason: "", note: "" });
@@ -1578,35 +1634,41 @@ export function AdminScheduleClient() {
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-                      <Button
-                        onClick={() => {
-                          openEditSchedule(selectedSchedule.id);
-                          setDetailScheduleId(null);
-                        }}
-                        type="button"
-                        variant="outline"
-                      >
-                        <Pencil size={15} className="mr-1.5" />
-                        Edit
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          rescheduleForm.reset({
-                            date: selectedSchedule.currentSchedule.date,
-                            startTime: selectedSchedule.currentSchedule.time,
-                            endTime: formatTime(selectedSchedule.endAt),
-                            reason: "",
-                            note: "",
-                          });
-                          setRescheduleId(selectedSchedule.id);
-                          setDetailScheduleId(null);
-                        }}
-                        type="button"
-                        className="bg-primary hover:bg-brand-hover text-white font-medium"
-                      >
-                        <CalendarClock size={15} className="mr-1.5" />
-                        Reschedule
-                      </Button>
+                      {selectedSchedule.status !== "completed" && selectedSchedule.status !== "cancelled" && (
+                        <Button
+                          onClick={() => {
+                            openEditSchedule(selectedSchedule.id);
+                            setDetailScheduleId(null);
+                          }}
+                          type="button"
+                          variant="outline"
+                        >
+                          <Pencil size={15} className="mr-1.5" />
+                          Edit
+                        </Button>
+                      )}
+                      {selectedSchedule.status !== "completed" &&
+                        selectedSchedule.status !== "cancelled" &&
+                        isScheduleQuoted(selectedSchedule) && (
+                        <Button
+                          onClick={() => {
+                            rescheduleForm.reset({
+                              date: selectedSchedule.currentSchedule.date,
+                              startTime: selectedSchedule.currentSchedule.time,
+                              endTime: formatTime(selectedSchedule.endAt),
+                              reason: "",
+                              note: "",
+                            });
+                            setRescheduleId(selectedSchedule.id);
+                            setDetailScheduleId(null);
+                          }}
+                          type="button"
+                          className="bg-primary hover:bg-brand-hover text-white font-medium"
+                        >
+                          <CalendarClock size={15} className="mr-1.5" />
+                          Reschedule
+                        </Button>
+                      )}
                     </div>
                   </DialogFooter>
                 </div>
@@ -1653,83 +1715,94 @@ export function AdminScheduleClient() {
                 </div>
               </div>
 
-              <div className="space-y-1.5 rounded-xl border border-teal-100 bg-teal-50/40 p-3.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
-                    Quick Shift Preset (5 Standard Shifts)
-                  </span>
-                  <span className="text-[11px] text-teal-700">Click to set start & end time</span>
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {FIXED_DAILY_SHIFTS.map((shift) => (
-                    <Button
-                      key={shift.slot}
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs border-teal-200 text-teal-800 hover:bg-teal-100 bg-white"
-                      onClick={() => {
-                        rescheduleForm.setValue("startTime", shift.startTime, { shouldValidate: true });
-                        rescheduleForm.setValue("endTime", shift.endTime, { shouldValidate: true });
-                      }}
-                    >
-                      {shift.slot}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-900">
+                  Select New Date <span className="text-rose-600">*</span>
+                </label>
                 <Controller
                   control={rescheduleForm.control}
                   name="date"
                   render={({ field }) => (
                     <DatePicker
-                      size="sm"
                       value={field.value}
                       onChange={field.onChange}
                       placeholder="Select new date..."
-                      className="bg-white"
+                      className="bg-white w-full"
                     />
                   )}
                 />
-                <Controller
-                  control={rescheduleForm.control}
-                  name="startTime"
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Start time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeOptions.map((time) => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <Controller
-                  control={rescheduleForm.control}
-                  name="endTime"
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="End time" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeOptions.map((time) => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
               </div>
+
+              {/* Quick Shift Presets */}
+              <div className="space-y-2.5 rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/40 via-white to-teal-50/20 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-1">
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-900">
+                      Operational Shift Window <span className="text-rose-600">*</span>
+                    </span>
+                    <p className="text-[12px] text-slate-500">Choose a standard shift window for rapid scheduling</p>
+                  </div>
+                  <span className="text-[11px] font-medium text-teal-800 bg-teal-100/70 px-2 py-0.5 rounded-md">
+                    5 Standard Presets
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 pt-1">
+                  {FIXED_DAILY_SHIFTS.map((shift) => {
+                    const isSelected =
+                      rescheduleForm.watch("startTime") === shift.startTime &&
+                      rescheduleForm.watch("endTime") === shift.endTime;
+
+                    return (
+                      <button
+                        key={shift.slot}
+                        type="button"
+                        onClick={() => {
+                          rescheduleForm.setValue("startTime", shift.startTime, { shouldValidate: true });
+                          rescheduleForm.setValue("endTime", shift.endTime, { shouldValidate: true });
+                        }}
+                        className={cn(
+                          "flex items-center justify-between rounded-xl border p-3 text-left transition-all",
+                          isSelected
+                            ? "border-teal-600 bg-teal-50/90 text-teal-950 font-semibold shadow-sm ring-2 ring-teal-600"
+                            : "border-slate-200 bg-white hover:border-teal-300 hover:bg-slate-50/70 text-slate-700",
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className={cn("text-xs font-bold", isSelected ? "text-teal-900" : "text-slate-900")}>
+                            {shift.startTime} – {shift.endTime}
+                          </p>
+                          <p className={cn("text-[11px] mt-0.5", isSelected ? "text-teal-700" : "text-slate-500")}>
+                            {shift.label.split("(")[1]?.replace(")", "") || "Standard Shift"}
+                          </p>
+                        </div>
+                        <div
+                          className={cn(
+                            "size-4 rounded-full border flex items-center justify-center transition-colors",
+                            isSelected
+                              ? "border-teal-600 bg-teal-600 text-white"
+                              : "border-slate-300 bg-white",
+                          )}
+                        >
+                          {isSelected && <div className="size-1.5 rounded-full bg-white" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {rescheduleForm.watch("startTime") && rescheduleForm.watch("endTime") ? (
+                  <div className="flex items-center gap-2 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-900 border border-teal-100">
+                    <Clock3 size={14} className="text-teal-700 shrink-0" />
+                    <span>Selected Window: {rescheduleForm.watch("startTime")} – {rescheduleForm.watch("endTime")}</span>
+                  </div>
+                ) : null}
+
+                {rescheduleForm.formState.errors.startTime || rescheduleForm.formState.errors.endTime ? (
+                  <p className="text-xs text-rose-600">Please select an operational shift preset.</p>
+                ) : null}
+              </div>
+
               <Input placeholder="Reason" {...rescheduleForm.register("reason")} />
               <Textarea
                 placeholder="Optional note"

@@ -300,17 +300,19 @@ export function AdminTechnicianDetailClient({
     });
 
     try {
+      const updateBody: Record<string, unknown> = {
+        displayName: values.fullName,
+        email: values.email,
+        phone: values.phone,
+        status: values.status,
+      };
+      if (values.notes?.trim()) {
+        updateBody.adminNotes = values.notes.trim();
+      }
+
       const res = await updateTechnicianApi({
         id: technicianId,
-        body: {
-          displayName: values.fullName,
-          email: values.email,
-          phone: values.phone,
-          status: values.status,
-          availability: values.availability,
-          adminNotes: values.notes || undefined,
-          notes: values.notes || undefined,
-        },
+        body: updateBody,
       }).unwrap();
       const successMsg =
         (res as { message?: string })?.message || "Technician details updated successfully.";
@@ -321,7 +323,7 @@ export function AdminTechnicianDetailClient({
       const msg = Array.isArray(apiErr?.data?.message)
         ? apiErr.data.message.join(", ")
         : apiErr?.data?.message;
-      toast.info(msg || "Technician updated locally.");
+      toast.error(msg || "Failed to update technician on server, updated locally.");
     }
 
     setVersion((current) => current + 1);

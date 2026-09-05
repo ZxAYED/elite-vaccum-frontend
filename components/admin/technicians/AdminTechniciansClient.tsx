@@ -187,17 +187,19 @@ export function AdminTechniciansClient() {
       });
 
       try {
+        const updateBody: Record<string, unknown> = {
+          displayName: values.fullName,
+          email: values.email,
+          phone: values.phone,
+          status: values.status,
+        };
+        if (values.notes?.trim()) {
+          updateBody.adminNotes = values.notes.trim();
+        }
+
         const res = await updateTechnicianApi({
           id: editingTechnicianId,
-          body: {
-            displayName: values.fullName,
-            email: values.email,
-            phone: values.phone,
-            status: values.status,
-            availability: values.availability,
-            adminNotes: values.notes || undefined,
-            notes: values.notes || undefined,
-          },
+          body: updateBody,
         }).unwrap();
         const successMsg =
           (res as { message?: string })?.message || "Technician updated successfully.";
@@ -208,7 +210,7 @@ export function AdminTechniciansClient() {
         const msg = Array.isArray(apiErr?.data?.message)
           ? apiErr.data.message.join(", ")
           : apiErr?.data?.message;
-        toast.info(msg || "Technician updated locally.");
+        toast.error(msg || "Failed to update technician on server, updated locally.");
       }
     } else {
       createAdminTechnician({
@@ -231,10 +233,10 @@ export function AdminTechniciansClient() {
           email: values.email,
           phone: values.phone,
           status: values.status,
-          availability: values.availability,
-          adminNotes: values.notes || undefined,
-          notes: values.notes || undefined,
         };
+        if (values.notes?.trim()) {
+          createPayload.adminNotes = values.notes.trim();
+        }
         if (values.password?.trim()) {
           createPayload.password = values.password.trim();
         }
