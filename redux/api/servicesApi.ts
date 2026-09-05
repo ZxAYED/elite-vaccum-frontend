@@ -27,6 +27,7 @@ export interface GetScheduleBoardParams {
   startDate?: string;
   endDate?: string;
   technicianId?: string;
+  techId?: string;
   status?: string;
 }
 
@@ -89,6 +90,7 @@ export interface DispatchBoardMeta {
   dateFrom?: string;
   dateTo?: string;
   total?: number;
+  technicianId?: string;
   stats?: DispatchBoardStats;
 }
 
@@ -373,8 +375,9 @@ export const servicesApi = baseApi.injectEndpoints({
         const to = params.dateTo || params.endDate;
         if (from) queryParams.dateFrom = from;
         if (to) queryParams.dateTo = to;
-        if (params.technicianId && params.technicianId !== "all") {
-          queryParams.technicianId = params.technicianId;
+        const tech = params.technicianId || params.techId;
+        if (tech && tech !== "all") {
+          queryParams.technicianId = tech;
         }
         if (params.status && params.status !== "all") {
           queryParams.status = params.status;

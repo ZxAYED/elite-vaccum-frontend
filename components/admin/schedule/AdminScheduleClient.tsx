@@ -12,7 +12,6 @@ import {
   ExternalLink,
   MapPin,
   Pencil,
-  Plus,
   Star,
   UserCheck,
   UserRound,
@@ -42,7 +41,10 @@ import {
 import { Input } from "@/components/ui/Input";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { AssignTechnicianModal } from "@/components/admin/shared/AssignTechnicianModal";
-import type { TechnicianProfileDto } from "@/redux/api/technicianApi";
+import {
+  useGetAdminTechniciansListQuery,
+  type TechnicianProfileDto,
+} from "@/redux/api/technicianApi";
 import {
   Select,
   SelectContent,
@@ -53,23 +55,18 @@ import {
 import { Textarea } from "@/components/ui/Textarea";
 import {
   cancelSharedAdminSchedule,
-  createSharedAdminSchedule,
   deleteSharedAdminSchedule,
   getSharedAdminScheduleById,
   getSharedAdminScheduleRecords,
-  getSharedAdminServiceOrders,
   replaceSharedAdminSchedule,
   rescheduleSharedAdminSchedule,
 } from "@/data/mock/admin-schedule-state";
 import { getTechnicianAvailabilityOptions } from "@/data/mock/admin-orders";
-import { getSharedCustomerById } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatLongDate, formatTime } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import {
   useGetDispatchBoardQuery,
-  useGetAvailableSlotsQuery,
-  useCreateAppointmentMutation,
   useUpdateAppointmentMutation,
   useAssignTechnicianToAppointmentMutation,
   useCancelAppointmentMutation,
@@ -239,31 +236,10 @@ function technicianConflictMessage(
   return `${conflict.customerName} already has ${conflict.serviceName} assigned to this technician during that time.`;
 }
 
-function serviceOrderConflictMessage(
-  schedules: AdminScheduleRecord[],
-  values: Pick<ScheduleFormValues, "serviceOrderId">,
-  excludedScheduleId?: string,
-) {
-  const conflict = schedules.find((schedule) => {
-    if (schedule.id === excludedScheduleId) return false;
-    if (!isBlockingStatus(schedule.status)) return false;
-    return schedule.serviceOrderId === values.serviceOrderId;
-  });
-
-  if (!conflict) return null;
-  return `${values.serviceOrderId} already has an active appointment. Reschedule or cancel the existing schedule instead of creating a second active one.`;
-}
-
 function toStatusFilterLabel(status: ScheduleStatusFilter) {
   return status === "all"
     ? "All statuses"
     : status.replaceAll("-", " ");
-}
-
-function getCustomerName(customerId: string) {
-  return (
-    getSharedCustomerById(customerId)?.displayName ?? "Unknown customer"
-  );
 }
 
 function buildDayGrid(anchorDate: Date) {
@@ -324,27 +300,33 @@ export function AdminScheduleClient() {
       status: statusFilter !== "all" ? statusFilter.toUpperCase() : undefined,
     });
 
-  // RTK Query: 5 fixed shifts availability for selected date
-  const { data: apiSlots, refetch: refetchSlots } =
-    useGetAvailableSlotsQuery({
-      date: selectedDate,
-      technicianId: technicianFilter !== "all" ? technicianFilter : undefined,
-    });
-
-  const [createAppointmentMutation] = useCreateAppointmentMutation();
   const [updateAppointmentMutation] = useUpdateAppointmentMutation();
   const [assignTechnicianMutation] = useAssignTechnicianToAppointmentMutation();
   const [cancelAppointmentMutation] = useCancelAppointmentMutation();
   const [rescheduleServiceRequestMutation] = useRescheduleServiceRequestMutation();
 
   const schedules = clone(getSharedAdminScheduleRecords());
-  const serviceOrders = clone(getSharedAdminServiceOrders());
 
-  // Merge technicians from API with mock fallback
+  // Query all technicians for complete dropdown options regardless of active board filter
+  const { data: adminTechsData } = useGetAdminTechniciansListQuery({});
+
+  // Merge technicians from admin list API with board and mock fallback
   const technicianOptions = useMemo(() => {
+    if (adminTechsData?.items && adminTechsData.items.length > 0) {
+      return adminTechsData.items.map((tech) => ({
+        technicianId: tech.id,
+        userId: tech.userId,
+        displayName: tech.displayName,
+        phone: tech.phone ?? "+1 (555) 234-5678",
+        rating: typeof tech.rating === "number" ? tech.rating : 4.9,
+        active: tech.status !== "INACTIVE",
+        availabilityLabel: tech.status || "Active",
+      }));
+    }
     if (apiBoard?.technicians && apiBoard.technicians.length > 0) {
       return apiBoard.technicians.map((tech) => ({
         technicianId: tech.id,
+        userId: undefined,
         displayName: tech.displayName,
         phone: tech.phone ?? "+1 (555) 234-5678",
         rating: typeof tech.rating === "number" ? tech.rating : 4.9,
@@ -354,13 +336,14 @@ export function AdminScheduleClient() {
     }
     return getTechnicianAvailabilityOptions().map((opt) => ({
       technicianId: opt.technicianId,
+      userId: undefined,
       displayName: opt.displayName,
       phone: "+1 (555) 234-5678",
       rating: 4.9,
       active: opt.active,
       availabilityLabel: opt.availabilityLabel,
     }));
-  }, [apiBoard?.technicians]);
+  }, [adminTechsData?.items, apiBoard?.technicians]);
 
   // Map API appointments to unified AdminScheduleRecord shape
   const mappedApiAppointments = useMemo(() => {
@@ -435,13 +418,13 @@ export function AdminScheduleClient() {
     });
   }, [apiBoard?.appointments, selectedDate]);
 
-  // Combine live backend appointments with mock fallback
+  // When live backend appointments are loaded (apiBoard is defined), rely strictly on live backend data
   const allSchedules = useMemo(() => {
-    if (mappedApiAppointments.length === 0) return schedules;
-    const apiIds = new Set(mappedApiAppointments.map((a) => a.id));
-    const nonConflictingMocks = schedules.filter((s) => !apiIds.has(s.id));
-    return [...mappedApiAppointments, ...nonConflictingMocks];
-  }, [mappedApiAppointments, schedules]);
+    if (apiBoard !== undefined) {
+      return mappedApiAppointments;
+    }
+    return schedules;
+  }, [apiBoard, mappedApiAppointments, schedules]);
 
   const scheduleForm = useForm<ScheduleFormValues>({
     resolver: zodResolver(scheduleFormSchema),
@@ -477,17 +460,28 @@ export function AdminScheduleClient() {
 
   const filteredSchedules = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
+    const resolvedTechId = apiBoard?.meta?.technicianId;
 
     return allSchedules.filter((schedule) => {
       if (dateFilter && schedule.currentSchedule.date !== dateFilter) return false;
-      if (technicianFilter !== "all" && schedule.technicianId !== technicianFilter) {
-        return false;
+      if (technicianFilter !== "all") {
+        const matchesTech =
+          schedule.technicianId === technicianFilter ||
+          (resolvedTechId && schedule.technicianId === resolvedTechId) ||
+          technicianOptions.some(
+            (opt) =>
+              (opt.technicianId === technicianFilter || opt.userId === technicianFilter) &&
+              (opt.technicianId === schedule.technicianId || opt.userId === schedule.technicianId),
+          );
+        if (!matchesTech) return false;
       }
       if (statusFilter !== "all" && schedule.status !== statusFilter) return false;
       if (!normalizedSearch) return true;
 
       const technician = technicianOptions.find(
-        (item) => item.technicianId === schedule.technicianId,
+        (item) =>
+          item.technicianId === schedule.technicianId ||
+          (item.userId && item.userId === schedule.technicianId),
       );
       const haystack = [
         schedule.serviceOrderId,
@@ -502,39 +496,39 @@ export function AdminScheduleClient() {
 
       return haystack.includes(normalizedSearch);
     });
-  }, [allSchedules, dateFilter, search, statusFilter, technicianFilter, technicianOptions]);
+  }, [allSchedules, apiBoard?.meta?.technicianId, dateFilter, search, statusFilter, technicianFilter, technicianOptions]);
 
   const selectedDateSchedules = useMemo(
     () =>
-      allSchedules.filter((schedule) => schedule.currentSchedule.date === selectedDate),
-    [allSchedules, selectedDate],
+      filteredSchedules.filter((schedule) => schedule.currentSchedule.date === selectedDate),
+    [filteredSchedules, selectedDate],
   );
 
   const stats = useMemo(() => {
     const apiStats = apiBoard?.meta?.stats;
-    const totalCount = apiBoard?.meta?.total ?? allSchedules.length;
+    const totalCount = apiBoard?.meta?.total ?? filteredSchedules.length;
     const confirmedCount =
       apiStats?.confirmed ??
-      allSchedules.filter((s) => s.status === "scheduled" || s.status === "technician-assigned").length;
-    const openSlotsCount =
-      apiSlots?.availableSlotsCount ??
-      Math.max(5 - selectedDateSchedules.length, 0);
+      filteredSchedules.filter((s) => s.status === "scheduled" || s.status === "technician-assigned").length;
+    const completedCount =
+      apiStats?.completed ??
+      filteredSchedules.filter((s) => s.status === "completed").length;
     const rescheduledCount =
       apiStats?.rescheduled ??
-      allSchedules.filter((s) => s.status === "rescheduled").length;
+      filteredSchedules.filter((s) => s.status === "rescheduled").length;
     const cancelledCount =
       apiStats?.cancelled ??
-      allSchedules.filter((s) => s.status === "cancelled").length;
+      filteredSchedules.filter((s) => s.status === "cancelled").length;
     const unassignedCount =
       apiStats?.unassigned ??
-      allSchedules.filter((s) => !s.technicianId && s.status !== "cancelled").length;
+      filteredSchedules.filter((s) => !s.technicianId && s.status !== "cancelled").length;
 
     return [
-      { label: "Total Bookings", value: totalCount },
+      { label: "Total Appointments", value: totalCount },
       { label: "Confirmed", value: confirmedCount, tone: "soft" as const },
       {
-        label: "Open Shifts Today",
-        value: openSlotsCount,
+        label: "Completed",
+        value: completedCount,
         tone: "success" as const,
       },
       {
@@ -551,7 +545,7 @@ export function AdminScheduleClient() {
         value: cancelledCount,
       },
     ];
-  }, [apiBoard?.meta, apiSlots?.availableSlotsCount, allSchedules, selectedDateSchedules]);
+  }, [apiBoard?.meta, filteredSchedules]);
 
   const visibleCalendarDays = useMemo(() => {
     if (rangeMode === "day") {
@@ -572,40 +566,9 @@ export function AdminScheduleClient() {
     return buildDayGrid(calendarDate);
   }, [calendarDate, rangeMode, selectedDate]);
 
-  const availableOrderOptions = useMemo(
-    () =>
-      serviceOrders.filter((order) => {
-        const existing = allSchedules.find(
-          (schedule) =>
-            schedule.serviceOrderId === order.id && isBlockingStatus(schedule.status),
-        );
-        return !existing || existing.id === editingScheduleId;
-      }),
-    [editingScheduleId, allSchedules, serviceOrders],
-  );
-
   const selectedSchedule = detailScheduleId
     ? allSchedules.find((schedule) => schedule.id === detailScheduleId) ?? null
     : null;
-
-  function openCreateSchedule(
-    defaultDate?: string,
-    defaultStartTime?: string,
-    defaultEndTime?: string
-  ) {
-    scheduleForm.reset({
-      serviceOrderId: "",
-      date: defaultDate || selectedDate,
-      startTime: defaultStartTime || "09:00 AM",
-      endTime: defaultEndTime || "11:00 AM",
-      technicianId: "",
-      adminNote: "",
-      status: "scheduled",
-    });
-    setEditingScheduleId(null);
-    setFormError("");
-    setCreateOpen(true);
-  }
 
   function openEditSchedule(scheduleId: string) {
     const schedule = allSchedules.find((s) => s.id === scheduleId);
@@ -651,7 +614,6 @@ export function AdminScheduleClient() {
         description: `Assigned ${tech?.displayName || "technician"} to appointment #${assigningSchedule.serviceRequestId || assigningSchedule.serviceOrderId}`,
       });
       refetchBoard();
-      refetchSlots();
       setAssigningSchedule(null);
     } catch {
       // Fallback for mock/offline environment
@@ -666,7 +628,6 @@ export function AdminScheduleClient() {
         description: `Assigned ${tech?.displayName || "technician"} to appointment #${assigningSchedule.serviceRequestId || assigningSchedule.serviceOrderId}`,
       });
       refetchBoard();
-      refetchSlots();
       setAssigningSchedule(null);
     } finally {
       setIsAssigning(false);
@@ -674,95 +635,60 @@ export function AdminScheduleClient() {
   }
 
   async function saveSchedule(values: ScheduleFormValues) {
+    if (!editingScheduleId) return;
+
     const technicianConflict = technicianConflictMessage(
       allSchedules,
       values,
-      editingScheduleId ?? undefined,
+      editingScheduleId,
     );
     if (technicianConflict) {
       setFormError(technicianConflict);
       return;
     }
 
-    if (!editingScheduleId) {
-      const orderConflict = serviceOrderConflictMessage(allSchedules, values);
-      if (orderConflict) {
-        setFormError(orderConflict);
-        return;
+    const existing = allSchedules.find((s) => s.id === editingScheduleId);
+    if (!existing) return;
+    replaceSharedAdminSchedule({
+      ...existing,
+      currentSchedule: {
+        date: values.date,
+        time: values.startTime,
+        label: formatScheduleLabel(values.date, values.startTime),
+      },
+      startAt: toDateTime(values.date, values.startTime).toISOString(),
+      endAt: toDateTime(values.date, values.endTime).toISOString(),
+      timeWindowLabel: `${values.startTime} - ${values.endTime}`,
+      technicianId: values.technicianId || undefined,
+      status: values.status,
+      adminNote: values.adminNote || undefined,
+      deletionEligible: !values.technicianId && values.status === "scheduled",
+    });
+
+    try {
+      if (
+        values.technicianId &&
+        existing.technicianId !== values.technicianId
+      ) {
+        await assignTechnicianMutation({
+          appointmentId: editingScheduleId,
+          technicianId: values.technicianId,
+        }).unwrap();
       }
-
-      createSharedAdminSchedule(values);
-
-      try {
-        await createAppointmentMutation({
-          serviceRequestId: values.serviceOrderId,
-          technicianId: values.technicianId || undefined,
+      await updateAppointmentMutation({
+        appointmentId: editingScheduleId,
+        body: {
           date: values.date,
           startTime: values.startTime,
           endTime: values.endTime,
-          adminNote: values.adminNote,
+          status: values.status,
           notes: values.adminNote,
-        }).unwrap();
-        toast.success("Appointment created successfully", {
-          description: `Scheduled for ${values.date} from ${values.startTime} to ${values.endTime}`,
-        });
-        refetchBoard();
-        refetchSlots();
-      } catch (err: unknown) {
-        const anyErr = err as {
-          data?: { message?: string | string[] };
-        };
-        const msg =
-          (Array.isArray(anyErr.data?.message)
-            ? anyErr.data.message.join(", ")
-            : anyErr.data?.message) || "Saved locally in admin store.";
-        toast.info("Appointment saved", { description: msg });
-      }
-    } else {
-      const existing = allSchedules.find((s) => s.id === editingScheduleId);
-      if (!existing) return;
-      replaceSharedAdminSchedule({
-        ...existing,
-        currentSchedule: {
-          date: values.date,
-          time: values.startTime,
-          label: formatScheduleLabel(values.date, values.startTime),
         },
-        startAt: toDateTime(values.date, values.startTime).toISOString(),
-        endAt: toDateTime(values.date, values.endTime).toISOString(),
-        timeWindowLabel: `${values.startTime} - ${values.endTime}`,
-        technicianId: values.technicianId || undefined,
-        status: values.status,
-        adminNote: values.adminNote || undefined,
-        deletionEligible: !values.technicianId && values.status === "scheduled",
-      });
-
-      try {
-        if (
-          values.technicianId &&
-          existing.technicianId !== values.technicianId
-        ) {
-          await assignTechnicianMutation({
-            appointmentId: editingScheduleId,
-            technicianId: values.technicianId,
-          }).unwrap();
-        }
-        await updateAppointmentMutation({
-          appointmentId: editingScheduleId,
-          body: {
-            date: values.date,
-            startTime: values.startTime,
-            endTime: values.endTime,
-            status: values.status,
-            notes: values.adminNote,
-          },
-        }).unwrap();
-        toast.success("Appointment updated successfully");
-        refetchBoard();
-        refetchSlots();
-      } catch {
-        // Fallback to local store
-      }
+      }).unwrap();
+      toast.success("Appointment updated successfully");
+      refetchBoard();
+    } catch {
+      // Fallback to local store
     }
     setCreateOpen(false);
   }
@@ -843,7 +769,6 @@ export function AdminScheduleClient() {
         description: `New schedule: ${values.date} from ${values.startTime} to ${values.endTime}`,
       });
       refetchBoard();
-      refetchSlots();
     } else {
       toast.success("Appointment rescheduled locally", {
         description: `New schedule: ${values.date} from ${values.startTime} to ${values.endTime}`,
@@ -867,85 +792,10 @@ export function AdminScheduleClient() {
       }).unwrap();
       toast.success("Appointment cancelled successfully");
       refetchBoard();
-      refetchSlots();
     } catch {
       // Fallback to local store
     }
     setCancelId(null);
-  }
-
-  function renderAvailabilityShift(shift: (typeof FIXED_DAILY_SHIFTS)[number]) {
-    const apiSlot = apiSlots?.slots?.find(
-      (s) =>
-        s.slot === shift.slot ||
-        s.startTime === shift.startTime ||
-        (s.timeWindow && s.timeWindow.includes(shift.startTime)),
-    );
-
-    const bookedAppt = selectedDateSchedules.find(
-      (schedule) =>
-        (schedule.currentSchedule.time === shift.startTime ||
-          schedule.timeWindowLabel.includes(shift.startTime)) &&
-        isBlockingStatus(schedule.status),
-    );
-
-    const isBooked = apiSlot
-      ? apiSlot.isBooked || apiSlot.status === "BOOKED"
-      : Boolean(bookedAppt);
-
-    const bookedCount = apiSlot?.bookedCount ?? (isBooked ? 1 : 0);
-    const capacity = apiSlot?.availableCapacity ?? (isBooked ? 0 : 1);
-
-    return (
-      <div
-        className={cn(
-          "rounded-xl border px-4 py-3 transition",
-          isBooked
-            ? "border-rose-200 bg-rose-50/70"
-            : "border-emerald-200 bg-emerald-50/70",
-        )}
-        key={shift.slot}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <Clock3 size={14} className={isBooked ? "text-rose-600" : "text-emerald-700"} />
-              <p className="text-sm font-semibold text-slate-900">{shift.slot}</p>
-            </div>
-            <p className="mt-1 text-xs text-slate-600">
-              {isBooked
-                ? bookedAppt
-                  ? `${bookedAppt.customerName} • ${bookedAppt.serviceName}`
-                  : `${bookedCount} appointment booked`
-                : `${capacity} technician capacity available`}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em]",
-                isBooked
-                  ? "bg-rose-100 text-rose-700 border border-rose-200"
-                  : "bg-emerald-100 text-emerald-800 border border-emerald-200",
-              )}
-            >
-              {isBooked ? "BOOKED" : "OPEN"}
-            </span>
-            {!isBooked && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => openCreateSchedule(selectedDate, shift.startTime, shift.endTime)}
-                className="h-7 px-2.5 text-xs text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-              >
-                <Plus size={12} className="mr-1" />
-                Book
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -954,12 +804,6 @@ export function AdminScheduleClient() {
         eyebrow="Service Operations"
         title="Schedule"
         description="Manage service appointments and technician assignments."
-        action={
-          <Button onClick={() => openCreateSchedule()}>
-            <Plus size={16} />
-            Create Schedule
-          </Button>
-        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -1182,53 +1026,39 @@ export function AdminScheduleClient() {
 
             <div className="space-y-4">
               <AdminSurface>
-                <div className="flex items-center gap-3">
-                  <CalendarClock className="text-teal-700" size={18} />
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-950">
-                      {formatLongDate(`${selectedDate}T12:00:00`)}
-                    </h2>
-                    <p className="text-sm text-slate-500">
-                      OPEN / BOOKED slot availability.
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {FIXED_DAILY_SHIFTS.map((shift) => renderAvailabilityShift(shift))}
-                </div>
-              </AdminSurface>
-
-              <AdminSurface>
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-950">
-                      Selected day agenda
-                    </h2>
-                    <p className="text-sm text-slate-500">
+                    <div className="flex items-center gap-2">
+                      <CalendarClock className="text-teal-700" size={18} />
+                      <h2 className="text-lg font-semibold text-slate-950">
+                        {formatLongDate(`${selectedDate}T12:00:00`)}
+                      </h2>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">
                       {selectedDateSchedules.length} appointment
-                      {selectedDateSchedules.length === 1 ? "" : "s"}
+                      {selectedDateSchedules.length === 1 ? "" : "s"} scheduled
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-3">
                   {selectedDateSchedules.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-4 py-8 text-center text-sm text-slate-600">
-                      No schedules on this day.
+                    <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-4 py-12 text-center text-sm text-slate-600">
+                      No appointments scheduled on this date.
                     </div>
                   ) : (
                     selectedDateSchedules.map((schedule) => (
                       <button
-                        className="w-full rounded-xl border border-teal-100 px-4 py-3 text-left transition hover:border-teal-200 hover:bg-teal-50/50"
+                        className="w-full rounded-xl border border-teal-100 px-4 py-3.5 text-left transition hover:border-teal-200 hover:bg-teal-50/50"
                         key={schedule.id}
                         onClick={() => setDetailScheduleId(schedule.id)}
                         type="button"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-slate-900">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-slate-900 truncate">
                               {schedule.serviceName}
                             </p>
-                            <p className="mt-1 text-sm text-slate-500">
+                            <p className="mt-1 text-sm text-slate-500 truncate">
                               {schedule.customerName} • {schedule.currentSchedule.time}
                             </p>
                           </div>
@@ -1348,12 +1178,9 @@ export function AdminScheduleClient() {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
-            <DialogTitle>
-              {editingScheduleId ? "Edit Schedule" : "Create Schedule"}
-            </DialogTitle>
+            <DialogTitle>Edit Schedule</DialogTitle>
             <DialogDescription>
-              Service schedules stay linked to service orders. Requested schedule is
-              preserved separately from the current working schedule.
+              Update schedule time, technician assignment, status, and admin notes.
             </DialogDescription>
           </DialogHeader>
 
@@ -1363,35 +1190,13 @@ export function AdminScheduleClient() {
           >
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-900">
-                Service Order <span className="text-rose-600">*</span>
+                Service Order
               </label>
-              <Controller
-                control={scheduleForm.control}
-                name="serviceOrderId"
-                render={({ field }) => (
-                  <Select
-                    disabled={Boolean(editingScheduleId)}
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select service order" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableOrderOptions.map((order) => (
-                        <SelectItem key={order.id} value={order.id}>
-                          {order.id} • {order.serviceName} • {getCustomerName(order.customerId)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+              <Input
+                disabled
+                value={scheduleForm.watch("serviceOrderId")}
+                className="bg-slate-50 font-mono text-xs"
               />
-              {scheduleForm.formState.errors.serviceOrderId ? (
-                <p className="text-sm text-rose-700">
-                  {scheduleForm.formState.errors.serviceOrderId.message}
-                </p>
-              ) : null}
             </div>
 
             <div className="space-y-1.5 rounded-xl border border-teal-100 bg-teal-50/40 p-3.5">
@@ -1559,9 +1364,7 @@ export function AdminScheduleClient() {
               <Button onClick={() => setCreateOpen(false)} type="button" variant="outline">
                 Close
               </Button>
-              <Button type="submit">
-                {editingScheduleId ? "Save Schedule" : "Create Schedule"}
-              </Button>
+              <Button type="submit">Save Changes</Button>
             </DialogFooter>
           </form>
         </DialogContent>
