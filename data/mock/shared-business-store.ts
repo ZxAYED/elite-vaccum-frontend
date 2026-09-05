@@ -768,6 +768,81 @@ export function assignSharedServiceRequestTechnician(
   return getSharedServiceRequestById(requestId);
 }
 
+export function rescheduleSharedServiceRequest(
+  requestId: string,
+  schedule: {
+    date: string;
+    startTime: string;
+    endTime?: string;
+    technicianId?: string;
+    adminNote?: string;
+  },
+) {
+  hydrate();
+  state = {
+    ...state,
+    serviceRequests: state.serviceRequests.map((request) => {
+      if (request.id !== requestId) return request;
+
+      const timeRange = schedule.endTime
+        ? `${schedule.startTime} - ${schedule.endTime}`
+        : schedule.startTime;
+
+      const updatedSchedule = {
+        label: `${schedule.date} (${timeRange})`,
+        date: schedule.date,
+        time: timeRange,
+        timeWindow: timeRange,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+      };
+
+      const updatedAppointments =
+        request.appointments && request.appointments.length > 0
+          ? request.appointments.map((appt, i) =>
+              i === 0
+                ? {
+                    ...appt,
+                    status: "RESCHEDULED",
+                    startAt: `${schedule.date}T09:00:00.000Z`,
+                    technician: schedule.technicianId
+                      ? {
+                          ...(appt.technician || { displayName: "Field Technician" }),
+                          id: schedule.technicianId,
+                        }
+                      : appt.technician,
+                  }
+                : appt,
+            )
+          : [
+              {
+                id: `appt-${request.id}`,
+                status: "RESCHEDULED",
+                startAt: `${schedule.date}T09:00:00.000Z`,
+                technician: schedule.technicianId
+                  ? {
+                      id: schedule.technicianId,
+                      displayName: "Field Technician",
+                    }
+                  : undefined,
+              },
+            ];
+
+      return {
+        ...request,
+        preferredDate: schedule.date,
+        preferredTime: timeRange,
+        currentSchedule: updatedSchedule,
+        assignedTechnicianId: schedule.technicianId || request.assignedTechnicianId,
+        additionalNotes: schedule.adminNote || request.additionalNotes,
+        appointments: updatedAppointments,
+      };
+    }),
+  };
+  emit();
+  return getSharedServiceRequestById(requestId);
+}
+
 export function upsertSharedQuotation(input: QuotationMutationInput) {
   hydrate();
   const request = getSharedServiceRequestById(input.requestId);

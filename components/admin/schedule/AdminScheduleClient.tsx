@@ -74,6 +74,7 @@ import {
   useAssignTechnicianToAppointmentMutation,
   useCancelAppointmentMutation,
 } from "@/redux/api/servicesApi";
+import { useRescheduleServiceRequestMutation } from "@/redux/api/serviceRequestsApi";
 import { toast } from "sonner";
 import type { AdminScheduleRecord, ServiceOrderStatus } from "@/types/domain";
 
@@ -334,6 +335,7 @@ export function AdminScheduleClient() {
   const [updateAppointmentMutation] = useUpdateAppointmentMutation();
   const [assignTechnicianMutation] = useAssignTechnicianToAppointmentMutation();
   const [cancelAppointmentMutation] = useCancelAppointmentMutation();
+  const [rescheduleServiceRequestMutation] = useRescheduleServiceRequestMutation();
 
   const schedules = clone(getSharedAdminScheduleRecords());
   const serviceOrders = clone(getSharedAdminServiceOrders());
@@ -795,6 +797,31 @@ export function AdminScheduleClient() {
       note: values.note,
     });
 
+    const targetServiceRequestId =
+      schedule.serviceRequestId ||
+      (schedule.serviceOrderId?.startsWith("SR-") ? schedule.serviceOrderId : undefined) ||
+      (schedule.id?.startsWith("SR-") ? schedule.id : undefined);
+
+    let rescheduleSuccess = false;
+
+    if (targetServiceRequestId) {
+      try {
+        await rescheduleServiceRequestMutation({
+          id: targetServiceRequestId,
+          body: {
+            date: values.date,
+            startTime: values.startTime,
+            endTime: values.endTime,
+            technicianId: schedule.technicianId || undefined,
+            adminNote: values.reason + (values.note ? ` - ${values.note}` : ""),
+          },
+        }).unwrap();
+        rescheduleSuccess = true;
+      } catch (err) {
+        console.error("Failed to reschedule service request via dedicated endpoint", err);
+      }
+    }
+
     try {
       await updateAppointmentMutation({
         appointmentId: rescheduleId,
@@ -806,13 +833,21 @@ export function AdminScheduleClient() {
           notes: values.reason + (values.note ? ` - ${values.note}` : ""),
         },
       }).unwrap();
+      rescheduleSuccess = true;
+    } catch {
+      // Fallback to local store
+    }
+
+    if (rescheduleSuccess) {
       toast.success("Appointment rescheduled successfully", {
         description: `New schedule: ${values.date} from ${values.startTime} to ${values.endTime}`,
       });
       refetchBoard();
       refetchSlots();
-    } catch {
-      // Fallback to local store
+    } else {
+      toast.success("Appointment rescheduled locally", {
+        description: `New schedule: ${values.date} from ${values.startTime} to ${values.endTime}`,
+      });
     }
     setRescheduleId(null);
   }

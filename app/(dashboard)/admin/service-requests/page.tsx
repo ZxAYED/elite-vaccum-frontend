@@ -14,6 +14,7 @@ import { useGetAdminServiceRequestsQuery } from "@/redux/api/serviceRequestsApi"
 import { useAssignTechnicianToAppointmentMutation } from "@/redux/api/servicesApi";
 import { useAssignTechnicianToServiceOrderMutation } from "@/redux/api/serviceOrdersApi";
 import { AssignTechnicianModal } from "@/components/admin/shared/AssignTechnicianModal";
+import { RescheduleServiceRequestModal } from "@/components/admin/service-requests/RescheduleServiceRequestModal";
 import type { TechnicianProfileDto } from "@/redux/api/technicianApi";
 import { downloadReportCsv } from "@/lib/exportCsv";
 import { toast } from "sonner";
@@ -157,6 +158,7 @@ export default function AdminServiceRequestsPage() {
   const [statusFilter, setStatusFilter] = useState<AdminRequestStatus>("all");
   const [serviceFilter, setServiceFilter] = useState("all");
   const [assigningRequest, setAssigningRequest] = useState<ServiceRequest | null>(null);
+  const [reschedulingRequest, setReschedulingRequest] = useState<ServiceRequest | null>(null);
   const [isAssigningTech, setIsAssigningTech] = useState(false);
 
   const [assignTechnicianToAppointment] = useAssignTechnicianToAppointmentMutation();
@@ -511,6 +513,7 @@ export default function AdminServiceRequestsPage() {
                             <RequestAction
                               request={request}
                               onAssignTech={() => setAssigningRequest(request)}
+                              onReschedule={() => setReschedulingRequest(request)}
                             />
                           </td>
                         </tr>
@@ -573,6 +576,7 @@ export default function AdminServiceRequestsPage() {
                         <RequestAction
                           request={request}
                           onAssignTech={() => setAssigningRequest(request)}
+                          onReschedule={() => setReschedulingRequest(request)}
                         />
                       </div>
                       <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
@@ -626,6 +630,12 @@ export default function AdminServiceRequestsPage() {
         onAssign={handleAssignTechnician}
         isAssigning={isAssigningTech}
       />
+
+      <RescheduleServiceRequestModal
+        open={Boolean(reschedulingRequest)}
+        onOpenChange={(open) => !open && setReschedulingRequest(null)}
+        serviceRequest={reschedulingRequest}
+      />
     </AdminPageShell>
   );
 }
@@ -633,9 +643,11 @@ export default function AdminServiceRequestsPage() {
 function RequestAction({
   request,
   onAssignTech,
+  onReschedule,
 }: {
   request: ServiceRequest;
   onAssignTech: () => void;
+  onReschedule: () => void;
 }) {
   const reviewStatus = getReviewStatus(request.status);
   const label =
@@ -649,6 +661,16 @@ function RequestAction({
 
   return (
     <div className="flex items-center justify-end gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="h-8 gap-1.5 border-teal-200 text-teal-800 hover:bg-teal-50"
+        onClick={onReschedule}
+      >
+        <CalendarDays className="size-3.5" />
+        <span className="hidden sm:inline">Reschedule</span>
+      </Button>
       <Button
         type="button"
         size="sm"

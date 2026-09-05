@@ -25,6 +25,7 @@ import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
 import { ServiceRequestQuotations } from "@/components/admin/quotations/ServiceRequestQuotations";
 import { QuotationModal } from "@/components/admin/quotations/QuotationModal";
 import { AssignTechnicianModal } from "@/components/admin/shared/AssignTechnicianModal";
+import { RescheduleServiceRequestModal } from "@/components/admin/service-requests/RescheduleServiceRequestModal";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -186,6 +187,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [createQuotationOpen, setCreateQuotationOpen] = useState(false);
   const [assignTechOpen, setAssignTechOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [isAssigningTech, setIsAssigningTech] = useState(false);
   const [assignedTechnician, setAssignedTechnician] = useState<{
     id?: string;
@@ -416,6 +418,14 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
               <Button
                 variant="outline"
                 className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
+                onClick={() => setRescheduleOpen(true)}
+              >
+                <CalendarDays size={16} />
+                Reschedule
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
                 onClick={() => setAssignTechOpen(true)}
               >
                 <UserCheck size={16} />
@@ -507,6 +517,16 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   ["Customer-selected time", schedule.time || "Not provided"],
                   ["Current schedule", request.currentSchedule?.label ?? "Matches requested schedule"],
                 ]}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setRescheduleOpen(true)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-teal-800 hover:text-teal-950 cursor-pointer"
+                  >
+                    <CalendarDays size={13} />
+                    Reschedule
+                  </button>
+                }
               />
 
               <InfoPanel
@@ -837,6 +857,12 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
         }}
         isAssigning={isAssigningTech}
         onAssign={handleAssignTechnician}
+      />
+
+      <RescheduleServiceRequestModal
+        open={rescheduleOpen}
+        onOpenChange={setRescheduleOpen}
+        serviceRequest={request}
       />
     </main>
   );

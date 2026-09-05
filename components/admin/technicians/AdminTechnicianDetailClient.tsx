@@ -31,7 +31,9 @@ import { toast } from "sonner";
 import {
   useGetTechnicianByIdQuery,
   useUpdateTechnicianMutation,
+  type TechnicianProfileDto,
 } from "@/redux/api/technicianApi";
+import type { AdminTechnician, AdminTechnicianStatus, TechnicianAvailability } from "@/types/domain";
 
 import { TechnicianFormDialog } from "./TechnicianFormDialog";
 import {
@@ -45,16 +47,37 @@ interface AdminTechnicianDetailClientProps {
   technicianId: string;
 }
 
+function mapProfileDtoToAdminTechnician(dto: TechnicianProfileDto): AdminTechnician {
+  return {
+    id: dto.id,
+    userId: dto.userId || `user-${dto.id}`,
+    displayName: dto.displayName,
+    email: dto.email,
+    phone: dto.phone || "",
+    status: (dto.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") as AdminTechnicianStatus,
+    availability: (dto.availability as TechnicianAvailability) || "AVAILABLE",
+    rating: typeof dto.rating === "number" ? dto.rating : parseFloat(dto.rating || "5") || 5,
+    completedJobs: dto.completedJobs ?? dto._count?.assignedJobs ?? 0,
+    verified: dto.isVerified ?? true,
+    specializations: dto.specializations && dto.specializations.length > 0 ? dto.specializations : ["General Service"],
+    notes: dto.adminNotes || dto.bio || undefined,
+    createdAt: dto.createdAt || new Date().toISOString(),
+    updatedAt: dto.updatedAt || new Date().toISOString(),
+  };
+}
+
 export function AdminTechnicianDetailClient({
   technicianId,
 }: AdminTechnicianDetailClientProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [version, setVersion] = useState(0);
 
-  useGetTechnicianByIdQuery(technicianId);
+  const { data: apiTech, refetch } = useGetTechnicianByIdQuery(technicianId);
   const [updateTechnicianApi] = useUpdateTechnicianMutation();
 
-  const technician = getAdminTechnicianById(technicianId);
+  const technician = apiTech
+    ? mapProfileDtoToAdminTechnician(apiTech)
+    : getAdminTechnicianById(technicianId);
 
   if (!technician) {
     return (
@@ -62,7 +85,7 @@ export function AdminTechnicianDetailClient({
         <AdminPageHeader
           eyebrow="Team"
           title="Technician not found"
-          description="This technician does not exist or the temporary mock record is no longer available."
+          description="This technician does not exist or the record is no longer available."
         />
 
         <AdminSurface>
@@ -109,13 +132,16 @@ export function AdminTechnicianDetailClient({
           email: values.email,
           phone: values.phone,
           status: values.status,
-          availability: values.availability,
-          bio: values.notes || undefined,
         },
       }).unwrap();
       toast.success("Technician details updated successfully.");
-    } catch {
-      toast.info("Technician updated locally.");
+      refetch();
+    } catch (err: unknown) {
+      const apiErr = err as { data?: { message?: string | string[] } };
+      const msg = Array.isArray(apiErr?.data?.message)
+        ? apiErr.data.message.join(", ")
+        : apiErr?.data?.message;
+      toast.info(msg || "Technician updated locally.");
     }
 
     setVersion((current) => current + 1);

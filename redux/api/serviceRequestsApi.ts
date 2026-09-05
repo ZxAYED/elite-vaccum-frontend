@@ -15,6 +15,14 @@ export interface RejectServiceRequestDto {
   comments?: string;
 }
 
+export interface RescheduleServiceRequestDto {
+  date: string;
+  startTime: string;
+  endTime?: string;
+  technicianId?: string;
+  adminNote?: string;
+}
+
 export interface CreateServiceRequestDto {
   serviceSlug: string;
   fullName: string;
@@ -279,6 +287,27 @@ export const serviceRequestsApi = baseApi.injectEndpoints({
         { type: "Schedule" },
       ],
     }),
+    rescheduleServiceRequest: builder.mutation<
+      ServiceRequest,
+      { id: string; body: RescheduleServiceRequestDto }
+    >({
+      query: ({ id, body }) => ({
+        url: `/service-requests/${id}/schedule`,
+        method: "PATCH",
+        body,
+      }),
+      transformResponse: (
+        response: ApiResponse<ServiceRequest> | ServiceRequest
+      ) => {
+        return unwrapData(response);
+      },
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "ServiceRequest", id },
+        { type: "ServiceRequest", id: "LIST" },
+        { type: "ServiceRequest", id: "ME" },
+        { type: "Schedule" },
+      ],
+    }),
   }),
 });
 
@@ -290,6 +319,7 @@ export const {
   useUpdateServiceRequestStatusMutation,
   useRejectServiceRequestMutation,
   useCancelServiceRequestMutation,
+  useRescheduleServiceRequestMutation,
   useAppendServiceRequestAttachmentsMutation,
   useDeleteServiceRequestAttachmentMutation,
 } = serviceRequestsApi;
