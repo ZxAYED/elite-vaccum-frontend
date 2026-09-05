@@ -10,7 +10,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   AdminPageHeader,
@@ -47,17 +47,30 @@ interface AdminTechnicianDetailClientProps {
   technicianId: string;
 }
 
-function mapProfileDtoToAdminTechnician(dto: TechnicianProfileDto): AdminTechnician {
+function mapProfileDtoToAdminTechnician(rawDto: TechnicianProfileDto | unknown): AdminTechnician {
+  const dto =
+    rawDto && typeof rawDto === "object" && "data" in rawDto && (rawDto as { data?: unknown }).data
+      ? ((rawDto as { data: TechnicianProfileDto }).data)
+      : (rawDto as TechnicianProfileDto);
+
+  const fallbackName =
+    dto.displayName ||
+    (dto.user
+      ? `${dto.user.firstName || ""} ${dto.user.lastName || ""}`.trim()
+      : "") ||
+    dto.email ||
+    "Technician";
+
   return {
     id: dto.id,
     userId: dto.userId || `user-${dto.id}`,
-    displayName: dto.displayName,
-    email: dto.email,
+    displayName: fallbackName,
+    email: dto.email || dto.user?.email || "",
     phone: dto.phone || "",
     status: (dto.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") as AdminTechnicianStatus,
     availability: (dto.availability as TechnicianAvailability) || "AVAILABLE",
     rating: typeof dto.rating === "number" ? dto.rating : parseFloat(dto.rating || "5") || 5,
-    completedJobs: dto.completedJobs ?? dto._count?.assignedJobs ?? 0,
+    completedJobs: dto.completedJobs ?? dto._count?.assignedJobs ?? dto.stats?.completedJobs ?? 0,
     verified: dto.isVerified ?? true,
     specializations: dto.specializations && dto.specializations.length > 0 ? dto.specializations : ["General Service"],
     notes: dto.adminNotes || dto.bio || undefined,
@@ -78,6 +91,179 @@ export function AdminTechnicianDetailClient({
   const technician = apiTech
     ? mapProfileDtoToAdminTechnician(apiTech)
     : getAdminTechnicianById(technicianId);
+
+  const availabilityMeta = getTechnicianAvailabilityMeta(
+    technician ?? {
+      id: technicianId,
+      userId: `user-${technicianId}`,
+      displayName: "Technician",
+      email: "",
+      phone: "",
+      status: "ACTIVE",
+      availability: "AVAILABLE",
+      rating: 5,
+      completedJobs: 0,
+      verified: true,
+      specializations: ["General Service"],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  );
+  const today = getTechnicianTodaySummary(technician?.id ?? technicianId);
+  const upcomingOrders = getTechnicianUpcomingServiceOrders(technician?.id ?? technicianId);
+  const completedOrders = getTechnicianRecentCompletedOrders(technician?.id ?? technicianId);
+
+  function getCustomerName(customerId: string) {
+    return (
+      getSharedCustomerById(customerId)?.displayName ?? customerId
+    );
+  }
+
+  const jobsTodayCount = useMemo(() => {
+    if (apiTech?.appointments && apiTech.appointments.length > 0) {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const count = apiTech.appointments.filter((a) => a.date && a.date.startsWith(todayStr)).length;
+      if (count > 0) return count;
+    }
+    return today.jobsToday;
+  }, [apiTech, today.jobsToday]);
+
+  const upcomingAssignmentsCount = useMemo(() => {
+    if (apiTech) {
+      const explicitCount = apiTech._count?.appointments ?? apiTech._count?.assignedRequests;
+      if (typeof explicitCount === "number") return explicitCount;
+      const totalArrays = (apiTech.appointments?.length ?? 0) + (apiTech.assignedRequests?.length ?? 0);
+      if (totalArrays > 0) return totalArrays;
+    }
+    return getTechnicianUpcomingSchedules(technician?.id ?? technicianId).length;
+  }, [apiTech, technician?.id, technicianId]);
+
+  const currentAssignmentDisplay = useMemo(() => {
+    if (today.currentAssignment) return today.currentAssignment;
+    if (apiTech?.appointments && apiTech.appointments.length > 0) {
+      const firstApt = apiTech.appointments[0];
+      const addressLine = firstApt.serviceRequest?.serviceAddress?.addressLine1;
+      const city = firstApt.serviceRequest?.serviceAddress?.city;
+      return {
+        serviceOrderId: firstApt.serviceOrderId || firstApt.serviceRequestId || firstApt.id,
+        serviceName: firstApt.serviceRequest?.title || "Central Vacuum Service",
+        status: firstApt.status || "SCHEDULED",
+        timeWindowLabel: firstApt.date
+          ? `${firstApt.date}${firstApt.startTime ? ` • ${firstApt.startTime}${firstApt.endTime ? ` - ${firstApt.endTime}` : ""}` : ""}`
+          : (firstApt.notes || "Scheduled Appointment"),
+        address: {
+          line1: addressLine || "Property Address",
+          city: city || "",
+        },
+      };
+    }
+    return null;
+  }, [today.currentAssignment, apiTech]);
+
+  const displayUpcomingOrders = useMemo(() => {
+    if (apiTech) {
+      const items: Array<{
+        id: string;
+        status: string;
+        serviceName: string;
+        customerName: string;
+        scheduleLabel: string;
+        address: string;
+        linkUrl: string;
+      }> = [];
+
+      if (Array.isArray(apiTech.appointments) && apiTech.appointments.length > 0) {
+        for (const apt of apiTech.appointments) {
+          const displayId = apt.serviceRequest?.businessId || apt.serviceOrderId || apt.id;
+          const addressLine = apt.serviceRequest?.serviceAddress?.addressLine1;
+          const city = apt.serviceRequest?.serviceAddress?.city;
+          items.push({
+            id: displayId,
+            status: apt.status || "SCHEDULED",
+            serviceName: apt.serviceRequest?.title || "Central Vacuum Maintenance",
+            customerName: apt.serviceRequest?.customer?.displayName || "Customer",
+            scheduleLabel: apt.date
+              ? `${apt.date}${apt.startTime ? ` • ${apt.startTime}${apt.endTime ? ` - ${apt.endTime}` : ""}` : ""}`
+              : (apt.notes || "Scheduled"),
+            address: addressLine ? `${addressLine}${city ? `, ${city}` : ""}` : "On-site",
+            linkUrl: apt.serviceOrderId
+              ? `/admin/orders/${apt.serviceOrderId}`
+              : apt.serviceRequestId
+                ? `/admin/service-requests/${apt.serviceRequestId}`
+                : `/admin/schedule`,
+          });
+        }
+      }
+
+      if (Array.isArray(apiTech.assignedRequests) && apiTech.assignedRequests.length > 0) {
+        for (const req of apiTech.assignedRequests) {
+          const displayId = req.businessId || req.id;
+          if (!items.some((it) => it.id === displayId)) {
+            items.push({
+              id: displayId,
+              status: req.status || "ASSIGNED",
+              serviceName: req.title || "Assigned Service Request",
+              customerName: req.customer?.displayName || "Customer",
+              scheduleLabel: req.preferredDate
+                ? `${req.preferredDate}${req.preferredTime ? ` • ${req.preferredTime}` : ""}`
+                : "Pending Schedule",
+              address: "On-site",
+              linkUrl: `/admin/service-requests/${req.id}`,
+            });
+          }
+        }
+      }
+
+      if (items.length > 0) {
+        return items;
+      }
+    }
+
+    return upcomingOrders.map((order) => ({
+      id: order.id,
+      status: order.status,
+      serviceName: order.serviceName,
+      customerName: getCustomerName(order.customerId),
+      scheduleLabel: order.currentSchedule.label ?? order.currentSchedule.date,
+      address: `${order.serviceLocation.line1}, ${order.serviceLocation.city}`,
+      linkUrl: `/admin/orders/${order.id}`,
+    }));
+  }, [apiTech, upcomingOrders]);
+
+  const displayCompletedOrders = useMemo(() => {
+    if (apiTech) {
+      const items: Array<{
+        id: string;
+        serviceName: string;
+        createdAt: string;
+        linkUrl: string;
+      }> = [];
+
+      if (Array.isArray(apiTech.assignedJobs) && apiTech.assignedJobs.length > 0) {
+        for (const job of apiTech.assignedJobs) {
+          if (job.status === "COMPLETED") {
+            items.push({
+              id: job.businessId || job.id,
+              serviceName: job.serviceName || "Completed Service",
+              createdAt: new Date().toISOString(),
+              linkUrl: `/admin/orders/${job.id}`,
+            });
+          }
+        }
+      }
+
+      if (items.length > 0) {
+        return items;
+      }
+    }
+
+    return completedOrders.map((order) => ({
+      id: order.id,
+      serviceName: order.serviceName,
+      createdAt: order.createdAt,
+      linkUrl: `/admin/orders/${order.id}`,
+    }));
+  }, [apiTech, completedOrders]);
 
   if (!technician) {
     return (
@@ -103,17 +289,6 @@ export function AdminTechnicianDetailClient({
     );
   }
 
-  const availabilityMeta = getTechnicianAvailabilityMeta(technician);
-  const today = getTechnicianTodaySummary(technician.id);
-  const upcomingOrders = getTechnicianUpcomingServiceOrders(technician.id);
-  const completedOrders = getTechnicianRecentCompletedOrders(technician.id);
-
-  function getCustomerName(customerId: string) {
-    return (
-      getSharedCustomerById(customerId)?.displayName ?? customerId
-    );
-  }
-
   async function handleSave(values: TechnicianValues) {
     updateAdminTechnician(technicianId, {
       displayName: values.fullName,
@@ -125,16 +300,21 @@ export function AdminTechnicianDetailClient({
     });
 
     try {
-      await updateTechnicianApi({
+      const res = await updateTechnicianApi({
         id: technicianId,
         body: {
           displayName: values.fullName,
           email: values.email,
           phone: values.phone,
           status: values.status,
+          availability: values.availability,
+          adminNotes: values.notes || undefined,
+          notes: values.notes || undefined,
         },
       }).unwrap();
-      toast.success("Technician details updated successfully.");
+      const successMsg =
+        (res as { message?: string })?.message || "Technician details updated successfully.";
+      toast.success(successMsg);
       refetch();
     } catch (err: unknown) {
       const apiErr = err as { data?: { message?: string | string[] } };
@@ -213,7 +393,7 @@ export function AdminTechnicianDetailClient({
                 Jobs Today
               </p>
               <p className="mt-3 text-2xl font-semibold text-slate-950">
-                {today.jobsToday}
+                {jobsTodayCount}
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
@@ -221,7 +401,7 @@ export function AdminTechnicianDetailClient({
                 Upcoming Assignments
               </p>
               <p className="mt-3 text-2xl font-semibold text-slate-950">
-                {getTechnicianUpcomingSchedules(technician.id).length}
+                {upcomingAssignmentsCount}
               </p>
             </div>
           </div>
@@ -253,31 +433,33 @@ export function AdminTechnicianDetailClient({
             </h2>
           </div>
 
-          {today.currentAssignment ? (
+          {currentAssignmentDisplay ? (
             <div className="space-y-3 rounded-xl bg-slate-50 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge
-                  label={today.currentAssignment.status}
-                  status={today.currentAssignment.status}
+                  label={currentAssignmentDisplay.status}
+                  status={currentAssignmentDisplay.status}
                 />
                 <span className="text-sm text-slate-500">
-                  {today.currentAssignment.serviceName}
+                  {currentAssignmentDisplay.serviceName}
                 </span>
               </div>
               <div className="flex items-start gap-2 text-sm text-slate-700">
                 <Clock3 size={16} className="mt-0.5 text-teal-700" />
-                <span>{today.currentAssignment.timeWindowLabel}</span>
+                <span>{currentAssignmentDisplay.timeWindowLabel}</span>
               </div>
               <div className="flex items-start gap-2 text-sm text-slate-700">
                 <MapPin size={16} className="mt-0.5 text-teal-700" />
                 <span>
-                  {today.currentAssignment.address.line1},{" "}
-                  {today.currentAssignment.address.city}
+                  {currentAssignmentDisplay.address.line1}
+                  {currentAssignmentDisplay.address.city
+                    ? `, ${currentAssignmentDisplay.address.city}`
+                    : ""}
                 </span>
               </div>
               <Button asChild size="sm" variant="outline">
                 <Link
-                  href={`/admin/orders/${today.currentAssignment.serviceOrderId}`}
+                  href={`/admin/orders/${currentAssignmentDisplay.serviceOrderId}`}
                 >
                   View Order
                 </Link>
@@ -326,13 +508,13 @@ export function AdminTechnicianDetailClient({
           </div>
         </div>
 
-        {upcomingOrders.length === 0 ? (
+        {displayUpcomingOrders.length === 0 ? (
           <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 p-4 text-sm text-slate-600">
             No upcoming assignments linked to this technician.
           </div>
         ) : (
           <div className="grid gap-3">
-            {upcomingOrders.map((order) => (
+            {displayUpcomingOrders.map((order) => (
               <div
                 className="grid gap-3 rounded-xl border border-teal-100 p-4 lg:grid-cols-[minmax(0,1fr)_auto]"
                 key={order.id}
@@ -346,23 +528,21 @@ export function AdminTechnicianDetailClient({
                   <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500">
                     <span className="inline-flex items-center gap-2">
                       <UserRound size={15} className="text-teal-700" />
-                      {getCustomerName(order.customerId)}
+                      {order.customerName}
                     </span>
                     <span className="inline-flex items-center gap-2">
                       <CalendarDays size={15} className="text-teal-700" />
-                      {order.currentSchedule.label ??
-                        order.currentSchedule.date}
+                      {order.scheduleLabel}
                     </span>
                     <span className="inline-flex items-center gap-2">
                       <MapPin size={15} className="text-teal-700" />
-                      {order.serviceLocation.line1},{" "}
-                      {order.serviceLocation.city}
+                      {order.address}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center">
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/admin/orders/${order.id}`}>View Order</Link>
+                    <Link href={order.linkUrl}>View Details</Link>
                   </Button>
                 </div>
               </div>
@@ -381,13 +561,13 @@ export function AdminTechnicianDetailClient({
           </h2>
         </div>
 
-        {completedOrders.length === 0 ? (
+        {displayCompletedOrders.length === 0 ? (
           <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 p-4 text-sm text-slate-600">
             No completed service history is linked yet.
           </div>
         ) : (
           <div className="grid gap-3">
-            {completedOrders.map((order) => (
+            {displayCompletedOrders.map((order) => (
               <div
                 className="grid gap-3 rounded-xl border border-teal-100 p-4 lg:grid-cols-[minmax(0,1fr)_auto]"
                 key={order.id}
@@ -407,7 +587,7 @@ export function AdminTechnicianDetailClient({
                 </div>
                 <div className="flex items-center">
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/admin/orders/${order.id}`}>View Order</Link>
+                    <Link href={order.linkUrl}>View Details</Link>
                   </Button>
                 </div>
               </div>

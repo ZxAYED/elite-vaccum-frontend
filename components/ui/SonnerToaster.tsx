@@ -8,6 +8,7 @@ export function Toaster() {
       position="top-right"
       richColors
       closeButton
+      style={{ zIndex: 99999 }}
       toastOptions={{
         className:
           "!font-sans !rounded-2xl !border !border-teal-100 !bg-white/95 !backdrop-blur-md !text-slate-900 !shadow-[0_20px_45px_-15px_rgba(28,79,80,0.22)] !py-4 !px-5 !min-w-[340px]",

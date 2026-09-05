@@ -28,7 +28,7 @@ interface TechnicianFormDialogProps {
   open: boolean;
   technician?: AdminTechnician | null;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: TechnicianValues) => void;
+  onSubmit: (values: TechnicianValues) => Promise<void> | void;
 }
 
 function defaultValuesFromTechnician(
@@ -71,8 +71,8 @@ export function TechnicianFormDialog({
 
         <form
           className="space-y-5"
-          onSubmit={form.handleSubmit((values) => {
-            onSubmit(values);
+          onSubmit={form.handleSubmit(async (values) => {
+            await onSubmit(values);
             form.reset(defaultValuesFromTechnician(technician));
           })}
         >
@@ -215,11 +215,22 @@ export function TechnicianFormDialog({
           </div>
 
           <DialogFooter>
-            <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+            <Button
+              disabled={form.formState.isSubmitting}
+              onClick={() => onOpenChange(false)}
+              type="button"
+              variant="outline"
+            >
               Close
             </Button>
-            <Button type="submit">
-              {technician ? "Save Technician" : "Create Technician"}
+            <Button disabled={form.formState.isSubmitting} type="submit">
+              {form.formState.isSubmitting
+                ? technician
+                  ? "Saving..."
+                  : "Creating..."
+                : technician
+                  ? "Save Technician"
+                  : "Create Technician"}
             </Button>
           </DialogFooter>
         </form>

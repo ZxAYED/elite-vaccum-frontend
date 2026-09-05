@@ -75,17 +75,30 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function mapProfileDtoToAdminTechnician(dto: TechnicianProfileDto): AdminTechnician {
+function mapProfileDtoToAdminTechnician(rawDto: TechnicianProfileDto | unknown): AdminTechnician {
+  const dto =
+    rawDto && typeof rawDto === "object" && "data" in rawDto && (rawDto as { data?: unknown }).data
+      ? ((rawDto as { data: TechnicianProfileDto }).data)
+      : (rawDto as TechnicianProfileDto);
+
+  const fallbackName =
+    dto.displayName ||
+    (dto.user
+      ? `${dto.user.firstName || ""} ${dto.user.lastName || ""}`.trim()
+      : "") ||
+    dto.email ||
+    "Technician";
+
   return {
     id: dto.id,
     userId: dto.userId || `user-${dto.id}`,
-    displayName: dto.displayName,
-    email: dto.email,
+    displayName: fallbackName,
+    email: dto.email || dto.user?.email || "",
     phone: dto.phone || "",
     status: (dto.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") as AdminTechnicianStatus,
     availability: (dto.availability as TechnicianAvailability) || "AVAILABLE",
     rating: typeof dto.rating === "number" ? dto.rating : parseFloat(dto.rating || "5") || 5,
-    completedJobs: dto.completedJobs ?? dto._count?.assignedJobs ?? 0,
+    completedJobs: dto.completedJobs ?? dto._count?.assignedJobs ?? dto.stats?.completedJobs ?? 0,
     verified: dto.isVerified ?? true,
     specializations: dto.specializations && dto.specializations.length > 0 ? dto.specializations : ["General Service"],
     notes: dto.adminNotes || dto.bio || undefined,
@@ -174,16 +187,21 @@ export function AdminTechniciansClient() {
       });
 
       try {
-        await updateTechnicianApi({
+        const res = await updateTechnicianApi({
           id: editingTechnicianId,
           body: {
             displayName: values.fullName,
             email: values.email,
             phone: values.phone,
             status: values.status,
+            availability: values.availability,
+            adminNotes: values.notes || undefined,
+            notes: values.notes || undefined,
           },
         }).unwrap();
-        toast.success("Technician updated successfully.");
+        const successMsg =
+          (res as { message?: string })?.message || "Technician updated successfully.";
+        toast.success(successMsg);
         refetch();
       } catch (err: unknown) {
         const apiErr = err as { data?: { message?: string | string[] } };
@@ -213,13 +231,18 @@ export function AdminTechniciansClient() {
           email: values.email,
           phone: values.phone,
           status: values.status,
+          availability: values.availability,
+          adminNotes: values.notes || undefined,
+          notes: values.notes || undefined,
         };
         if (values.password?.trim()) {
           createPayload.password = values.password.trim();
         }
 
-        await createTechnicianApi(createPayload).unwrap();
-        toast.success("Technician created successfully.");
+        const res = await createTechnicianApi(createPayload).unwrap();
+        const successMsg =
+          (res as { message?: string })?.message || "Technician account created successfully.";
+        toast.success(successMsg);
         refetch();
       } catch (err: unknown) {
         const apiErr = err as { data?: { message?: string | string[] } };

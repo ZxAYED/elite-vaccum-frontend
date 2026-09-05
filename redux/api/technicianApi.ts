@@ -88,6 +88,18 @@ export interface TechnicianScheduleDto {
   }>;
 }
 
+function unwrapData<T>(response: unknown): T {
+  if (
+    response &&
+    typeof response === "object" &&
+    "data" in response &&
+    (response as { data?: unknown }).data !== undefined
+  ) {
+    return (response as { data: T }).data;
+  }
+  return response as T;
+}
+
 export interface TechnicianProfileDto {
   id: string;
   userId: string;
@@ -128,6 +140,48 @@ export interface TechnicianProfileDto {
     upcomingAssignments: number;
     joinedAt: string;
   };
+  appointments?: Array<{
+    id: string;
+    status: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    notes?: string;
+    serviceOrderId?: string;
+    serviceRequestId?: string;
+    serviceRequest?: {
+      id: string;
+      businessId?: string;
+      title?: string;
+      serviceAddress?: {
+        addressLine1?: string;
+        city?: string;
+      };
+      customer?: {
+        id: string;
+        displayName: string;
+      };
+    };
+  }>;
+  assignedRequests?: Array<{
+    id: string;
+    businessId: string;
+    title: string;
+    status: string;
+    preferredDate?: string;
+    preferredTime?: string;
+    customer?: {
+      id: string;
+      displayName: string;
+    };
+  }>;
+  assignedJobs?: Array<{
+    id: string;
+    businessId?: string;
+    status: string;
+    serviceName?: string;
+  }>;
+  serviceReports?: Array<unknown>;
 }
 
 export interface SubmitFieldReportRequest {
@@ -217,11 +271,39 @@ export const technicianApi = baseApi.injectEndpoints({
         { type: "ServiceOrder" },
       ],
     }),
-    getAdminTechniciansList: builder.query<PaginatedResponse<TechnicianProfileDto>, { search?: string; status?: string; availability?: string; page?: number; limit?: number } | void>({
+    getAdminTechniciansList: builder.query<
+      PaginatedResponse<TechnicianProfileDto>,
+      { search?: string; status?: string; availability?: string; page?: number; limit?: number } | void
+    >({
       query: (params) => ({
         url: "/technicians",
         params: params || undefined,
       }),
+      transformResponse: (response: unknown): PaginatedResponse<TechnicianProfileDto> => {
+        const unwrapped = unwrapData<Record<string, unknown>>(response);
+        if (Array.isArray(unwrapped)) {
+          return {
+            items: unwrapped as TechnicianProfileDto[],
+            meta: { total: unwrapped.length, page: 1, limit: unwrapped.length, totalPages: 1 },
+          };
+        }
+        if (unwrapped && Array.isArray((unwrapped as { items?: unknown }).items)) {
+          return unwrapped as unknown as PaginatedResponse<TechnicianProfileDto>;
+        }
+        if (unwrapped && Array.isArray((unwrapped as { technicians?: unknown }).technicians)) {
+          const techs = (unwrapped as { technicians: TechnicianProfileDto[] }).technicians;
+          return {
+            items: techs,
+            meta: (unwrapped as { meta?: { total: number; page: number; limit: number; totalPages: number } }).meta || {
+              total: techs.length,
+              page: 1,
+              limit: 10,
+              totalPages: 1,
+            },
+          };
+        }
+        return { items: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } };
+      },
       providesTags: (result) =>
         result
           ? [
@@ -232,22 +314,45 @@ export const technicianApi = baseApi.injectEndpoints({
     }),
     getTechnicianById: builder.query<TechnicianProfileDto, string>({
       query: (id) => `/technicians/${id}`,
+      transformResponse: (response: unknown) => unwrapData<TechnicianProfileDto>(response),
       providesTags: (_result, _error, id) => [{ type: "Technician", id }],
     }),
-    createTechnician: builder.mutation<TechnicianProfileDto, Record<string, unknown>>({
+    createTechnician: builder.mutation<
+      TechnicianProfileDto & { message?: string },
+      Record<string, unknown>
+    >({
       query: (body) => ({
         url: "/technicians",
         method: "POST",
         body,
       }),
+      transformResponse: (response: unknown) => {
+        const raw = response as { message?: string };
+        const unwrapped = unwrapData<TechnicianProfileDto>(response);
+        return {
+          ...unwrapped,
+          message: raw?.message,
+        };
+      },
       invalidatesTags: [{ type: "Technician", id: "ADMIN_LIST" }],
     }),
-    updateTechnician: builder.mutation<TechnicianProfileDto, { id: string; body: Record<string, unknown> }>({
+    updateTechnician: builder.mutation<
+      TechnicianProfileDto & { message?: string },
+      { id: string; body: Record<string, unknown> }
+    >({
       query: ({ id, body }) => ({
         url: `/technicians/${id}`,
         method: "PATCH",
         body,
       }),
+      transformResponse: (response: unknown) => {
+        const raw = response as { message?: string };
+        const unwrapped = unwrapData<TechnicianProfileDto>(response);
+        return {
+          ...unwrapped,
+          message: raw?.message,
+        };
+      },
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Technician", id },
         { type: "Technician", id: "ADMIN_LIST" },
