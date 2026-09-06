@@ -9,7 +9,6 @@ import { useMemo, useRef, useState } from "react";
 
 import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import {
   Select,
@@ -281,7 +280,7 @@ export function AdminProductForm({
         </FormField>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <FormField error={errors.availability?.message} htmlFor="product-availability" label="Availability" required>
           <Controller
             control={control}
@@ -318,20 +317,6 @@ export function AdminProductForm({
             )}
           />
         </FormField>
-
-        <div className="flex items-end">
-          <Controller
-            control={control}
-            name="taxable"
-            render={({ field }) => (
-              <Checkbox
-                checked={field.value}
-                label="Taxable product"
-                onChange={(event) => field.onChange(event.target.checked)}
-              />
-            )}
-          />
-        </div>
       </div>
 
       <input type="hidden" {...register("images")} />

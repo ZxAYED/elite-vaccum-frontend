@@ -125,7 +125,7 @@ export const productSchema = z.object({
   status: z.enum(["active", "draft", "archived"]),
   quantity: z.number().int().min(0).optional(),
   isFeatured: z.boolean().optional(),
-  taxable: z.boolean(),
+  taxable: z.boolean().optional(),
   shippingLabel: z
     .string()
     .trim()
