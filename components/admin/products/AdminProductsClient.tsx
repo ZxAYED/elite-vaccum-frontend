@@ -225,7 +225,7 @@ export function AdminProductsClient() {
               value={categoryFilter}
               onValueChange={setCategoryFilter}
             >
-              <SelectTrigger className="w-44">
+              <SelectTrigger className="w-52 min-w-[13rem]">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -242,11 +242,11 @@ export function AdminProductsClient() {
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value as ProductStatusFilter)}
             >
-              <SelectTrigger className="w-36">
+              <SelectTrigger className="w-48 min-w-[12rem]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="archived">Inactive</SelectItem>
@@ -257,7 +257,7 @@ export function AdminProductsClient() {
               value={sort}
               onValueChange={(value) => setSort(value as ProductSort)}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-48 min-w-[12rem]">
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
