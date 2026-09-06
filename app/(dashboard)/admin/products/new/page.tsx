@@ -35,6 +35,7 @@ export default function AdminNewProductPage() {
 
     createSharedProduct({
       ...values,
+      slug: values.slug || "",
       sku: values.sku || undefined,
       model: values.model || undefined,
       shippingLabel: values.shippingLabel || undefined,

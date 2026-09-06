@@ -70,12 +70,9 @@ export const productCategorySchema = z.object({
   slug: z
     .string()
     .trim()
-    .min(2, "Slug is required.")
     .max(96, "Slug must be 96 characters or fewer.")
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Use lowercase letters, numbers, and single hyphens only.",
-    ),
+    .optional()
+    .or(z.literal("")),
   description: z
     .string()
     .trim()
@@ -94,12 +91,9 @@ export const productSchema = z.object({
   slug: z
     .string()
     .trim()
-    .min(2, "Slug is required.")
     .max(120, "Slug must be 120 characters or fewer.")
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Use lowercase letters, numbers, and single hyphens only.",
-    ),
+    .optional()
+    .or(z.literal("")),
   categoryId: z.string().trim().min(1, "Choose a category."),
   sku: z
     .string()

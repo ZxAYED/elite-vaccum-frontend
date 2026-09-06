@@ -58,6 +58,7 @@ import {
 } from "@/redux/api/categoriesApi";
 import { toast } from "sonner";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import { formatShortDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import {
   productCategorySchema,
@@ -99,12 +100,8 @@ function slugify(value: string) {
     .replace(/-{2,}/g, "-");
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+function formatDate(value?: string | null) {
+  return formatShortDate(value);
 }
 
 function StatusPill({ status }: { status: ProductCategory["status"] }) {
@@ -138,7 +135,6 @@ function CategoryFormDialog({
   onOpenChange,
   onSave,
 }: CategoryFormDialogProps) {
-  const [slugEdited, setSlugEdited] = useState(Boolean(editingCategory));
   const {
     control,
     formState: { errors },
@@ -146,7 +142,6 @@ function CategoryFormDialog({
     register,
     reset,
     setError,
-    setValue,
   } = useForm<ProductCategoryValues>({
     resolver: zodResolver(productCategorySchema),
     defaultValues: {
@@ -160,7 +155,6 @@ function CategoryFormDialog({
   function resetForm(nextOpen: boolean) {
     onOpenChange(nextOpen);
     if (!nextOpen) {
-      setSlugEdited(false);
       return;
     }
 
@@ -170,7 +164,6 @@ function CategoryFormDialog({
       description: editingCategory?.description ?? "",
       status: editingCategory?.status ?? "ACTIVE",
     });
-    setSlugEdited(Boolean(editingCategory));
   }
 
   function submit(values: ProductCategoryValues) {
@@ -178,11 +171,6 @@ function CategoryFormDialog({
       (category) =>
         category.id !== editingCategory?.id &&
         category.name.toLowerCase() === values.name.toLowerCase(),
-    );
-    const duplicateSlug = categories.some(
-      (category) =>
-        category.id !== editingCategory?.id &&
-        category.slug.toLowerCase() === values.slug.toLowerCase(),
     );
 
     if (duplicateName) {
@@ -193,15 +181,11 @@ function CategoryFormDialog({
       return;
     }
 
-    if (duplicateSlug) {
-      setError("slug", {
-        message: "A category with this slug already exists.",
-        type: "manual",
-      });
-      return;
-    }
+    const resolvedSlug =
+      editingCategory?.slug ||
+      (values.slug?.trim() ? slugify(values.slug) : slugify(values.name));
 
-    onSave(values, editingCategory?.id);
+    onSave({ ...values, slug: resolvedSlug }, editingCategory?.id);
     resetForm(false);
   }
 
@@ -219,44 +203,18 @@ function CategoryFormDialog({
         </DialogHeader>
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit(submit)}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              error={errors.name?.message}
-              htmlFor="category-name"
-              label="Category Name"
-              required
-            >
-              <Input
-                id="category-name"
-                placeholder="Central Vacuum Units"
-                {...register("name", {
-                  onChange: (event) => {
-                    if (!slugEdited) {
-                      setValue("slug", slugify(event.target.value), {
-                        shouldValidate: true,
-                      });
-                    }
-                  },
-                })}
-              />
-            </FormField>
-
-            <FormField
-              error={errors.slug?.message}
-              htmlFor="category-slug"
-              hint="Lowercase URL slug."
-              label="Slug"
-              required
-            >
-              <Input
-                id="category-slug"
-                placeholder="central-vacuum-units"
-                {...register("slug", {
-                  onChange: () => setSlugEdited(true),
-                })}
-              />
-            </FormField>
-          </div>
+          <FormField
+            error={errors.name?.message}
+            htmlFor="category-name"
+            label="Category Name"
+            required
+          >
+            <Input
+              id="category-name"
+              placeholder="Central Vacuum Units"
+              {...register("name")}
+            />
+          </FormField>
 
           <FormField
             error={errors.description?.message}
@@ -413,10 +371,17 @@ export default function AdminCategoriesPage() {
   }
 
   async function saveCategory(values: ProductCategoryValues, editingId?: string) {
+    const payload = {
+      name: values.name,
+      slug: values.slug || slugify(values.name),
+      description: values.description,
+      status: values.status,
+    };
+
     if (editingId) {
-      updateSharedCategory(editingId, values);
+      updateSharedCategory(editingId, payload);
       try {
-        await updateCategoryMutation({ id: editingId, data: values }).unwrap();
+        await updateCategoryMutation({ id: editingId, data: payload }).unwrap();
         toast.success("Category updated successfully");
         refetchCategories();
       } catch {
@@ -425,9 +390,9 @@ export default function AdminCategoriesPage() {
       return;
     }
 
-    createSharedCategory(values);
+    createSharedCategory(payload);
     try {
-      await createCategoryMutation(values).unwrap();
+      await createCategoryMutation(payload).unwrap();
       toast.success("Category created successfully");
       refetchCategories();
     } catch {

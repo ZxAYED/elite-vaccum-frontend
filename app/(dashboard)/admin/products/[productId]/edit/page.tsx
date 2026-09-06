@@ -56,6 +56,7 @@ export default function AdminEditProductPage() {
 
     updateSharedProduct(resolvedProduct.id, {
       ...values,
+      slug: values.slug || resolvedProduct.slug,
       sku: values.sku || undefined,
       model: values.model || undefined,
       imageAlt: `${values.name} product image`,

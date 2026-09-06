@@ -160,11 +160,6 @@ export function AdminProductForm({
         product.id !== initialProduct?.id &&
         product.name.toLowerCase() === values.name.toLowerCase(),
     );
-    const duplicateSlug = existingProducts.some(
-      (product) =>
-        product.id !== initialProduct?.id &&
-        product.slug.toLowerCase() === values.slug.toLowerCase(),
-    );
     const duplicateSku =
       values.sku &&
       existingProducts.some(
@@ -177,14 +172,6 @@ export function AdminProductForm({
       setError("name", {
         type: "manual",
         message: "A product with this name already exists.",
-      });
-      return;
-    }
-
-    if (duplicateSlug) {
-      setError("slug", {
-        type: "manual",
-        message: "A product with this slug already exists.",
       });
       return;
     }
@@ -205,36 +192,22 @@ export function AdminProductForm({
       return;
     }
 
-    onSubmit(values);
+    const resolvedSlug =
+      initialProduct?.slug ||
+      (values.slug?.trim() ? slugify(values.slug) : slugify(values.name));
+
+    onSubmit({ ...values, slug: resolvedSlug });
   }
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit(submit)}>
-      <div className="grid gap-4 md:grid-cols-2">
-        <FormField error={errors.name?.message} htmlFor="product-name" label="Name" required>
-          <Input
-            id="product-name"
-            placeholder="Elite 500 Performance"
-            {...register("name", {
-              onChange: (event) => {
-                if (!initialProduct) {
-                  setValue("slug", slugify(event.target.value), {
-                    shouldValidate: true,
-                  });
-                }
-              },
-            })}
-          />
-        </FormField>
-
-        <FormField error={errors.slug?.message} htmlFor="product-slug" label="Slug" required>
-          <Input
-            id="product-slug"
-            placeholder="elite-500-performance"
-            {...register("slug")}
-          />
-        </FormField>
-      </div>
+      <FormField error={errors.name?.message} htmlFor="product-name" label="Name" required>
+        <Input
+          id="product-name"
+          placeholder="Elite 500 Performance"
+          {...register("name")}
+        />
+      </FormField>
 
       <div className="grid gap-4 md:grid-cols-3">
         <FormField error={errors.categoryId?.message} htmlFor="product-category" label="Category" required>
