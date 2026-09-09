@@ -31,6 +31,7 @@
 Elite Central Vacuum is a production-grade web application that combines **e-commerce**, **professional service management**, and **multi-role dashboards** into a single platform. Built for a real-world central vacuum business, it covers the complete lifecycle — from product discovery and checkout, through service booking and technician dispatch, to invoicing and customer account management.
 
 > **Live:** [elite-vaccum-frontend.vercel.app](https://elite-vaccum-frontend.vercel.app/)
+> **Backend:** [elite-vacuum-backend.onrender.com](https://elite-vacuum-backend.onrender.com)
 
 ---
 
@@ -197,6 +198,8 @@ data/mock/                  # Mock data layer for development
 
 The frontend communicates with a **NestJS REST API** backend through a centralized RTK Query layer (`redux/api/baseApi.ts`). Every API slice uses typed request/response contracts and automatic cache tag management.
 
+**Backend base URL:** `https://elite-vacuum-backend.onrender.com`
+
 **20+ API domains covered:**
 
 | Domain | Operations |
@@ -267,7 +270,7 @@ npm install
 
 # Configure environment
 cp .env.example .env
-# Set NEXT_PUBLIC_API_URL to your backend URL
+# Set NEXT_PUBLIC_API_URL=https://elite-vacuum-backend.onrender.com
 ```
 
 ### Development
@@ -309,6 +312,7 @@ The frontend is deployed on **Vercel** with automatic preview deployments on pul
 
 ```
 Production:  https://elite-vaccum-frontend.vercel.app/
+Backend:     https://elite-vacuum-backend.onrender.com
 Framework:   Next.js 16 (auto-detected)
 Build:       npm run build
 Output:      .next/
