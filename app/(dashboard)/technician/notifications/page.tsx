@@ -26,13 +26,26 @@ import {
   useMarkNotificationAsReadMutation,
   useDeleteNotificationMutation,
 } from "@/redux/api/notificationsApi";
-import {
-  getTechnicianNotificationHref,
-  getTechnicianNotifications,
-} from "@/data/mock/technician-dashboard";
 import { formatLongDate } from "@/lib/formatters";
+import type { Notification } from "@/types/domain";
 
 type FilterTab = "all" | "unread" | "service-update" | "system";
+
+/**
+ * Notifications carry the target entity in `metadata` (Phase 11), so the
+ * deep link is derived from it rather than a lookup table.
+ */
+function resolveTechnicianNotificationHref(notification: Notification) {
+  const meta = notification.metadata ?? {};
+  const serviceOrderId =
+    (meta.serviceOrderId as string) ||
+    (meta.orderId as string) ||
+    (meta.serviceRequestId as string) ||
+    (meta.requestId as string);
+
+  if (serviceOrderId) return `/technician/jobs/${serviceOrderId}`;
+  return "/technician/jobs";
+}
 
 function getNotificationIcon(type?: string) {
   if (type === "payment") return CreditCard;
@@ -49,11 +62,8 @@ export default function TechnicianNotificationsPage() {
   const [markSingleAsRead] = useMarkNotificationAsReadMutation();
   const [deleteNotification] = useDeleteNotificationMutation();
 
-  const mockFallback = getTechnicianNotifications();
-  const rawNotifications =
-    apiNotificationsData?.items && apiNotificationsData.items.length > 0
-      ? apiNotificationsData.items
-      : mockFallback;
+  // Phase 11.2 GET /notifications
+  const rawNotifications = apiNotificationsData?.items ?? [];
 
   const filteredNotifications = rawNotifications.filter((notif) => {
     if (activeTab === "unread") return !notif.isRead;
@@ -168,8 +178,7 @@ export default function TechnicianNotificationsPage() {
         ) : (
           filteredNotifications.map((notification) => {
             const Icon = getNotificationIcon(notification.type);
-            const relatedJobHref =
-              getTechnicianNotificationHref(notification.id) || "/technician/jobs";
+            const relatedJobHref = resolveTechnicianNotificationHref(notification);
 
             return (
               <AdminSurface key={notification.id}>

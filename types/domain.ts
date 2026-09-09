@@ -104,6 +104,7 @@ export interface Address {
   state: string;
   postalCode: string;
   country: string;
+  isDefault?: boolean;
 }
 
 export interface User {
@@ -205,8 +206,48 @@ export interface ProductCategory {
   createdAt: string;
   updatedAt: string;
   productCount?: number;
-  imageUrl?: string;
+  imageUrl?: string | null;
   sortOrder?: number;
+  icon?: string | null;
+  _count?: {
+    products?: number;
+  };
+}
+
+export interface ProductImageItem {
+  id?: string;
+  productId?: string;
+  key?: string;
+  url: string;
+  alt?: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+}
+
+export interface ProductHighlightItem {
+  id?: string;
+  productId?: string;
+  text: string;
+  sortOrder?: number;
+  createdAt?: string;
+}
+
+export interface ProductSpecificationItem {
+  id?: string;
+  productId?: string;
+  label: string;
+  value: string;
+  sortOrder?: number;
+  createdAt?: string;
+}
+
+export interface ProductShippingNoteItem {
+  id?: string;
+  productId?: string;
+  text: string;
+  sortOrder?: number;
+  createdAt?: string;
 }
 
 export interface Product {
@@ -216,6 +257,7 @@ export interface Product {
     id: string;
     name: string;
     slug: string;
+    status?: string;
   };
   categorySlug?: string;
   slug: string;
@@ -232,16 +274,22 @@ export interface Product {
   taxable?: boolean;
   isFeatured?: boolean;
   shippingLabel?: string;
-  images?: Array<string | { id?: string; url: string }>;
+  images?: Array<string | ProductImageItem>;
   popularityRank?: number;
   addedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
   imageAlt: string;
-  highlights?: string[];
+  highlights?: Array<string | ProductHighlightItem>;
   specifications?: Array<{
+    id?: string;
+    productId?: string;
     label: string;
     value: string;
+    sortOrder?: number;
+    createdAt?: string;
   }>;
-  shippingNotes?: string[];
+  shippingNotes?: Array<string | ProductShippingNoteItem>;
 }
 
 export interface Service {
@@ -656,6 +704,21 @@ export interface CustomerReview {
   moderationHistory: ReviewModerationHistoryEntry[];
 }
 
+/** A date plus the bookable time windows offered on it. */
+export interface SuggestedSlot {
+  date: string;
+  windows: string[];
+}
+
+export interface CartItem {
+  productId: string;
+  quantity: number;
+}
+
+export interface CartProduct extends CartItem {
+  product: Product;
+}
+
 export interface OrderTimelineStep {
   key: string;
   label: string;
@@ -695,6 +758,8 @@ export interface UnifiedOrderTotal {
 
 export interface UnifiedOrderBase {
   id: string;
+  /** Human-readable reference from the API, e.g. `SO-2026-0045`. */
+  businessId?: string;
   type: OrderType;
   customerId: string;
   status: UnifiedOrderStatus;

@@ -39,7 +39,6 @@ import {
 } from "@/components/ui/Select";
 import {
   getQuotationCustomer,
-  getQuotationRequest,
   getQuotationService,
   type AdminQuotationFilterStatus,
 } from "@/data/mock/quotations";
@@ -238,7 +237,6 @@ export default function AdminQuotationsPage() {
               {filtered.map((quote) => {
                 const customer = getQuotationCustomer(quote);
                 const service = getQuotationService(quote);
-                const request = getQuotationRequest(quote);
 
                 return (
                   <article
@@ -252,9 +250,11 @@ export default function AdminQuotationsPage() {
                       >
                         {quote.id}
                       </Link>
-                      <p className="text-sm text-slate-500">
-                        {`${request?.id ?? quote.serviceRequestId} · v${quote.version}`}
-                      </p>
+                      {quote.version ? (
+                        <p className="text-sm text-slate-500">
+                          {`Version ${quote.version}`}
+                        </p>
+                      ) : null}
                     </div>
                     <div>
                       <p className="font-medium text-slate-900">

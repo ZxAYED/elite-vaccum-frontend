@@ -53,18 +53,27 @@ import {
   useCreateInvoiceMutation,
   useRecordOfflinePaymentMutation,
   useRecordInvoiceRefundMutation,
+  useLazyGetInvoiceHtmlQuery,
   type InvoiceDto,
   type CreateInvoiceRequest,
+  type GetInvoicesParams,
 } from "@/redux/api/billingApi";
-import {
-  getBillingInvoices,
-  getBillingPayments,
-  getBillingRefunds,
-} from "@/data/mock/shared-billing";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { readApiMessage } from "@/lib/api-error";
+import { toStatusSlug } from "@/lib/customer-orders";
 import { formatCurrencyUsd, formatShortDate } from "@/lib/formatters";
 
 type BillingTab = "invoices" | "payments" | "refunds";
-type TypeFilter = "ALL" | "PRODUCT" | "SERVICE";
+
+const PAGE_SIZE = 20;
+
+/** Invoices may carry a nested customer, or only an id. */
+function customerLabel(invoice: InvoiceDto) {
+  const first = invoice.customer?.firstName?.trim();
+  const last = invoice.customer?.lastName?.trim();
+  const full = [first, last].filter(Boolean).join(" ");
+  return full || invoice.customer?.email || "Customer";
+}
 
 const invoiceStatusOptions = [
   { label: "All Statuses", value: "all" },
@@ -78,9 +87,10 @@ const invoiceStatusOptions = [
 
 export function AdminFinancialsClient() {
   const [tab, setTab] = useState<BillingTab>("invoices");
-  const [type, setType] = useState<TypeFilter>("ALL");
   const [query, setQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const debouncedQuery = useDebouncedValue(query.trim());
 
   // Create Invoice Modal State
   const [createInvoiceOpen, setCreateInvoiceOpen] = useState(false);
@@ -106,12 +116,15 @@ export function AdminFinancialsClient() {
   const [refundReason, setRefundReason] = useState("");
 
   // RTK Query hooks
-  const queryParams = useMemo(() => {
-    const p: { search?: string; status?: string } = {};
-    if (query.trim()) p.search = query.trim();
-    if (selectedStatus !== "all") p.status = selectedStatus;
-    return p;
-  }, [query, selectedStatus]);
+  const queryParams = useMemo<GetInvoicesParams>(
+    () => ({
+      page,
+      limit: PAGE_SIZE,
+      ...(debouncedQuery ? { search: debouncedQuery } : {}),
+      ...(selectedStatus !== "all" ? { status: selectedStatus } : {}),
+    }),
+    [page, debouncedQuery, selectedStatus],
+  );
 
   const { data: liveInvoicesData, isLoading: isLoadingInvoices } =
     useGetAdminInvoicesQuery(queryParams);
@@ -122,102 +135,74 @@ export function AdminFinancialsClient() {
     useRecordOfflinePaymentMutation();
   const [recordRefundMutation, { isLoading: isRecordingRefund }] =
     useRecordInvoiceRefundMutation();
+  const [fetchInvoiceHtml] = useLazyGetInvoiceHtmlQuery();
 
-  // Fallback mock stores
-  const mockInvoices = useMemo(() => getBillingInvoices(), []);
-  const mockPayments = useMemo(() => getBillingPayments(), []);
-  const mockRefunds = useMemo(() => getBillingRefunds(), []);
+  const invoices: InvoiceDto[] = useMemo(
+    () => liveInvoicesData?.items ?? [],
+    [liveInvoicesData?.items],
+  );
+  const meta = liveInvoicesData?.meta;
+  const totalPages = Math.max(1, meta?.totalPages ?? 1);
 
-  // Combined Invoices
-  const invoices: InvoiceDto[] = useMemo(() => {
-    if (liveInvoicesData?.items && liveInvoicesData.items.length > 0) {
-      return liveInvoicesData.items.filter((inv) => {
-        if (type !== "ALL" && (inv.type || "SERVICE").toUpperCase() !== type)
-          return false;
-        if (
-          selectedStatus !== "all" &&
-          (inv.status || "").toUpperCase() !== selectedStatus
-        )
-          return false;
-        return true;
-      });
-    }
-
-    // Fallback to mock
-    return mockInvoices
-      .filter((inv) => {
-        if (type !== "ALL" && inv.type !== type) return false;
-        if (selectedStatus !== "all" && inv.status.toUpperCase() !== selectedStatus)
-          return false;
-        if (!query.trim()) return true;
-        const q = query.trim().toLowerCase();
-        return (
-          inv.id.toLowerCase().includes(q) ||
-          inv.customerName.toLowerCase().includes(q) ||
-          inv.relatedOrderId.toLowerCase().includes(q) ||
-          inv.description.toLowerCase().includes(q)
-        );
-      })
-      .map((inv) => ({
-        id: inv.id,
-        businessId: inv.id,
-        orderId: inv.relatedOrderId,
-        serviceOrderId: inv.relatedOrderId,
-        customerId: inv.customerId,
-        type: inv.type,
-        status: inv.status.toUpperCase(),
-        subtotalUsd: inv.totals.subtotalUsd,
-        taxUsd: inv.totals.taxUsd,
-        discountUsd: inv.totals.discountUsd,
-        totalUsd: inv.totals.totalUsd,
-        lineItems: inv.lineItems.map((li) => ({
-          description: li.label,
-          quantity: li.quantity || 1,
-          unitPriceUsd: li.unitPriceUsd || li.amountUsd,
-          totalUsd: li.amountUsd,
+  /**
+   * Phase 12 exposes no payments or refunds list endpoint — each invoice
+   * carries its own records (12.3), so both tabs are flattened out of the
+   * invoices on the current page.
+   */
+  const payments = useMemo(
+    () =>
+      invoices.flatMap((invoice) =>
+        (invoice.payments ?? []).map((payment) => ({
+          ...payment,
+          invoiceId: invoice.id,
+          invoiceRef: invoice.businessId || invoice.id,
+          customerName: customerLabel(invoice),
         })),
-        createdAt: inv.createdAt,
-        dueDate: inv.dueDate,
-        paidAt: inv.paymentStatus === "paid" ? inv.createdAt : undefined,
-        notes: inv.description,
-        customer: {
-          id: inv.customerId,
-          firstName: inv.customerName.split(" ")[0] || "Customer",
-          lastName: inv.customerName.split(" ")[1] || "",
-          email: "customer@example.com",
-        },
-      }));
-  }, [liveInvoicesData, mockInvoices, type, selectedStatus, query]);
+      ),
+    [invoices],
+  );
 
-  // Statistics
+  const refunds = useMemo(
+    () =>
+      invoices.flatMap((invoice) =>
+        (invoice.refunds ?? []).map((refund) => ({
+          ...refund,
+          invoiceRef: invoice.businessId || invoice.id,
+          customerName: customerLabel(invoice),
+        })),
+      ),
+    [invoices],
+  );
+
+  /**
+   * `GET /billing/invoices` returns KPI counts spanning every invoice; use
+   * them when present. Otherwise these describe only the page on screen, which
+   * the card labels make explicit.
+   */
   const stats = useMemo(() => {
-    let totalInvoiced = 0;
-    let totalCollected = 0;
-    let pendingCount = 0;
+    const kpi = meta?.kpi;
+    let invoiced = 0;
+    let collected = 0;
     let overdueCount = 0;
 
-    invoices.forEach((inv) => {
-      const amt = Number(inv.totalUsd || 0);
-      totalInvoiced += amt;
-      const s = (inv.status || "").toLowerCase();
-      if (s === "paid") {
-        totalCollected += amt;
-      } else if (s === "overdue") {
-        overdueCount += 1;
-        pendingCount += 1;
-      } else {
-        pendingCount += 1;
-      }
+    invoices.forEach((invoice) => {
+      const amount = Number(invoice.totalUsd) || 0;
+      invoiced += amount;
+      const status = String(invoice.status ?? "").toLowerCase();
+      if (status === "paid") collected += amount;
+      if (status === "overdue") overdueCount += 1;
     });
 
     return {
-      totalInvoiced,
-      totalCollected,
-      pendingCount,
-      overdueCount,
-      count: invoices.length,
+      isGlobal: Boolean(kpi),
+      invoiced: kpi?.totalInvoicedUsd ?? invoiced,
+      collected: kpi?.totalCollectedUsd ?? kpi?.paidUsd ?? collected,
+      outstanding:
+        kpi?.outstandingUsd ??
+        Math.max(0, (kpi?.totalInvoicedUsd ?? invoiced) - (kpi?.totalCollectedUsd ?? collected)),
+      overdueCount: kpi?.overdue ?? kpi?.overdueCount ?? overdueCount,
     };
-  }, [invoices]);
+  }, [invoices, meta?.kpi]);
 
   // Create Invoice Calculation
   const subtotalCalculation = useMemo(() => {
@@ -375,10 +360,19 @@ export function AdminFinancialsClient() {
     }
   }
 
-  function handleOpenHtmlInvoice(invoiceId: string) {
-    const apiBase =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
-    window.open(`${apiBase}/billing/invoices/${invoiceId}/html`, "_blank");
+  async function handleOpenHtmlInvoice(invoiceId: string) {
+    try {
+      const html = await fetchInvoiceHtml(invoiceId).unwrap();
+      const url = URL.createObjectURL(
+        new Blob([html], { type: "text/html;charset=utf-8" }),
+      );
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast.error("Could not open the printable invoice", {
+        description: readApiMessage(err, "The invoice view is unavailable."),
+      });
+    }
   }
 
   return (
@@ -404,18 +398,18 @@ export function AdminFinancialsClient() {
       {/* KPI Statistic Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <AdminStatCard
-          label="Total Invoiced"
-          value={formatCurrencyUsd(stats.totalInvoiced)}
+          label={stats.isGlobal ? "Total Invoiced" : "Invoiced (this page)"}
+          value={formatCurrencyUsd(stats.invoiced)}
           tone="default"
         />
         <AdminStatCard
-          label="Total Collected"
-          value={formatCurrencyUsd(stats.totalCollected)}
+          label={stats.isGlobal ? "Total Collected" : "Collected (this page)"}
+          value={formatCurrencyUsd(stats.collected)}
           tone="success"
         />
         <AdminStatCard
           label="Outstanding Balance"
-          value={formatCurrencyUsd(Math.max(0, stats.totalInvoiced - stats.totalCollected))}
+          value={formatCurrencyUsd(stats.outstanding)}
           tone="warning"
         />
         <AdminStatCard
@@ -451,7 +445,7 @@ export function AdminFinancialsClient() {
               }`}
             >
               <CreditCard size={14} className="inline mr-1.5" />
-              Payments ({mockPayments.length})
+              Payments ({payments.length})
             </button>
             <button
               type="button"
@@ -463,26 +457,18 @@ export function AdminFinancialsClient() {
               }`}
             >
               <RotateCcw size={14} className="inline mr-1.5" />
-              Refunds ({mockRefunds.length})
+              Refunds ({refunds.length})
             </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={type} onValueChange={(val) => setType(val as TypeFilter)}>
-              <SelectTrigger className="w-36 h-9 rounded-md text-xs">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent className="rounded-md">
-                <SelectItem value="ALL">All Categories</SelectItem>
-                <SelectItem value="PRODUCT">Product Orders</SelectItem>
-                <SelectItem value="SERVICE">Service Visits</SelectItem>
-              </SelectContent>
-            </Select>
-
             {tab === "invoices" && (
               <Select
                 value={selectedStatus}
-                onValueChange={(val) => setSelectedStatus(val)}
+                onValueChange={(val) => {
+                  setSelectedStatus(val);
+                  setPage(1);
+                }}
               >
                 <SelectTrigger className="w-36 h-9 rounded-md text-xs">
                   <SelectValue placeholder="Status" />
@@ -501,7 +487,10 @@ export function AdminFinancialsClient() {
 
         <AdminSearchInput
           value={query}
-          onChange={setQuery}
+          onChange={(value) => {
+            setQuery(value);
+            setPage(1);
+          }}
           placeholder="Search by invoice ID, customer name, order number, or line item..."
         />
       </AdminSurface>
@@ -579,7 +568,7 @@ export function AdminFinancialsClient() {
                           )}
                         </td>
                         <td className="py-3 px-4">
-                          <StatusBadge status={invoice.status || "SENT"} />
+                          <StatusBadge status={toStatusSlug(invoice.status || "SENT")} />
                         </td>
                         <td className="py-3 px-4 text-right font-bold text-slate-900">
                           {formatCurrencyUsd(Number(invoice.totalUsd))}
@@ -645,6 +634,33 @@ export function AdminFinancialsClient() {
         </AdminSurface>
       )}
 
+      {tab === "invoices" && totalPages > 1 ? (
+        <AdminSurface className="flex items-center justify-between gap-3 py-3 text-xs">
+          <span className="text-slate-500">
+            Page {meta?.page ?? page} of {totalPages}
+            {meta?.total ? ` · ${meta.total} invoices` : ""}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              disabled={(meta?.page ?? page) <= 1 || isLoadingInvoices}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              size="sm"
+              variant="outline"
+            >
+              Previous
+            </Button>
+            <Button
+              disabled={(meta?.page ?? page) >= totalPages || isLoadingInvoices}
+              onClick={() => setPage((current) => current + 1)}
+              size="sm"
+              variant="outline"
+            >
+              Next
+            </Button>
+          </div>
+        </AdminSurface>
+      ) : null}
+
       {/* Tab 2: Payments */}
       {tab === "payments" && (
         <AdminSurface className="overflow-hidden p-0">
@@ -661,27 +677,34 @@ export function AdminFinancialsClient() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {mockPayments.map((pmt) => (
+                {payments.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500">
+                      No payments recorded against the invoices on this page.
+                    </td>
+                  </tr>
+                ) : null}
+                {payments.map((pmt) => (
                   <tr key={pmt.id} className="hover:bg-teal-50/30 transition">
                     <td className="py-3 px-4 font-mono font-semibold text-slate-900">
                       {pmt.id}
                     </td>
                     <td className="py-3 px-4 font-mono text-slate-600">
-                      Invoice: {pmt.invoiceId}
+                      Invoice: {pmt.invoiceRef}
                     </td>
                     <td className="py-3 px-4 font-medium text-slate-900">
                       {pmt.customerName}
                     </td>
                     <td className="py-3 px-4">
                       <span className="rounded bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
-                        {pmt.methodLabel}
+                        {pmt.methodLabel || "Payment"}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-slate-500">
-                      {formatShortDate(pmt.processedAt)}
+                      {pmt.paidAt ? formatShortDate(pmt.paidAt) : "—"}
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-slate-900">
-                      {formatCurrencyUsd(pmt.amountUsd)}
+                      {formatCurrencyUsd(Number(pmt.amountUsd))}
                     </td>
                   </tr>
                 ))}
@@ -707,23 +730,30 @@ export function AdminFinancialsClient() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {mockRefunds.map((rf) => (
+                {refunds.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center text-slate-500">
+                      No refunds recorded against the invoices on this page.
+                    </td>
+                  </tr>
+                ) : null}
+                {refunds.map((rf) => (
                   <tr key={rf.id} className="hover:bg-teal-50/30 transition">
                     <td className="py-3 px-4 font-mono font-semibold text-slate-900">
                       {rf.id}
                     </td>
                     <td className="py-3 px-4 font-mono text-slate-600">
-                      {rf.invoiceId}
+                      {rf.invoiceRef}
                     </td>
                     <td className="py-3 px-4 font-medium text-slate-900">
                       {rf.customerName}
                     </td>
-                    <td className="py-3 px-4 text-slate-600">{rf.reason}</td>
+                    <td className="py-3 px-4 text-slate-600">{rf.reason || "—"}</td>
                     <td className="py-3 px-4">
-                      <StatusBadge status={rf.status} />
+                      <StatusBadge status={toStatusSlug(rf.status ?? "")} />
                     </td>
                     <td className="py-3 px-4 text-right font-bold text-rose-700">
-                      -{formatCurrencyUsd(rf.amountUsd)}
+                      -{formatCurrencyUsd(Number(rf.amountUsd))}
                     </td>
                   </tr>
                 ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquareQuote, Star } from "lucide-react";
+import { MessageSquareQuote, Package, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +9,15 @@ import { useAppSelector } from "@/redux/hooks";
 import { useGetMyReviewsQuery, useSubmitReviewMutation } from "@/redux/api/reviewsApi";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
+import {
+  PortalCard,
+  PortalCardFooter,
+  PortalCardTitle,
+  PortalCardTop,
+  PortalDetailAction,
+  PortalFact,
+  PortalList,
+} from "@/components/customer-portal/PortalUI";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
@@ -342,16 +351,12 @@ export function ReviewsExperience({
           </p>
         </section>
       ) : (
-        <div className="space-y-4">
+        <PortalList>
           {customerReviews.map((review) => (
-            <article
-              className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs transition hover:border-teal-400 hover:shadow-sm"
-              key={review.id}
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-2 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <TypeBadge type={review.type} />
+            <PortalCard key={review.id}>
+              <PortalCardTop
+                badges={
+                  <>
                     <StatusBadge
                       label={
                         review.status === "PENDING"
@@ -362,45 +367,60 @@ export function ReviewsExperience({
                       }
                       status={review.status.toLowerCase()}
                     />
-                  </div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900">
-                    {review.title}
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Related to <strong className="text-slate-700">{review.relatedName}</strong> · Order {review.relatedOrderId}
-                  </p>
+                    <TypeBadge type={review.type} />
+                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                      <Star className="fill-amber-400 text-amber-500" size={12} />
+                      {review.rating} / 5
+                    </span>
+                  </>
+                }
+                meta={
+                  <>
+                    Submitted:{" "}
+                    <span className="font-medium text-slate-700">
+                      {formatLongDate(review.submittedAt)}
+                    </span>
+                  </>
+                }
+              />
 
-                  <div className="rounded-md border border-slate-200 bg-slate-50/60 p-3 text-xs leading-relaxed text-slate-700">
-                    {review.body}
-                  </div>
+              <PortalCardTitle subtitle={review.relatedName}>
+                {review.title}
+              </PortalCardTitle>
 
-                  <p className="text-[11px] text-slate-400">
-                    Submitted on {formatLongDate(review.submittedAt)}
-                  </p>
-                </div>
+              <p className="-mt-1 mb-4 rounded-md border border-slate-200 bg-slate-50/60 p-3 text-xs leading-relaxed text-slate-700">
+                {review.body}
+              </p>
 
-                <div className="w-full lg:max-w-xs rounded-md border border-teal-200/80 bg-teal-50/50 p-4 space-y-3 shrink-0">
-                  <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-white px-2.5 py-1 text-xs font-bold text-amber-700 shadow-xs">
-                    <Star className="fill-amber-400 text-amber-500" size={13} />
-                    {review.rating} / 5 Stars
-                  </div>
-
-                  <Button asChild size="sm" variant="outline" className="w-full rounded-md font-medium text-xs">
-                    <Link
-                      href={
-                        review.type === "SERVICE"
-                          ? `/user/orders/${review.relatedOrderId}`
-                          : `/user/orders/${review.relatedOrderId}`
-                      }
-                    >
-                      View Related Order
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </article>
+              <PortalCardFooter
+                actions={
+                  <PortalDetailAction
+                    href={`/user/orders/${review.relatedOrderId}`}
+                    label="View Related Order"
+                  />
+                }
+                facts={
+                  <>
+                    <PortalFact
+                      emphasis
+                      icon={Star}
+                      label="Your Rating"
+                      tone="warning"
+                      value={`${review.rating} / 5`}
+                    />
+                    <PortalFact
+                      icon={Package}
+                      label="Reviewed Item"
+                      placeholder="Not linked"
+                      truncate
+                      value={review.relatedName}
+                    />
+                  </>
+                }
+              />
+            </PortalCard>
           ))}
-        </div>
+        </PortalList>
       )}
     </div>
   );

@@ -11,7 +11,6 @@ import {
   Wrench,
 } from "lucide-react";
 
-import { buildTechnicianAddressLabel } from "@/components/technician/technician-utils";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import {
   AdminStatCard,
@@ -21,120 +20,85 @@ import {
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
-  getCurrentTechnicianProfile,
-  getTechnicianCustomerLabel,
-  getTechnicianOrderPhone,
-  getTechnicianOverviewStats,
-  getTechnicianRecentCompletedJobs,
-  getTechnicianTodayOrders,
-  getTechnicianUpcomingOrders,
-} from "@/data/mock/technician-dashboard";
-import {
   useGetTechnicianOverviewQuery,
   useGetTechnicianProfileQuery,
+  type TechnicianJobItemDto,
 } from "@/redux/api/technicianApi";
 
+/** Availability enums arrive as `ON_BREAK`; render them as "On break". */
+function humanizeEnum(value?: string) {
+  if (!value) return "—";
+  const spaced = value.replace(/_/g, " ").toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+interface OverviewJobRow {
+  id: string;
+  reference: string;
+  serviceName: string;
+  status: string;
+  customerLabel: string;
+  phone?: string;
+  addressLabel: string;
+  scheduleLabel: string;
+  etaMinutes?: number;
+}
+
+function toJobRow(item: TechnicianJobItemDto): OverviewJobRow {
+  return {
+    id: item.serviceOrderId || item.appointmentId || item.businessId,
+    reference: item.businessId,
+    serviceName: item.serviceName,
+    status: item.status?.toLowerCase() ?? "scheduled",
+    customerLabel: item.customerName,
+    phone: item.customerPhone,
+    addressLabel: item.propertyAddress,
+    scheduleLabel: item.timeWindow,
+    etaMinutes: item.etaMinutes,
+  };
+}
+
 export function TechnicianOverviewClient() {
-  const { data: apiOverview } = useGetTechnicianOverviewQuery();
-  const { data: apiProfile } = useGetTechnicianProfileQuery();
+  // Phase 17.1 `GET /technicians/me/overview` + 17.4 `GET /technicians/me/profile`.
+  const {
+    data: overview,
+    isLoading: isLoadingOverview,
+    isError: isOverviewError,
+  } = useGetTechnicianOverviewQuery();
+  const { data: profile } = useGetTechnicianProfileQuery();
 
-  const mockTechnician = getCurrentTechnicianProfile();
-  const mockStats = getTechnicianOverviewStats();
-  const mockTodaysOrders = getTechnicianTodayOrders();
-  const mockUpcomingOrders = getTechnicianUpcomingOrders().slice(0, 4);
-  const mockRecentCompletedJobs = getTechnicianRecentCompletedJobs().slice(0, 3);
-
-  const technicianName =
-    apiProfile?.displayName || mockTechnician.displayName;
-  const firstName = technicianName.split(" ")[0] || "Technician";
+  const firstName = (profile?.displayName ?? "").split(" ")[0] || "Technician";
 
   const stats = useMemo(() => {
-    if (apiOverview?.summary) {
-      return {
-        availability: apiOverview.summary.availability,
-        todayJobs: apiOverview.summary.todayJobsCount,
-        activeJobs: apiOverview.summary.activeJobsCount,
-        completedToday: apiOverview.summary.completedTodayCount,
-        upcomingJobs: apiOverview.summary.upcomingJobsCount,
-        completedTotal: apiOverview.summary.completedTotalCount,
-      };
-    }
+    const summary = overview?.summary;
     return {
-      availability: mockStats.availability,
-      todayJobs: mockStats.todayJobs,
-      activeJobs: mockStats.activeJobs,
-      completedToday: mockStats.completedToday,
-      upcomingJobs: mockStats.upcomingJobs,
-      completedTotal: mockTechnician.completedJobs,
+      availability: humanizeEnum(summary?.availability),
+      todayJobs: summary?.todayJobsCount ?? 0,
+      activeJobs: summary?.activeJobsCount ?? 0,
+      completedToday: summary?.completedTodayCount ?? 0,
+      upcomingJobs: summary?.upcomingJobsCount ?? 0,
+      completedTotal: summary?.completedTotalCount ?? 0,
     };
-  }, [apiOverview, mockStats, mockTechnician.completedJobs]);
+  }, [overview?.summary]);
 
-  const todaysOrders = useMemo(() => {
-    if (apiOverview?.todaySchedule && apiOverview.todaySchedule.length > 0) {
-      return apiOverview.todaySchedule.map((item) => ({
-        id: item.serviceOrderId || item.businessId,
-        serviceName: item.serviceName,
-        status: item.status.toLowerCase(),
-        customerLabel: item.customerName,
-        phone: item.customerPhone,
-        addressLabel: item.propertyAddress,
-        scheduleLabel: item.timeWindow,
-        etaMinutes: undefined as number | undefined,
-      }));
-    }
-    return mockTodaysOrders.map((order) => ({
-      id: order.id,
-      serviceName: order.serviceName,
-      status: order.status,
-      customerLabel: getTechnicianCustomerLabel(order),
-      phone: getTechnicianOrderPhone(order),
-      addressLabel: buildTechnicianAddressLabel(order),
-      scheduleLabel: order.currentSchedule.label,
-      etaMinutes: order.technicianEta?.minutes,
-    }));
-  }, [apiOverview, mockTodaysOrders]);
+  const todaysOrders = useMemo(
+    () => (overview?.todaySchedule ?? []).map(toJobRow),
+    [overview?.todaySchedule],
+  );
 
-  const nextAppointment = useMemo(() => {
-    if (apiOverview?.nextAppointment) {
-      return {
-        id: apiOverview.nextAppointment.serviceOrderId || apiOverview.nextAppointment.businessId,
-        serviceName: apiOverview.nextAppointment.serviceName,
-        customerLabel: apiOverview.nextAppointment.customerName,
-        scheduleLabel: apiOverview.nextAppointment.timeWindow,
-        etaMinutes: undefined as number | undefined,
-      };
-    }
-    const mockNext = mockTodaysOrders[0] ?? mockUpcomingOrders[0];
-    if (mockNext) {
-      return {
-        id: mockNext.id,
-        serviceName: mockNext.serviceName,
-        customerLabel: getTechnicianCustomerLabel(mockNext),
-        scheduleLabel: mockNext.currentSchedule.label,
-        etaMinutes: mockNext.technicianEta?.minutes,
-      };
-    }
-    return undefined;
-  }, [apiOverview, mockTodaysOrders, mockUpcomingOrders]);
+  const nextAppointment = overview?.nextAppointment
+    ? toJobRow(overview.nextAppointment)
+    : undefined;
 
-  const upcomingOrders = useMemo(() => {
-    if (apiOverview?.upcomingJobs && apiOverview.upcomingJobs.length > 0) {
-      return apiOverview.upcomingJobs.map((item) => ({
-        id: item.serviceOrderId || item.businessId,
-        serviceName: item.serviceName,
-        customerLabel: item.customerName,
-        scheduleLabel: item.timeWindow,
-        status: item.status.toLowerCase(),
-      }));
-    }
-    return mockUpcomingOrders.map((order) => ({
-      id: order.id,
-      serviceName: order.serviceName,
-      customerLabel: getTechnicianCustomerLabel(order),
-      scheduleLabel: order.currentSchedule.label,
-      status: order.status,
-    }));
-  }, [apiOverview, mockUpcomingOrders]);
+  const upcomingOrders = useMemo(
+    () => (overview?.upcomingJobs ?? []).map(toJobRow),
+    [overview?.upcomingJobs],
+  );
+
+  const recentlyCompleted = useMemo(
+    () => (overview?.recentlyCompleted ?? []).slice(0, 3).map(toJobRow),
+    [overview?.recentlyCompleted],
+  );
 
   return (
     <TechnicianRouteShell
@@ -152,14 +116,41 @@ export function TechnicianOverviewClient() {
         </div>
       }
     >
+      {isOverviewError ? (
+        <AdminSurface className="border border-rose-200 bg-rose-50/70">
+          <p className="font-semibold text-rose-900">
+            We couldn&apos;t load your dashboard
+          </p>
+          <p className="mt-1 text-sm text-rose-700">
+            Your assignments are temporarily unavailable. Please refresh in a
+            moment or contact dispatch.
+          </p>
+        </AdminSurface>
+      ) : null}
+
       {/* 17.1 KPI Summary Bar */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <AdminStatCard label="Availability" value={stats.availability} tone="soft" />
-        <AdminStatCard label="Today's Jobs" value={stats.todayJobs} />
-        <AdminStatCard label="Active Jobs" value={stats.activeJobs} tone="warning" />
-        <AdminStatCard label="Completed Today" value={stats.completedToday} tone="success" />
-        <AdminStatCard label="Upcoming Jobs" value={stats.upcomingJobs} />
-        <AdminStatCard label="Completed Total" value={stats.completedTotal} />
+        {isLoadingOverview ? (
+          Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-24 animate-pulse rounded-xl bg-slate-100"
+            />
+          ))
+        ) : (
+          <>
+            <AdminStatCard label="Availability" value={stats.availability} tone="soft" />
+            <AdminStatCard label="Today's Jobs" value={stats.todayJobs} />
+            <AdminStatCard label="Active Jobs" value={stats.activeJobs} tone="warning" />
+            <AdminStatCard
+              label="Completed Today"
+              value={stats.completedToday}
+              tone="success"
+            />
+            <AdminStatCard label="Upcoming Jobs" value={stats.upcomingJobs} />
+            <AdminStatCard label="Completed Total" value={stats.completedTotal} />
+          </>
+        )}
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.3fr_0.95fr]">
@@ -169,9 +160,7 @@ export function TechnicianOverviewClient() {
               <h2 className="text-xl font-semibold text-slate-950">
                 Today&apos;s Schedule
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Assigned work for today.
-              </p>
+              <p className="mt-1 text-sm text-slate-500">Assigned work for today.</p>
             </div>
             <Button asChild size="sm" variant="outline">
               <Link href="/technician/schedule">View full schedule</Link>
@@ -179,7 +168,14 @@ export function TechnicianOverviewClient() {
           </div>
 
           <div className="mt-5 space-y-4">
-            {todaysOrders.length === 0 ? (
+            {isLoadingOverview ? (
+              Array.from({ length: 2 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-44 animate-pulse rounded-xl bg-slate-100"
+                />
+              ))
+            ) : todaysOrders.length === 0 ? (
               <EmptyState
                 icon={CalendarDays}
                 title="No jobs scheduled for today"
@@ -202,7 +198,7 @@ export function TechnicianOverviewClient() {
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={order.status} />
                         <span className="text-sm font-medium text-slate-500">
-                          {order.id}
+                          {order.reference}
                         </span>
                       </div>
                       <h3 className="mt-3 text-xl font-semibold text-primary">
@@ -220,7 +216,10 @@ export function TechnicianOverviewClient() {
                         {order.phone && (
                           <div className="inline-flex items-start gap-2 text-sm text-slate-600">
                             <Phone size={16} className="mt-0.5 text-teal-700" />
-                            <a href={`tel:${order.phone}`} className="hover:text-teal-700">
+                            <a
+                              href={`tel:${order.phone}`}
+                              className="hover:text-teal-700"
+                            >
                               {order.phone}
                             </a>
                           </div>
@@ -228,7 +227,8 @@ export function TechnicianOverviewClient() {
                         <div className="inline-flex items-start gap-2 text-sm text-slate-600">
                           <Clock3 size={16} className="mt-0.5 text-teal-700" />
                           <span>
-                            ETA {order.etaMinutes ? `${order.etaMinutes} min` : "not set"}
+                            ETA{" "}
+                            {order.etaMinutes ? `${order.etaMinutes} min` : "not set"}
                           </span>
                         </div>
                       </div>
@@ -264,12 +264,17 @@ export function TechnicianOverviewClient() {
                 <div className="mt-5 space-y-2 text-sm text-white/80">
                   <p>{nextAppointment.scheduleLabel}</p>
                   <p>
-                    ETA {nextAppointment.etaMinutes ? `${nextAppointment.etaMinutes} min` : "not set"}
+                    ETA{" "}
+                    {nextAppointment.etaMinutes
+                      ? `${nextAppointment.etaMinutes} min`
+                      : "not set"}
                   </p>
                 </div>
                 <div className="mt-5">
                   <Button asChild variant="secondary">
-                    <Link href={`/technician/jobs/${nextAppointment.id}`}>Open Job</Link>
+                    <Link href={`/technician/jobs/${nextAppointment.id}`}>
+                      Open Job
+                    </Link>
                   </Button>
                 </div>
               </>
@@ -285,49 +290,27 @@ export function TechnicianOverviewClient() {
               <CheckCircle2 size={20} className="text-teal-700" />
               <div>
                 <h2 className="text-xl font-semibold text-slate-950">
-                  Upcoming Jobs
+                  {upcomingOrders.length === 0 && recentlyCompleted.length > 0
+                    ? "Recently Completed"
+                    : "Upcoming Jobs"}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Assigned queue after today.
+                  {upcomingOrders.length === 0 && recentlyCompleted.length > 0
+                    ? "Your latest finished work."
+                    : "Assigned queue after today."}
                 </p>
               </div>
             </div>
 
             <div className="mt-5 space-y-3">
-              {upcomingOrders.length === 0 ? (
-                mockRecentCompletedJobs.length > 0 ? (
-                  mockRecentCompletedJobs.map((order) => (
-                    <Link
-                      key={order.id}
-                      href={`/technician/jobs/${order.id}`}
-                      className="block rounded-xl bg-slate-50 px-4 py-4 transition hover:bg-teal-50"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-900">
-                            {order.serviceName}
-                          </p>
-                          <p className="mt-1 truncate text-sm text-slate-500">
-                            Recently completed for {getTechnicianCustomerLabel(order)}
-                          </p>
-                        </div>
-                        <StatusBadge status="completed" />
-                      </div>
-                      <p className="mt-3 text-sm text-slate-600">
-                        {order.currentSchedule.label}
-                      </p>
-                    </Link>
-                  ))
-                ) : (
-                  <EmptyState
-                    icon={CalendarDays}
-                    title="No upcoming assignments"
-                    description="New dispatch assignments will appear here once assigned by dispatchers."
-                    tone="dashed"
-                    className="py-8"
+              {isLoadingOverview ? (
+                Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="h-24 animate-pulse rounded-xl bg-slate-100"
                   />
-                )
-              ) : (
+                ))
+              ) : upcomingOrders.length > 0 ? (
                 upcomingOrders.map((order) => (
                   <Link
                     key={order.id}
@@ -350,6 +333,34 @@ export function TechnicianOverviewClient() {
                     </p>
                   </Link>
                 ))
+              ) : recentlyCompleted.length > 0 ? (
+                recentlyCompleted.map((order) => (
+                  <Link
+                    key={order.id}
+                    href={`/technician/jobs/${order.id}`}
+                    className="block rounded-xl bg-slate-50 px-4 py-4 transition hover:bg-teal-50"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900">
+                          {order.serviceName}
+                        </p>
+                        <p className="mt-1 truncate text-sm text-slate-500">
+                          Completed for {order.customerLabel}
+                        </p>
+                      </div>
+                      <StatusBadge status="completed" />
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <EmptyState
+                  icon={CalendarDays}
+                  title="No upcoming assignments"
+                  description="New dispatch assignments will appear here once assigned by dispatchers."
+                  tone="dashed"
+                  className="py-8"
+                />
               )}
             </div>
           </AdminSurface>

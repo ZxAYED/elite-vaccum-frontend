@@ -2,8 +2,6 @@ import Link from "next/link";
 
 import { ServiceRequestForm } from "@/components/landing/service/request/ServiceRequestForm";
 import { Button } from "@/components/ui/Button";
-import { getSharedPublicServiceBySlug } from "@/data/mock/shared-business-store";
-import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
 import type { ServiceOffering } from "@/types/domain";
 
 export const metadata = {
@@ -16,10 +14,9 @@ interface ServicesRequestPageProps {
   searchParams: Promise<{ service?: string | string[] }>;
 }
 
+/** Resolves the requested offering from `GET /services/:slug` (Phase 7.2). */
 async function resolveService(slug?: string): Promise<ServiceOffering | undefined> {
   if (!slug) return undefined;
-  const local = getSharedPublicServiceBySlug(slug);
-  if (local) return local;
 
   const apiUrl =
     process.env.NEXT_PUBLIC_API_URL ||
@@ -27,39 +24,39 @@ async function resolveService(slug?: string): Promise<ServiceOffering | undefine
     "http://localhost:3000";
 
   try {
-    const res = await fetch(`${apiUrl}/services/${slug}`, {
+    const res = await fetch(`${apiUrl}/services/${encodeURIComponent(slug)}`, {
       cache: "no-store",
     });
-    if (res.ok) {
-      const json = await res.json();
-      const item = json.data || json;
-      if (item && item.slug) {
-        return {
-          id: item.id,
-          serviceId: item.id || item.serviceId || item.key,
-          slug: item.slug,
-          group:
-            item.group === "INSTALLATION" || item.group === "Installation"
-              ? "Installation"
-              : "Service & Maintenance",
-          title: item.title,
-          summary: item.summary || "",
-          description: item.description || "",
-          iconKey: (item.iconKey || "wrench").toLowerCase(),
-          status: item.status || "ACTIVE",
-          sortOrder: item.sortOrder ?? 999,
-          recommendedSymptoms: item.recommendedSymptoms || [],
-          requestCount: item.requestCount ?? 0,
-          reviewCount: item.reviewCount ?? 0,
-          createdAt: item.createdAt || new Date().toISOString(),
-          updatedAt: item.updatedAt || new Date().toISOString(),
-        };
-      }
-    }
+    if (!res.ok) return undefined;
+
+    const json = await res.json();
+    const item = json?.data ?? json;
+    if (!item?.slug) return undefined;
+
+    return {
+      id: item.id,
+      serviceId: item.id || item.serviceId || item.key,
+      slug: item.slug,
+      group:
+        String(item.group ?? "").toUpperCase() === "INSTALLATION"
+          ? "Installation"
+          : "Service & Maintenance",
+      title: item.title,
+      summary: item.summary || "",
+      description: item.description || "",
+      iconKey: (item.iconKey || "wrench").toLowerCase(),
+      status: item.status || "ACTIVE",
+      sortOrder: item.sortOrder ?? 999,
+      recommendedSymptoms: item.recommendedSymptoms || [],
+      requestCount: item.requestCount ?? 0,
+      reviewCount: item.reviewCount ?? 0,
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || new Date().toISOString(),
+    };
   } catch {
-    // API unavailable fallback
+    // Service catalog unreachable — fall through to the picker below.
+    return undefined;
   }
-  return undefined;
 }
 
 export default async function ServicesRequestPage({
@@ -70,7 +67,6 @@ export default async function ServicesRequestPage({
     ? params.service[0]
     : params.service;
   const service = await resolveService(serviceSlug);
-  const primaryAddress = mockCurrentCustomer.addresses[0];
 
   if (!service) {
     return (
@@ -94,17 +90,5 @@ export default async function ServicesRequestPage({
     );
   }
 
-  return (
-    <ServiceRequestForm
-      service={service}
-      defaultValues={{
-        fullName: `${mockCurrentUser.firstName} ${mockCurrentUser.lastName}`,
-        phone: mockCurrentUser.phone ?? "",
-        address: primaryAddress?.line1 ?? "",
-        city: primaryAddress?.city ?? "",
-        state: primaryAddress?.state ?? "",
-        zipCode: primaryAddress?.postalCode ?? "",
-      }}
-    />
-  );
+  return <ServiceRequestForm service={service} />;
 }

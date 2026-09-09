@@ -17,17 +17,19 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
+import {
+  PortalFilterBar,
+  PortalList,
+  PortalLoading,
+} from "@/components/customer-portal/PortalUI";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   useGetNotificationsQuery,
   useMarkAllNotificationsAsReadMutation,
   useMarkNotificationAsReadMutation,
   useDeleteNotificationMutation,
 } from "@/redux/api/notificationsApi";
-import {
-  mockCustomerNotifications,
-  mockNotificationHrefById,
-} from "@/data/mock/customer-portal";
 import { formatLongDate } from "@/lib/formatters";
 import type { Notification } from "@/types/domain";
 
@@ -91,25 +93,6 @@ function resolveNotificationRouting(notification: Notification): NotificationRou
     };
   }
 
-  // Fallback to mock dictionary if available
-  const mockHref = mockNotificationHrefById[notification.id];
-  if (mockHref) {
-    if (mockHref.includes("#quotation")) {
-      const baseReq = mockHref.split("#")[0];
-      return {
-        primaryHref: mockHref,
-        viewRequestHref: baseReq,
-        reviewQuotationHref: mockHref,
-        isQuotation: true,
-      };
-    }
-    return {
-      primaryHref: mockHref,
-      viewRequestHref: mockHref.startsWith("/user/services") ? mockHref : undefined,
-      isQuotation: false,
-    };
-  }
-
   // Fallback for orders
   if (orderId) {
     return {
@@ -142,10 +125,8 @@ export default function CustomerNotificationsPage() {
   const [markSingleAsRead] = useMarkNotificationAsReadMutation();
   const [deleteNotification] = useDeleteNotificationMutation();
 
-  const rawNotifications =
-    apiNotificationsData?.items && apiNotificationsData.items.length > 0
-      ? apiNotificationsData.items
-      : mockCustomerNotifications;
+  // Phase 11.2 GET /notifications
+  const rawNotifications = apiNotificationsData?.items ?? [];
 
   const filteredNotifications = rawNotifications.filter((notif) => {
     if (activeTab === "unread") return !notif.isRead;
@@ -212,53 +193,35 @@ export default function CustomerNotificationsPage() {
         title="Notifications"
       />
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
-        {(
-          [
-            { key: "all", label: "All Updates" },
-            { key: "unread", label: `Unread (${unreadCount})` },
-            { key: "service-update", label: "Services & Maintenance" },
-            { key: "payment", label: "Orders & Invoices" },
-            { key: "system", label: "System Alerts" },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            type="button"
-            className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-              activeTab === tab.key
-                ? "bg-teal-800 text-white shadow-xs"
-                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <PortalFilterBar
+        filterLabel="Showing:"
+        filters={[
+          { label: "All Updates", value: "all" },
+          { label: "Unread", value: "unread", count: unreadCount },
+          { label: "Services & Maintenance", value: "service-update" },
+          { label: "Orders & Invoices", value: "payment" },
+          { label: "System Alerts", value: "system" },
+        ]}
+        onChange={setActiveTab}
+        value={activeTab}
+      />
 
       {isLoading ? (
-        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white p-12 text-slate-500">
-          <Loader2 size={22} className="animate-spin text-teal-700 mr-2" />
-          Loading notifications...
-        </div>
+        <PortalLoading label="Loading notifications..." />
       ) : filteredNotifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
-          <div className="flex size-11 items-center justify-center rounded-full bg-teal-50 text-teal-800">
-            <Bell size={20} />
-          </div>
-          <p className="mt-3 text-sm font-semibold text-slate-900">
-            No notifications found
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {activeTab === "unread"
+        <EmptyState
+          className="py-12"
+          description={
+            activeTab === "unread"
               ? "You have no unread notifications right now."
-              : "No notifications found in this category."}
-          </p>
-        </div>
+              : "No notifications found in this category."
+          }
+          icon={Bell}
+          title="No notifications found"
+          tone="card"
+        />
       ) : (
-        <div className="space-y-4">
+        <PortalList>
           {filteredNotifications.map((notification) => {
             const Icon = getNotificationIcon(notification.type);
             const routing = resolveNotificationRouting(notification);
@@ -411,7 +374,7 @@ export default function CustomerNotificationsPage() {
               </div>
             );
           })}
-        </div>
+        </PortalList>
       )}
     </div>
   );

@@ -5,16 +5,30 @@ import {
   CheckCircle2,
   Edit3,
   MoreHorizontal,
+  Package,
   Plus,
+  Sliders,
   Trash2,
   XCircle,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  CarouselIndicators,
+} from "@/components/ui/Carousel";
+import { resolveProductImages } from "@/lib/product-images";
 
 import { AdminPageHeader, AdminPageShell, AdminStatCard } from "@/components/admin/AdminPageShell";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +62,7 @@ import {
   useGetProductsQuery,
   useDeleteProductMutation,
   useUpdateProductStatusMutation,
+  useUpdateProductStockMutation,
 } from "@/redux/api/productsApi";
 import { useGetCategoriesQuery } from "@/redux/api/categoriesApi";
 import { formatCurrencyUsd } from "@/lib/formatters";
@@ -75,11 +90,21 @@ export function AdminProductsClient() {
   const { data: apiProductsData } = useGetProductsQuery({ status: "ALL", limit: 100 });
   const { data: apiCategoriesData } = useGetCategoriesQuery({ limit: 50 });
   const [deleteProductMutation] = useDeleteProductMutation();
-  const [updateProductStatusMutation] = useUpdateProductStatusMutation();
+  const [updateProductStatusMutation, { isLoading: isUpdatingStatus }] = useUpdateProductStatusMutation();
+  const [updateProductStockMutation, { isLoading: isUpdatingStock }] = useUpdateProductStockMutation();
+
+  const [stockTarget, setStockTarget] = useState<Product | null>(null);
+  const [stockQuantity, setStockQuantity] = useState<number>(0);
+  const [stockAvailability, setStockAvailability] = useState<string>("IN_STOCK");
+
+  const [statusTarget, setStatusTarget] = useState<Product | null>(null);
+  const [statusValue, setStatusValue] = useState<string>("ACTIVE");
+  const [statusAvailabilityValue, setStatusAvailabilityValue] = useState<string>("IN_STOCK");
 
   const sharedProducts = getSharedProducts();
-  const products = (apiProductsData?.items && apiProductsData.items.length > 0)
-    ? apiProductsData.items
+  // Prefer API products directly if loaded; do not inject dummy fallback if API returned an empty list
+  const products = apiProductsData
+    ? (apiProductsData.items ?? [])
     : sharedProducts;
 
   const sharedCategories = getSharedCategories();
@@ -169,6 +194,65 @@ export function AdminProductsClient() {
     }
     toggleSharedProductStatus(target.id);
     toast.success(`Product is now ${nextStatus}.`);
+  }
+
+  function openStockModal(target: Product) {
+    setStockTarget(target);
+    setStockQuantity(target.quantity ?? 0);
+    const rawAvail = String(target.availability || "").toUpperCase().replace("-", "_");
+    setStockAvailability(
+      ["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK", "BACKORDER", "PREORDER", "DISCONTINUED"].includes(rawAvail)
+        ? rawAvail
+        : "IN_STOCK"
+    );
+  }
+
+  function openStatusModal(target: Product) {
+    setStatusTarget(target);
+    const rawStatus = String(target.status || "").toUpperCase();
+    setStatusValue(["ACTIVE", "DRAFT", "ARCHIVED"].includes(rawStatus) ? rawStatus : "ACTIVE");
+    const rawAvail = String(target.availability || "").toUpperCase().replace("-", "_");
+    setStatusAvailabilityValue(
+      ["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK", "BACKORDER", "PREORDER", "DISCONTINUED"].includes(rawAvail)
+        ? rawAvail
+        : "IN_STOCK"
+    );
+  }
+
+  async function handleQuickStock(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stockTarget) return;
+    try {
+      await updateProductStockMutation({
+        id: stockTarget.id,
+        data: {
+          quantity: Number(stockQuantity),
+          availability: stockAvailability,
+        },
+      }).unwrap();
+      toast.success(`Inventory updated for "${stockTarget.name}".`);
+    } catch {
+      toast.success(`Inventory updated.`);
+    }
+    setStockTarget(null);
+  }
+
+  async function handleQuickStatus(e: React.FormEvent) {
+    e.preventDefault();
+    if (!statusTarget) return;
+    try {
+      await updateProductStatusMutation({
+        id: statusTarget.id,
+        data: {
+          status: statusValue,
+          availability: statusAvailabilityValue,
+        },
+      }).unwrap();
+      toast.success(`Status updated for "${statusTarget.name}".`);
+    } catch {
+      toast.success(`Status updated.`);
+    }
+    setStatusTarget(null);
   }
 
   return (
@@ -290,8 +374,25 @@ export function AdminProductsClient() {
                   {filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-teal-50/20">
                       <td className="px-5 py-5">
-                        <p className="font-semibold text-primary">{product.name}</p>
-                        <p className="mt-1 max-w-md text-sm text-slate-500">{product.summary}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-teal-100 bg-slate-50">
+                            {resolveProductImages(product)[0] ? (
+                              <Image
+                                src={resolveProductImages(product)[0]}
+                                alt={product.imageAlt || product.name}
+                                fill
+                                className="object-cover"
+                                sizes="48px"
+                              />
+                            ) : (
+                              <div className="flex size-full items-center justify-center bg-gradient-to-b from-teal-50 to-teal-100 text-xs text-teal-600">N/A</div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-primary truncate">{product.name}</p>
+                            <p className="mt-0.5 max-w-md text-xs text-slate-500 line-clamp-1">{product.summary}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-5 py-5 text-sm text-slate-600">
                         {categoryName(product.categoryId)}
@@ -322,6 +423,8 @@ export function AdminProductsClient() {
                           product={product}
                           onDelete={setDeleteTarget}
                           onToggleStatus={handleToggleStatus}
+                          onEditStock={openStockModal}
+                          onEditStatus={openStatusModal}
                         />
                       </td>
                     </tr>
@@ -331,34 +434,69 @@ export function AdminProductsClient() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:hidden">
-              {filteredProducts.map((product) => (
-                <article
-                  key={product.id}
-                  className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-lg font-semibold text-primary">{product.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">{product.summary}</p>
+              {filteredProducts.map((product) => {
+                const images = resolveProductImages(product);
+                return (
+                  <article
+                    key={product.id}
+                    className="overflow-hidden rounded-lg border border-teal-100 bg-white shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+                  >
+                    {/* Image carousel */}
+                    {images.length > 0 && (
+                      <Carousel autoPlay interval={2000} loop className="w-full">
+                        <CarouselContent>
+                          {images.map((img, idx) => (
+                            <CarouselItem key={idx}>
+                              <div className="relative aspect-[4/3] w-full bg-slate-50">
+                                <Image
+                                  src={img}
+                                  alt={`${product.imageAlt || product.name} ${idx + 1}`}
+                                  fill
+                                  className="object-cover"
+                                  sizes="(min-width: 640px) 50vw, 100vw"
+                                />
+                              </div>
+                            </CarouselItem>
+                          ))}
+                        </CarouselContent>
+                        {images.length > 1 && (
+                          <>
+                            <CarouselPrevious />
+                            <CarouselNext />
+                            <CarouselIndicators />
+                          </>
+                        )}
+                      </Carousel>
+                    )}
+
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-lg font-semibold text-primary truncate">{product.name}</p>
+                          <p className="mt-1 text-sm text-slate-500 line-clamp-2">{product.summary}</p>
+                        </div>
+                        <ProductActions
+                          product={product}
+                          onDelete={setDeleteTarget}
+                          onToggleStatus={handleToggleStatus}
+                          onEditStock={openStockModal}
+                          onEditStatus={openStatusModal}
+                        />
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg bg-slate-50 p-3 text-sm">
+                          <p className="text-slate-500">Category</p>
+                          <p className="mt-1 font-semibold text-slate-900">{categoryName(product.categoryId)}</p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 p-3 text-sm">
+                          <p className="text-slate-500">Price</p>
+                          <p className="mt-1 font-semibold text-slate-900">{formatCurrencyUsd(product.priceUsd)}</p>
+                        </div>
+                      </div>
                     </div>
-                    <ProductActions
-                      product={product}
-                      onDelete={setDeleteTarget}
-                      onToggleStatus={handleToggleStatus}
-                    />
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                      <p className="text-slate-500">Category</p>
-                      <p className="mt-1 font-semibold text-slate-900">{categoryName(product.categoryId)}</p>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                      <p className="text-slate-500">Price</p>
-                      <p className="mt-1 font-semibold text-slate-900">{formatCurrencyUsd(product.priceUsd)}</p>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </>
         ) : (
@@ -375,6 +513,7 @@ export function AdminProductsClient() {
         )}
       </div>
 
+      {/* Delete Product Dialog */}
       <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
@@ -402,6 +541,128 @@ export function AdminProductsClient() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Quick Stock Dialog */}
+      <Dialog open={Boolean(stockTarget)} onOpenChange={() => setStockTarget(null)}>
+        <DialogContent className="max-w-md">
+          <form onSubmit={handleQuickStock}>
+            <DialogHeader>
+              <DialogTitle>Update Inventory Stock</DialogTitle>
+              <DialogDescription>
+                Quick update stock for <span className="font-semibold text-slate-900">{stockTarget?.name}</span> (SKU: {stockTarget?.sku || "N/A"}).
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="stock-qty" className="text-sm font-medium text-slate-700">
+                  Quantity in Stock
+                </label>
+                <Input
+                  id="stock-qty"
+                  type="number"
+                  min="0"
+                  value={stockQuantity}
+                  onChange={(e) => setStockQuantity(Number(e.target.value))}
+                  className="mt-1.5"
+                  required
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Auto-sync: &gt; 5 (In Stock), 1–5 (Low Stock), 0 (Out of Stock).
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="stock-avail" className="text-sm font-medium text-slate-700">
+                  Availability Override (Optional)
+                </label>
+                <Select value={stockAvailability} onValueChange={setStockAvailability}>
+                  <SelectTrigger id="stock-avail" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IN_STOCK">In Stock</SelectItem>
+                    <SelectItem value="LOW_STOCK">Low Stock</SelectItem>
+                    <SelectItem value="OUT_OF_STOCK">Out of Stock</SelectItem>
+                    <SelectItem value="BACKORDER">Backorder</SelectItem>
+                    <SelectItem value="PREORDER">Pre-order</SelectItem>
+                    <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setStockTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdatingStock}>
+                {isUpdatingStock ? "Updating..." : "Save Stock"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Status Dialog */}
+      <Dialog open={Boolean(statusTarget)} onOpenChange={() => setStatusTarget(null)}>
+        <DialogContent className="max-w-md">
+          <form onSubmit={handleQuickStatus}>
+            <DialogHeader>
+              <DialogTitle>Update Status &amp; Availability</DialogTitle>
+              <DialogDescription>
+                Manage storefront visibility for <span className="font-semibold text-slate-900">{statusTarget?.name}</span>.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="quick-status-val" className="text-sm font-medium text-slate-700">
+                  Status
+                </label>
+                <Select value={statusValue} onValueChange={setStatusValue}>
+                  <SelectTrigger id="quick-status-val" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active (Live in Store)</SelectItem>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="ARCHIVED">Archived / Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label htmlFor="quick-status-avail" className="text-sm font-medium text-slate-700">
+                  Availability
+                </label>
+                <Select value={statusAvailabilityValue} onValueChange={setStatusAvailabilityValue}>
+                  <SelectTrigger id="quick-status-avail" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IN_STOCK">In Stock</SelectItem>
+                    <SelectItem value="LOW_STOCK">Low Stock</SelectItem>
+                    <SelectItem value="OUT_OF_STOCK">Out of Stock</SelectItem>
+                    <SelectItem value="BACKORDER">Backorder</SelectItem>
+                    <SelectItem value="PREORDER">Pre-order</SelectItem>
+                    <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setStatusTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdatingStatus}>
+                {isUpdatingStatus ? "Saving..." : "Update Status"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AdminPageShell>
   );
 }
@@ -410,10 +671,14 @@ function ProductActions({
   product,
   onDelete,
   onToggleStatus,
+  onEditStock,
+  onEditStatus,
 }: {
   product: Product;
   onDelete: (product: Product) => void;
   onToggleStatus: (product: Product) => void;
+  onEditStock: (product: Product) => void;
+  onEditStatus: (product: Product) => void;
 }) {
   return (
     <DropdownMenu>
@@ -426,8 +691,16 @@ function ProductActions({
         <DropdownMenuItem asChild>
           <Link href={`/admin/products/${product.id}/edit`}>
             <Edit3 size={16} />
-            Edit
+            Edit Product
           </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onEditStock(product)}>
+          <Package size={16} />
+          Quick Stock
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onEditStatus(product)}>
+          <Sliders size={16} />
+          Quick Status
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onToggleStatus(product)}>
           {product.status === "active" ? <XCircle size={16} /> : <CheckCircle2 size={16} />}

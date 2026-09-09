@@ -1,5 +1,4 @@
 import { baseApi } from "./baseApi";
-import type { Payment } from "@/types/domain";
 import type { PaginatedResponse } from "./types";
 
 interface ApiResponse<T> {
@@ -16,6 +15,23 @@ function unwrapData<T>(response: ApiResponse<T> | T): T {
     }
   }
   return response as T;
+}
+
+/**
+ * KPI counts arrive as a flat map of numeric buckets (e.g.
+ * `{ paid: 12, overdue: 3, outstandingUsd: 4210.5 }`). Coerce defensively so a
+ * string amount can't poison arithmetic downstream.
+ */
+function readKpi(value: unknown): Record<string, number> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const out: Record<string, number> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric)) out[key] = numeric;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 function unwrapPaginated<T>(
@@ -41,15 +57,34 @@ function unwrapPaginated<T>(
         : {};
 
     if (Array.isArray(obj.items)) {
+      const items = obj.items as T[];
       return {
-        items: obj.items as T[],
+        items,
         meta: {
-          total: (metaObj.total as number) ?? (obj.total as number) ?? (obj.items as T[]).length,
-          page: (metaObj.page as number) ?? (obj.page as number) ?? 1,
-          limit: (metaObj.limit as number) ?? (obj.limit as number) ?? (obj.items as T[]).length,
-          totalPages: (metaObj.totalPages as number) ?? (obj.totalPages as number) ?? 1,
+          // The API names these `totalItems` / `currentPage` / `perPage` /
+          // `hasPrevPage`; the older aliases are kept as fallbacks.
+          total:
+            (metaObj.totalItems as number) ??
+            (metaObj.total as number) ??
+            (obj.total as number) ??
+            items.length,
+          page:
+            (metaObj.currentPage as number) ??
+            (metaObj.page as number) ??
+            (obj.page as number) ??
+            1,
+          limit:
+            (metaObj.perPage as number) ??
+            (metaObj.limit as number) ??
+            (obj.limit as number) ??
+            items.length,
+          totalPages:
+            (metaObj.totalPages as number) ?? (obj.totalPages as number) ?? 1,
           hasNextPage: metaObj.hasNextPage as boolean | undefined,
-          hasPreviousPage: metaObj.hasPreviousPage as boolean | undefined,
+          hasPreviousPage: (metaObj.hasPrevPage ??
+            metaObj.hasPreviousPage) as boolean | undefined,
+          // `GET /billing/invoices` returns KPI counts alongside the page.
+          kpi: readKpi(metaObj.kpi ?? obj.kpi ?? metaObj.counts),
         },
       };
     }
@@ -83,6 +118,31 @@ export interface InvoiceLineItemDto {
   totalUsd?: number;
 }
 
+/**
+ * Payments and refunds as the billing API returns them. Money arrives as a
+ * decimal string, so callers must `Number()` before arithmetic.
+ */
+export interface InvoicePaymentDto {
+  id: string;
+  status: string;
+  amountUsd: string | number;
+  methodLabel?: string;
+  transactionReference?: string;
+  paidAt?: string;
+  createdAt?: string;
+}
+
+export interface InvoiceRefundDto {
+  id: string;
+  paymentId?: string;
+  status: string;
+  amountUsd: string | number;
+  reason?: string;
+  transactionReference?: string;
+  processedAt?: string;
+  createdAt?: string;
+}
+
 export interface InvoiceDto {
   id: string;
   businessId: string;
@@ -106,14 +166,8 @@ export interface InvoiceDto {
     email: string;
     phone?: string;
   };
-  payments?: Payment[];
-  refunds?: {
-    id: string;
-    paymentId: string;
-    amountUsd: number;
-    reason?: string;
-    createdAt?: string;
-  }[];
+  payments?: InvoicePaymentDto[];
+  refunds?: InvoiceRefundDto[];
   createdAt: string;
   updatedAt?: string;
 }
@@ -224,7 +278,7 @@ export const billingApi = baseApi.injectEndpoints({
         { type: "Invoice", id: "MY_LIST" },
       ],
     }),
-    recordOfflinePayment: builder.mutation<Payment, { id: string; body: RecordOfflinePaymentRequest }>({
+    recordOfflinePayment: builder.mutation<InvoicePaymentDto, { id: string; body: RecordOfflinePaymentRequest }>({
       query: ({ id, body }) => ({
         url: `/billing/invoices/${id}/payments`,
         method: "POST",
@@ -236,7 +290,7 @@ export const billingApi = baseApi.injectEndpoints({
           reference: body.reference || body.transactionReference || "Offline payment",
         },
       }),
-      transformResponse: (response: ApiResponse<Payment> | Payment) => unwrapData(response),
+      transformResponse: (response: unknown) => unwrapData(response as never),
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Invoice", id },
         { type: "Invoice", id: "ADMIN_LIST" },
@@ -244,13 +298,13 @@ export const billingApi = baseApi.injectEndpoints({
         { type: "Payment", id: "LIST" },
       ],
     }),
-    recordInvoiceRefund: builder.mutation<Payment, { id: string; body: RecordRefundRequest }>({
+    recordInvoiceRefund: builder.mutation<InvoiceRefundDto, { id: string; body: RecordRefundRequest }>({
       query: ({ id, body }) => ({
         url: `/billing/invoices/${id}/refunds`,
         method: "POST",
         body,
       }),
-      transformResponse: (response: ApiResponse<Payment> | Payment) => unwrapData(response),
+      transformResponse: (response: unknown) => unwrapData(response as never),
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Invoice", id },
         { type: "Invoice", id: "ADMIN_LIST" },
@@ -311,6 +365,7 @@ export const {
   useGetMyInvoicesQuery,
   useGetInvoiceByIdQuery,
   useGetInvoiceHtmlQuery,
+  useLazyGetInvoiceHtmlQuery,
   useCreateInvoiceMutation,
   useUpdateInvoiceMutation,
   useRecordOfflinePaymentMutation,

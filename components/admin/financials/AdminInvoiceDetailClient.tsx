@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -44,13 +44,13 @@ import {
   useGetInvoiceByIdQuery,
   useRecordOfflinePaymentMutation,
   useRecordInvoiceRefundMutation,
+  useLazyGetInvoiceHtmlQuery,
 } from "@/redux/api/billingApi";
-import { getBillingInvoiceById } from "@/data/mock/shared-billing";
+import { readApiMessage } from "@/lib/api-error";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
   const { data: apiInvoice, isLoading } = useGetInvoiceByIdQuery(invoiceId);
-  const mockInvoice = useMemo(() => getBillingInvoiceById(invoiceId), [invoiceId]);
 
   // Payment Modal State
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
@@ -67,47 +67,23 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
     useRecordOfflinePaymentMutation();
   const [recordRefundMutation, { isLoading: isRecordingRefund }] =
     useRecordInvoiceRefundMutation();
+  const [fetchInvoiceHtml] = useLazyGetInvoiceHtmlQuery();
 
-  const invoice = useMemo(() => {
-    if (apiInvoice) return apiInvoice;
-    if (mockInvoice) {
-      return {
-        id: mockInvoice.id,
-        businessId: mockInvoice.id,
-        orderId: mockInvoice.relatedOrderId,
-        serviceOrderId: mockInvoice.relatedOrderId,
-        customerId: mockInvoice.customerId,
-        type: mockInvoice.type,
-        status: mockInvoice.status.toUpperCase(),
-        subtotalUsd: mockInvoice.totals.subtotalUsd,
-        taxUsd: mockInvoice.totals.taxUsd,
-        discountUsd: mockInvoice.totals.discountUsd,
-        totalUsd: mockInvoice.totals.totalUsd,
-        lineItems: mockInvoice.lineItems.map((li) => ({
-          description: li.label,
-          quantity: li.quantity || 1,
-          unitPriceUsd: li.unitPriceUsd || li.amountUsd,
-          totalUsd: li.amountUsd,
-        })),
-        createdAt: mockInvoice.createdAt,
-        dueDate: mockInvoice.dueDate,
-        paidAt: mockInvoice.paymentStatus === "paid" ? mockInvoice.createdAt : undefined,
-        notes: mockInvoice.description,
-        customer: {
-          id: mockInvoice.customerId,
-          firstName: mockInvoice.customerName.split(" ")[0] || "Valued",
-          lastName: mockInvoice.customerName.split(" ")[1] || "Customer",
-          email: "customer@example.com",
-        },
-      };
+  const invoice = apiInvoice ?? null;
+
+  async function handlePrintHtml() {
+    try {
+      const html = await fetchInvoiceHtml(invoiceId).unwrap();
+      const url = URL.createObjectURL(
+        new Blob([html], { type: "text/html;charset=utf-8" }),
+      );
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast.error("Could not open the printable invoice", {
+        description: readApiMessage(err, "The invoice view is unavailable."),
+      });
     }
-    return null;
-  }, [apiInvoice, mockInvoice]);
-
-  function handlePrintHtml() {
-    const apiBase =
-      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";
-    window.open(`${apiBase}/billing/invoices/${invoiceId}/html`, "_blank");
   }
 
   async function handleRecordPayment(e: React.FormEvent) {

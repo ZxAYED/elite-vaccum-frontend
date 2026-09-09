@@ -45,7 +45,7 @@ export function CartExperience() {
 
           {items.length === 0 ? (
             <StaggerItem>
-              <div className="rounded-[1.5rem] bg-white px-6 py-10 text-center shadow-[0_24px_48px_-38px_rgba(28,79,80,0.38)]">
+              <div className="rounded-[1.5rem]  px-6 py-10 text-center">
                 <p className="text-lg font-semibold text-slate-900">Your cart is empty</p>
                 <p className="mt-2 text-sm text-slate-500">
                   Add compatible accessories or support tools from the store.

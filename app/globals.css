@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@theme {
+  --color-primary: #1c4f50;
+  --color-primary-foreground: #ffffff;
+  --color-brand: #1c4f50;
+  --color-brand-hover: #153d3e;
+  --color-brand-soft: #e8f4f0;
+}
+
 :root {
   --font-poppins: var(--font-poppins);
   --background: #fcfcfb;

@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
-import { mockProductGalleryImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
+import { resolveProductImages } from "@/lib/product-images";
 import { toast } from "sonner";
 import { getCookie } from "@/lib/cookies";
 import { AUTH_TOKEN_KEY } from "@/redux/constants";
@@ -34,19 +34,16 @@ export function ProductDetailExperience({
   const { addProduct } = useCartSync();
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
-  const { data: apiProduct } = useGetProductByIdOrSlugQuery(product.slug || product.id, {
-    skip: !product.id && !product.slug,
+  const productIdentifier = product.sku || product.slug || product.id;
+  const { data: apiProduct } = useGetProductByIdOrSlugQuery(productIdentifier, {
+    skip: !productIdentifier,
   });
   const currentProduct = apiProduct || product;
 
-  const galleryImages = useMemo(() => {
-    if (currentProduct.images && currentProduct.images.length > 0) {
-      return currentProduct.images.map((img: string | { id?: string; url: string }) =>
-        typeof img === "string" ? img : img.url || ""
-      );
-    }
-    return mockProductGalleryImagesById[currentProduct.id] ?? ["/product.png"];
-  }, [currentProduct]);
+  const galleryImages = useMemo(
+    () => resolveProductImages(currentProduct),
+    [currentProduct],
+  );
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -64,7 +61,7 @@ export function ProductDetailExperience({
 
     if (!isAuthenticated && !token) {
       router.push(
-        `/auth/login?redirect=${encodeURIComponent(`/store/${product.slug}`)}`
+        `/auth/login?redirect=${encodeURIComponent(`/store/${productIdentifier}`)}`
       );
       return;
     }
@@ -86,7 +83,7 @@ export function ProductDetailExperience({
             <div className="relative mx-auto aspect-square max-w-[34rem]">
               <Image
                 src={selectedImage}
-                alt={product.imageAlt}
+                alt={product.imageAlt || product.name}
                 fill
                 priority
                 className="object-contain"
@@ -94,12 +91,16 @@ export function ProductDetailExperience({
               />
             </div>
           ) : (
-            <div className="aspect-square rounded-[1.4rem] bg-[linear-gradient(180deg,#eff5f4_0%,#dde9e7_100%)]" />
+            <div className="flex aspect-square items-center justify-center rounded-[1.4rem] bg-[linear-gradient(180deg,#eff5f4_0%,#dde9e7_100%)] text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider">
+                No image available
+              </span>
+            </div>
           )}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {galleryImages.map((galleryImage, index) => (
+          {(galleryImages.length > 1 ? galleryImages : []).map((galleryImage, index) => (
             <Pressable key={`${product.id}-thumb-${index}`} className="w-full">
               <button
                 type="button"
@@ -114,7 +115,7 @@ export function ProductDetailExperience({
                 <div className="relative mx-auto aspect-square max-w-[6.5rem]">
                   <Image
                     src={galleryImage}
-                    alt={`${product.imageAlt} ${index + 1}`}
+                    alt={`${product.imageAlt || product.name} ${index + 1}`}
                     fill
                     className="object-contain"
                     sizes="8rem"
@@ -139,15 +140,17 @@ export function ProductDetailExperience({
         <StaggerGroup className="mt-8 grid gap-3 sm:grid-cols-3" delay={0.06}>
           {productHighlights.slice(0, 3).map((highlight, index) => {
             const Icon = productFeatureIcons[index] ?? ShieldCheck;
+            const text = typeof highlight === "string" ? highlight : highlight?.text || "";
+            const key = typeof highlight === "string" ? highlight : highlight?.id || `highlight-${index}`;
 
             return (
-              <StaggerItem key={highlight}>
+              <StaggerItem key={key}>
                 <div className="rounded-[1.3rem] bg-white/90 p-4 shadow-[0_20px_42px_-34px_rgba(28,79,80,0.26)]">
                   <div className="landing-icon-tile flex size-10 items-center justify-center bg-teal-50 text-teal-700">
                     <Icon size={17} />
                   </div>
                   <p className="mt-4 text-sm font-semibold leading-7 text-slate-900">
-                    {highlight}
+                    {text}
                   </p>
                 </div>
               </StaggerItem>

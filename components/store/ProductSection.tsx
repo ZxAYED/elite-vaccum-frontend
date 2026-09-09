@@ -1,4 +1,3 @@
-import { FadeIn, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import type { Product } from "@/types/domain";
 
 import { Pagination } from "./Pagination";
@@ -24,7 +23,6 @@ export function ProductSection({
   pageSize,
   onSortChange,
   onPageChange,
-  delay = 0,
 }: ProductSectionProps) {
   const startIndex = (currentPage - 1) * pageSize;
   const visibleProducts = products.slice(startIndex, startIndex + pageSize);
@@ -35,10 +33,7 @@ export function ProductSection({
 
   return (
     <section className="mt-10 first:mt-0">
-      <FadeIn
-        className="flex flex-col gap-4 border-b border-teal-100/90 pb-5 md:flex-row md:items-center md:justify-between"
-        delay={delay}
-      >
+      <div className="flex flex-col gap-4 border-b border-teal-100/90 pb-5 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-semibold uppercase tracking-[0.24em] text-[#0f6766]">
             {title}
@@ -48,18 +43,15 @@ export function ProductSection({
         <div className="flex items-center text-sm">
           <StoreSortSelect value={sortValue} onValueChange={onSortChange} />
         </div>
-      </FadeIn>
+      </div>
 
-      <StaggerGroup
-        className="mt-6 grid auto-rows-fr gap-5 md:grid-cols-2 xl:grid-cols-3"
-        delay={delay + 0.04}
-      >
+      <div className="mt-6 grid auto-rows-fr gap-5 md:grid-cols-2 xl:grid-cols-3">
         {visibleProducts.map((product, index) => (
-          <StaggerItem key={product.id}>
+          <div key={product.id} className="h-full">
             <ProductCard product={product} priority={index < 3} />
-          </StaggerItem>
+          </div>
         ))}
-      </StaggerGroup>
+      </div>
 
       <Pagination
         currentPage={currentPage}

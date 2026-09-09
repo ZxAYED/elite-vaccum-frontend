@@ -31,8 +31,6 @@ import {
   StaggerItem,
 } from "@/components/motion/Animated";
 import { Button } from "@/components/ui/Button";
-import { getSharedActivePublicServices } from "@/data/mock/shared-business-store";
-import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { cn } from "@/lib/utils";
 import heroVacuum from "@/public/landing/home/vaccum.png";
 import serviceVanImage from "@/public/landing/service/service.png";
@@ -108,19 +106,29 @@ import {
 } from "@/redux/api/servicesApi";
 
 export function ServicesCatalog() {
-  useSharedBusinessStoreVersion();
-  const { data: apiServicesList } = useGetAllServicesListQuery({ status: "ACTIVE" });
-  const { data: apiServicesGrouped } = useGetServicesQuery();
+  // `GET /services/list/all` (Phase 7.6) is the flat feed; `GET /services`
+  // (Phase 7.1) is the grouped one. Either satisfies this page.
+  const {
+    data: apiServicesList,
+    isLoading: isLoadingList,
+    isError: isListError,
+  } = useGetAllServicesListQuery({ status: "ACTIVE" });
+  const {
+    data: apiServicesGrouped,
+    isLoading: isLoadingGrouped,
+    isError: isGroupedError,
+  } = useGetServicesQuery();
   const [activeGroup, setActiveGroup] =
     useState<PublicServiceGroup>("Service & Maintenance");
+
+  const isLoadingServices = isLoadingList || isLoadingGrouped;
+  const hasServicesError = isListError && isGroupedError;
 
   const servicesByGroup = useMemo(() => {
     const rawServices =
       apiServicesList && apiServicesList.length > 0
         ? apiServicesList
-        : apiServicesGrouped && apiServicesGrouped.length > 0
-          ? apiServicesGrouped
-          : getSharedActivePublicServices();
+        : (apiServicesGrouped ?? []);
 
     const isMaintenance = (group?: string) => {
       if (!group) return true;
@@ -233,6 +241,44 @@ export function ServicesCatalog() {
           </div>
         </FadeIn>
 
+        {isLoadingServices ? (
+          <div
+            className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+            aria-busy
+          >
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-60 animate-pulse rounded-[0.2rem] border border-teal-100 bg-teal-50/50"
+              />
+            ))}
+            <span className="sr-only">Loading services</span>
+          </div>
+        ) : hasServicesError ? (
+          <div className="mt-10 rounded-[0.2rem] border border-dashed border-teal-200 bg-teal-50/40 p-10 text-center">
+            <p className="text-lg font-semibold text-slate-900">
+              Our service catalog is temporarily unavailable
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Please try again shortly, or contact us and we&apos;ll take your
+              request directly.
+            </p>
+            <Pressable className="mt-6">
+              <Button asChild size="pill" variant="outline">
+                <Link href="/contact">Contact us</Link>
+              </Button>
+            </Pressable>
+          </div>
+        ) : visibleServices.length === 0 ? (
+          <div className="mt-10 rounded-[0.2rem] border border-dashed border-teal-200 bg-teal-50/40 p-10 text-center">
+            <p className="text-lg font-semibold text-slate-900">
+              No {activeGroup.toLowerCase()} services published yet
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Check the other category, or contact us about what you need.
+            </p>
+          </div>
+        ) : (
         <StaggerGroup
           key={activeGroup}
           className="mt-10 overflow-hidden rounded-[0.2rem] border border-teal-100 bg-[linear-gradient(180deg,#ffffff_0%,#f4fbfa_100%)] grid sm:grid-cols-2 lg:grid-cols-3"
@@ -273,6 +319,7 @@ export function ServicesCatalog() {
             );
           })}
         </StaggerGroup>
+        )}
       </section>
 
       <section className="mx-auto max-w-360 px-4 py-18 sm:px-6 lg:px-8">

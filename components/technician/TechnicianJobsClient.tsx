@@ -9,24 +9,22 @@ import {
   AdminSurface,
   TechnicianRouteShell,
 } from "@/components/technician/TechnicianRouteShell";
-import { buildTechnicianAddressLabel } from "@/components/technician/technician-utils";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
 import {
-  getTechnicianCustomerLabel,
-  getTechnicianJobCounts,
-  getTechnicianJobsByFilter,
-  getTechnicianOrderPhone,
-  type TechnicianJobFilter,
-} from "@/data/mock/technician-dashboard";
-import { useGetMyAssignedJobsQuery } from "@/redux/api/technicianApi";
+  useGetMyAssignedJobsQuery,
+  type GetTechnicianJobsParams,
+} from "@/redux/api/technicianApi";
 
-const filters: Array<{ label: string; value: TechnicianJobFilter; apiTab: "today" | "upcoming" | "in_progress" | "completed" | "all" }> = [
-  { label: "Today", value: "today", apiTab: "today" },
-  { label: "Upcoming", value: "upcoming", apiTab: "upcoming" },
-  { label: "In Progress", value: "in-progress", apiTab: "in_progress" },
-  { label: "Completed", value: "completed", apiTab: "completed" },
+type JobTab = NonNullable<GetTechnicianJobsParams["tab"]>;
+
+const filters: Array<{ label: string; value: JobTab }> = [
+  { label: "Today", value: "today" },
+  { label: "Upcoming", value: "upcoming" },
+  { label: "In Progress", value: "in_progress" },
+  { label: "Completed", value: "completed" },
+  { label: "All", value: "all" },
 ];
 
 function CompactCount({ label, value }: { label: string; value: number }) {
@@ -39,84 +37,55 @@ function CompactCount({ label, value }: { label: string; value: number }) {
 }
 
 export function TechnicianJobsClient() {
-  const [activeFilter, setActiveFilter] = useState<TechnicianJobFilter>("today");
+  const [activeFilter, setActiveFilter] = useState<JobTab>("today");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const activeApiTab = useMemo(() => {
-    const item = filters.find((f) => f.value === activeFilter);
-    return item ? item.apiTab : "all";
-  }, [activeFilter]);
-
-  const { data: apiJobsData, isLoading } = useGetMyAssignedJobsQuery({
-    tab: activeApiTab,
+  // Phase 17.2 `GET /technicians/me/jobs?tab=...`
+  const {
+    data: jobsData,
+    isLoading,
+    isError,
+  } = useGetMyAssignedJobsQuery({
+    tab: activeFilter,
     page: 1,
     limit: 50,
   });
 
-  const mockCounts = getTechnicianJobCounts();
-  const mockAllJobs = getTechnicianJobsByFilter(activeFilter);
-
-  const counts = useMemo(() => {
-    if (apiJobsData?.counts) {
-      return {
-        today: apiJobsData.counts.today,
-        upcoming: apiJobsData.counts.upcoming,
-        active: apiJobsData.counts.active,
-        completed: apiJobsData.counts.completed,
-      };
-    }
-    return mockCounts;
-  }, [apiJobsData, mockCounts]);
+  const counts = {
+    today: jobsData?.counts?.today ?? 0,
+    upcoming: jobsData?.counts?.upcoming ?? 0,
+    active: jobsData?.counts?.active ?? 0,
+    completed: jobsData?.counts?.completed ?? 0,
+  };
 
   const jobs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    if (apiJobsData?.items && apiJobsData.items.length > 0) {
-      return apiJobsData.items
-        .map((item) => ({
-          id: item.businessId || item.id,
-          serviceName: item.service?.name || "Central Vacuum Service",
-          status: item.status.toLowerCase(),
-          customerLabel: item.customer?.displayName || "Customer",
-          customerPhone: item.customer?.phone || "",
-          addressLabel: item.propertyAddress || "Customer Property",
-          scheduleLabel: item.timeWindow || "Scheduled Appointment",
-          etaMinutes: item.etaMinutes,
-          symptoms: item.symptoms || [],
-        }))
-        .filter((job) => {
-          if (!query) return true;
-          return (
-            job.id.toLowerCase().includes(query) ||
-            job.serviceName.toLowerCase().includes(query) ||
-            job.customerLabel.toLowerCase().includes(query) ||
-            job.addressLabel.toLowerCase().includes(query)
-          );
-        });
-    }
-
-    return mockAllJobs
-      .map((order) => ({
-        id: order.id,
-        serviceName: order.serviceName,
-        status: order.status,
-        customerLabel: getTechnicianCustomerLabel(order),
-        customerPhone: getTechnicianOrderPhone(order),
-        addressLabel: buildTechnicianAddressLabel(order),
-        scheduleLabel: order.currentSchedule.label,
-        etaMinutes: order.technicianEta?.minutes,
-        symptoms: order.problemSummary ? [order.problemSummary] : undefined,
+    return (jobsData?.items ?? [])
+      .map((item) => ({
+        // The detail route resolves by service order id; `businessId` is the
+        // human-readable reference shown on the card.
+        id: item.id,
+        reference: item.businessId || item.id,
+        serviceName: item.service?.name || "Central Vacuum Service",
+        status: item.status?.toLowerCase() ?? "scheduled",
+        customerLabel: item.customer?.displayName || "Customer",
+        customerPhone: item.customer?.phone || "",
+        addressLabel: item.propertyAddress || "Customer Property",
+        scheduleLabel: item.timeWindow || "Scheduled Appointment",
+        etaMinutes: item.etaMinutes,
+        symptoms: item.symptoms ?? [],
       }))
       .filter((job) => {
         if (!query) return true;
         return (
-          job.id.toLowerCase().includes(query) ||
+          job.reference.toLowerCase().includes(query) ||
           job.serviceName.toLowerCase().includes(query) ||
           job.customerLabel.toLowerCase().includes(query) ||
           job.addressLabel.toLowerCase().includes(query)
         );
       });
-  }, [apiJobsData, mockAllJobs, searchQuery]);
+  }, [jobsData?.items, searchQuery]);
 
   return (
     <TechnicianRouteShell
@@ -173,10 +142,28 @@ export function TechnicianJobsClient() {
           </div>
         </div>
 
-        {jobs.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-3 pt-2" aria-busy>
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-40 animate-pulse rounded-xl bg-slate-100"
+              />
+            ))}
+            <span className="sr-only">Loading assigned jobs</span>
+          </div>
+        ) : isError ? (
           <EmptyState
             icon={CalendarDays}
-            title={isLoading ? "Loading jobs..." : "No jobs match your filter"}
+            title="We couldn't load your jobs"
+            description="Your assignment queue is temporarily unavailable. Please refresh in a moment or contact dispatch."
+            tone="dashed"
+            className="py-12"
+          />
+        ) : jobs.length === 0 ? (
+          <EmptyState
+            icon={CalendarDays}
+            title="No jobs match your filter"
             description={
               searchQuery
                 ? "Try searching with a different customer name, order number, or address."
@@ -197,7 +184,7 @@ export function TechnicianJobsClient() {
                     <div className="flex flex-wrap items-center gap-2">
                       <StatusBadge status={job.status} />
                       <span className="text-sm font-medium text-slate-500">
-                        {job.id}
+                        {job.reference}
                       </span>
                       {job.etaMinutes ? (
                         <span className="rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-semibold text-teal-800">

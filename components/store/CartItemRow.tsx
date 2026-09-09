@@ -3,9 +3,9 @@
 import { Trash2 } from "lucide-react";
 import Image from "next/image";
 
-import { mockProductImagesById } from "@/data/mock/product-images";
 import { formatCurrencyUsd } from "@/lib/formatters";
-import type { CartProduct } from "@/data/mock/customer-portal";
+import { resolveProductImage } from "@/lib/product-images";
+import type { CartProduct } from "@/types/domain";
 
 import { QuantityControl } from "./QuantityControl";
 
@@ -24,7 +24,7 @@ export function CartItemRow({
   onRemove,
   compact = false,
 }: CartItemRowProps) {
-  const productImage = mockProductImagesById[item.product.id];
+  const productImage = resolveProductImage(item.product);
   const total = item.quantity * item.product.priceUsd;
 
   return (
@@ -40,8 +40,9 @@ export function CartItemRow({
               <div className="relative size-full">
                 <Image
                   src={productImage}
-                  alt={item.product.imageAlt}
+                  alt={item.product.imageAlt || item.product.name}
                   fill
+                  quality={100}
                   className="object-contain"
                   sizes="6rem"
                 />
@@ -50,11 +51,13 @@ export function CartItemRow({
           </div>
 
           <div className="min-w-0">
-            <h2 className={`${compact ? "text-lg" : "text-xl"} font-semibold text-slate-950`}>
+            <h2 className={`text-sm  text-slate-950`}>
               {item.product.name}
             </h2>
-            <p className="mt-1 text-sm text-slate-500">{item.product.summary}</p>
-            <div className="mt-4">
+            {!compact ? (
+              <p className="mt-1 text-sm text-slate-500">{item.product.summary}</p>
+            ) : null} 
+            <div className={compact ? "mt-2" : "mt-4"}>
               <QuantityControl
                 quantity={item.quantity}
                 onDecrease={onDecrease}

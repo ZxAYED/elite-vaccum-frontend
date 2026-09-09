@@ -17,13 +17,6 @@ import {
   useUploadTechnicianPhotoMutation,
   useRemoveTechnicianPhotoMutation,
 } from "@/redux/api/technicianApi";
-import {
-  getCurrentTechnicianProfile,
-  getTechnicianJobsThisMonth,
-  getTechnicianUpcomingOrders,
-  updateCurrentTechnicianProfile,
-} from "@/data/mock/technician-dashboard";
-import { useSharedAdminScheduleStateVersion } from "@/hooks/useSharedAdminScheduleStateVersion";
 
 const ACCEPTED_IMAGE_TYPES = [
   "image/jpeg",
@@ -33,29 +26,43 @@ const ACCEPTED_IMAGE_TYPES = [
 ];
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
+/** `ON_BREAK` -> "On break". */
+function humanizeAvailability(value?: string) {
+  if (!value) return "—";
+  const spaced = value.replace(/_/g, " ").toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 export default function TechnicianProfilePage() {
-  useSharedAdminScheduleStateVersion();
-  const technician = getCurrentTechnicianProfile();
-  const { data: apiProfile } = useGetTechnicianProfileQuery();
+  // Phase 17.4 GET /technicians/me/profile
+  const { data: technician } = useGetTechnicianProfileQuery();
   const [updateProfileApi, { isLoading: isUpdatingProfile }] =
     useUpdateTechnicianProfileMutation();
   const [uploadPhotoApi] = useUploadTechnicianPhotoMutation();
   const [removePhotoApi, { isLoading: isRemovingPhoto }] =
     useRemoveTechnicianPhotoMutation();
 
-  const jobsThisMonth = apiProfile?.stats?.jobsThisMonth ?? getTechnicianJobsThisMonth();
-  const upcomingAssignments =
-    apiProfile?.stats?.upcomingAssignments ?? getTechnicianUpcomingOrders().length;
+  const completedJobs =
+    technician?.stats?.completedJobs ?? technician?.completedJobs ?? 0;
+  const jobsThisMonth = technician?.stats?.jobsThisMonth ?? 0;
+  const upcomingAssignments = technician?.stats?.upcomingAssignments ?? 0;
 
   const [editMode, setEditMode] = useState(false);
-  const [fullName, setFullName] = useState(apiProfile?.displayName ?? technician.displayName);
-  const [phone, setPhone] = useState(apiProfile?.phone ?? technician.phone);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    apiProfile?.avatarUrl ?? null,
-  );
+  // Draft overlay: null until the technician edits a field, so the server
+  // value stays authoritative without seeding state from an effect.
+  const [draft, setDraft] = useState<{ fullName: string; phone: string } | null>(null);
+  const [localAvatar, setLocalAvatar] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState("");
 
-  const activeName = apiProfile?.displayName ?? technician.displayName;
+  const fullName = draft?.fullName ?? technician?.displayName ?? "";
+  const phone = draft?.phone ?? technician?.phone ?? "";
+  const avatarPreview = localAvatar ?? technician?.avatarUrl ?? null;
+
+  const setFullName = (value: string) =>
+    setDraft({ fullName: value, phone });
+  const setPhone = (value: string) => setDraft({ fullName, phone: value });
+
+  const activeName = technician?.displayName ?? "";
   const initials = activeName
     .split(" ")
     .map((part) => part[0])
@@ -63,13 +70,12 @@ export default function TechnicianProfilePage() {
     .slice(0, 2)
     .toUpperCase();
 
+  // Release the last object URL when the page unmounts.
   useEffect(() => {
     return () => {
-      if (avatarPreview && avatarPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(avatarPreview);
-      }
+      if (localAvatar?.startsWith("blob:")) URL.revokeObjectURL(localAvatar);
     };
-  }, [avatarPreview]);
+  }, [localAvatar]);
 
   async function handlePhotoChange(file: File | null) {
     if (!file) return;
@@ -84,11 +90,9 @@ export default function TechnicianProfilePage() {
       return;
     }
 
-    if (avatarPreview && avatarPreview.startsWith("blob:")) {
-      URL.revokeObjectURL(avatarPreview);
-    }
+    if (localAvatar?.startsWith("blob:")) URL.revokeObjectURL(localAvatar);
 
-    setAvatarPreview(URL.createObjectURL(file));
+    setLocalAvatar(URL.createObjectURL(file));
     setAvatarError("");
 
     const formData = new FormData();
@@ -98,40 +102,34 @@ export default function TechnicianProfilePage() {
       await uploadPhotoApi(formData).unwrap();
       toast.success("Profile photo uploaded.");
     } catch {
-      toast.info("Photo updated locally.");
+      setLocalAvatar(null);
+      toast.error("Could not upload the photo. Please try again.");
     }
   }
 
   async function handleRemovePhoto() {
-    if (avatarPreview && avatarPreview.startsWith("blob:")) {
-      URL.revokeObjectURL(avatarPreview);
-    }
-    setAvatarPreview(null);
+    if (localAvatar?.startsWith("blob:")) URL.revokeObjectURL(localAvatar);
+    setLocalAvatar(null);
     try {
       await removePhotoApi().unwrap();
       toast.success("Profile photo removed.");
     } catch {
-      toast.info("Photo removed locally.");
+      toast.error("Could not remove the photo. Please try again.");
     }
   }
 
   async function handleSaveProfile() {
-    updateCurrentTechnicianProfile({
-      displayName: fullName.trim(),
-      phone: phone.trim(),
-    });
-
     try {
+      // Phase 17.4 PATCH /technicians/me/profile
       await updateProfileApi({
         displayName: fullName.trim(),
         phone: phone.trim(),
       }).unwrap();
       toast.success("Profile details updated.");
+      setEditMode(false);
     } catch {
-      toast.info("Profile updated locally.");
+      toast.error("Could not save your profile. Please try again.");
     }
-
-    setEditMode(false);
   }
 
   return (
@@ -148,7 +146,7 @@ export default function TechnicianProfilePage() {
                 {avatarPreview ? (
                   <Image
                     src={avatarPreview}
-                    alt={`${technician.displayName} profile preview`}
+                    alt={`${activeName || "Technician"} profile preview`}
                     width={112}
                     height={112}
                     className="size-full object-cover"
@@ -173,7 +171,7 @@ export default function TechnicianProfilePage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-2xl font-semibold text-slate-950">
-                    {technician.displayName}
+                    {technician?.displayName ?? ""}
                   </h2>
                   <p className="mt-1 text-sm text-slate-500">Field Technician</p>
                 </div>
@@ -188,19 +186,15 @@ export default function TechnicianProfilePage() {
               <div className="mt-5 grid gap-3">
                 <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   <Mail size={16} className="text-teal-700" />
-                  {technician.email}
+                  {technician?.email ?? "—"}
                 </div>
                 <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   <Phone size={16} className="text-teal-700" />
-                  {technician.phone}
+                  {technician?.phone ?? "—"}
                 </div>
                 <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                   <Wrench size={16} className="text-teal-700" />
-                  {technician.availability === "OFF_DUTY"
-                    ? "Off Duty"
-                    : technician.availability === "BUSY"
-                      ? "Busy"
-                      : "Available"}
+                  {humanizeAvailability(technician?.availability)}
                 </div>
               </div>
 
@@ -261,7 +255,7 @@ export default function TechnicianProfilePage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <SummaryCard label="Completed Jobs" value={technician.completedJobs} />
+            <SummaryCard label="Completed Jobs" value={completedJobs} />
             <SummaryCard label="Jobs This Month" value={jobsThisMonth} />
             <SummaryCard label="Upcoming Assignments" value={upcomingAssignments} />
           </div>
@@ -269,7 +263,7 @@ export default function TechnicianProfilePage() {
           <div className="mt-6">
             <h3 className="text-lg font-semibold text-slate-950">Specializations</h3>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {technician.specializations.map((item) => (
+              {(technician?.specializations ?? []).map((item) => (
                 <div
                   key={item}
                   className="rounded-xl bg-slate-50 px-4 py-4 text-sm font-medium text-slate-700"

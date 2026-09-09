@@ -12,6 +12,7 @@ export interface GetProductsParams {
   maxPrice?: number;
   brand?: string;
   isFeatured?: boolean;
+  taxable?: boolean;
   availability?:
     | "IN_STOCK"
     | "LOW_STOCK"
@@ -20,7 +21,9 @@ export interface GetProductsParams {
     | "BACKORDER"
     | "DISCONTINUED"
     | "in-stock"
+    | "in_stock"
     | "special-order"
+    | "special_order"
     | "all";
   sortBy?:
     | "featured"
@@ -29,20 +32,54 @@ export interface GetProductsParams {
     | "price_desc"
     | "newest"
     | "name_asc"
-    | "name_desc";
+    | "name_desc"
+    | "createdAt";
   sort?: string;
+  sortOrder?: "asc" | "desc";
   status?: string;
   page?: number;
   limit?: number;
 }
 
 export interface UpdateStockRequest {
-  stock: number;
+  quantity: number;
+  availability?:
+    | "IN_STOCK"
+    | "LOW_STOCK"
+    | "OUT_OF_STOCK"
+    | "BACKORDER"
+    | "PREORDER"
+    | "DISCONTINUED"
+    | string;
 }
 
 export interface UpdateStatusRequest {
-  status: string;
-  availability?: string;
+  status: "ACTIVE" | "DRAFT" | "ARCHIVED" | string;
+  availability?:
+    | "IN_STOCK"
+    | "LOW_STOCK"
+    | "OUT_OF_STOCK"
+    | "BACKORDER"
+    | "PREORDER"
+    | "DISCONTINUED"
+    | string;
+}
+
+function normalizeProduct(rawItem: unknown): Product {
+  const item = (rawItem && typeof rawItem === "object" ? rawItem : {}) as Record<string, unknown>;
+  const rawPrice = item.priceUsd ?? item.price;
+  const priceUsd =
+    typeof rawPrice === "number"
+      ? rawPrice
+      : typeof rawPrice === "string"
+        ? parseFloat(rawPrice) || 0
+        : 0;
+
+  return {
+    ...(item as unknown as Product),
+    priceUsd,
+    imageAlt: (item.imageAlt as string) || (item.name as string) || "Product image",
+  };
 }
 
 function unwrapProductsResponse(raw: unknown): PaginatedResponse<Product> {
@@ -53,13 +90,13 @@ function unwrapProductsResponse(raw: unknown): PaginatedResponse<Product> {
   const payload = raw as Record<string, unknown>;
   const data = (payload.data && typeof payload.data === "object" ? payload.data : payload) as Record<string, unknown>;
 
-  let items: Product[] = [];
+  let items: unknown[] = [];
   if (Array.isArray(data)) {
-    items = data as Product[];
+    items = data;
   } else if (Array.isArray(data.items)) {
-    items = data.items as Product[];
+    items = data.items;
   } else if (Array.isArray(payload.items)) {
-    items = payload.items as Product[];
+    items = payload.items;
   }
 
   const rawMeta = (data.meta || payload.meta) as Record<string, unknown> | undefined;
@@ -70,14 +107,14 @@ function unwrapProductsResponse(raw: unknown): PaginatedResponse<Product> {
     totalPages: Number(rawMeta?.totalPages ?? 1),
   };
 
-  return { items, meta };
+  return { items: items.map(normalizeProduct), meta };
 }
 
 function unwrapSingleProduct(raw: unknown): Product {
   if (raw && typeof raw === "object" && "data" in raw && raw.data) {
-    return raw.data as Product;
+    return normalizeProduct(raw.data);
   }
-  return raw as Product;
+  return normalizeProduct(raw);
 }
 
 export const productsApi = baseApi.injectEndpoints({
@@ -85,25 +122,49 @@ export const productsApi = baseApi.injectEndpoints({
     getProducts: builder.query<PaginatedResponse<Product>, GetProductsParams | void>({
       query: (params) => {
         if (!params) return { url: "/products" };
-        const queryParams: Record<string, unknown> = { ...params };
-        if (params.categorySlug || params.categoryId) {
-          queryParams.category = params.category || params.categorySlug || params.categoryId;
+        const queryParams: Record<string, unknown> = {};
+
+        if (params.page !== undefined) queryParams.page = params.page;
+        if (params.limit !== undefined) queryParams.limit = params.limit;
+        if (params.search?.trim()) queryParams.search = params.search.trim();
+
+        if (params.category) queryParams.category = params.category;
+        if (params.categoryId) queryParams.categoryId = params.categoryId;
+        if (params.categorySlug) queryParams.categorySlug = params.categorySlug;
+
+        if (params.status) queryParams.status = params.status;
+        if (params.isFeatured !== undefined) queryParams.isFeatured = params.isFeatured;
+        if (params.taxable !== undefined) queryParams.taxable = params.taxable;
+
+        if (params.availability && params.availability !== "all") {
+          // Normalize in-stock / in_stock to match API requirements
+          const avail = params.availability.toLowerCase();
+          if (avail === "in-stock" || avail === "in_stock") {
+            queryParams.availability = "in_stock";
+          } else if (avail === "special-order" || avail === "special_order") {
+            queryParams.availability = "special_order";
+          } else {
+            queryParams.availability = params.availability;
+          }
         }
-        if (params.sort && !params.sortBy) {
-          const sortMap: Record<string, GetProductsParams["sortBy"]> = {
-            "price-low-high": "price_asc",
-            "price-high-low": "price_desc",
-            newest: "newest",
-            popularity: "popularity",
-          };
-          queryParams.sortBy = sortMap[params.sort] || (params.sort as GetProductsParams["sortBy"]);
+
+        if (params.priceRange && params.priceRange !== "all") {
+          queryParams.priceRange = params.priceRange;
         }
+        if (params.minPrice !== undefined) queryParams.minPrice = params.minPrice;
+        if (params.maxPrice !== undefined) queryParams.maxPrice = params.maxPrice;
+
+        if (params.sort) queryParams.sort = params.sort;
+        if (params.sortBy) queryParams.sortBy = params.sortBy;
+        if (params.sortOrder) queryParams.sortOrder = params.sortOrder;
+
         return {
           url: "/products",
           params: queryParams,
         };
       },
       transformResponse: unwrapProductsResponse,
+      keepUnusedDataFor: 300,
       providesTags: (result) =>
         result
           ? [
@@ -115,6 +176,7 @@ export const productsApi = baseApi.injectEndpoints({
     getProductByIdOrSlug: builder.query<Product, string>({
       query: (idOrSlug) => `/products/${idOrSlug}`,
       transformResponse: unwrapSingleProduct,
+      keepUnusedDataFor: 300,
       providesTags: (result) =>
         result ? [{ type: "Product", id: result.id }] : [{ type: "Product", id: "LIST" }],
     }),
@@ -189,6 +251,18 @@ export const productsApi = baseApi.injectEndpoints({
         { type: "Product", id: "ADMIN_LIST" },
       ],
     }),
+    uploadProductImages: builder.mutation<Product, { id: string; formData: FormData }>({
+      query: ({ id, formData }) => ({
+        url: `/products/${id}/images`,
+        method: "POST",
+        body: formData,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Product", id },
+        { type: "Product", id: "LIST" },
+        { type: "Product", id: "ADMIN_LIST" },
+      ],
+    }),
     deleteProductImages: builder.mutation<{ success: boolean }, { id: string; imageIds: string[] }>({
       query: ({ id, imageIds }) => ({
         url: `/products/${id}/images`,
@@ -242,6 +316,7 @@ export const {
   useUpdateProductMutation,
   useUpdateProductStockMutation,
   useUpdateProductStatusMutation,
+  useUploadProductImagesMutation,
   useDeleteProductMutation,
   useDeleteProductImagesMutation,
   useDeleteProductImageMutation,

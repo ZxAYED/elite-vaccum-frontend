@@ -23,6 +23,8 @@ export interface TechnicianJobItemDto {
   scheduledDate?: string;
   totalAmountUsd?: string;
   completedAt?: string;
+  /** Present once the technician has published a live ETA (Phase 17.6). */
+  etaMinutes?: number;
 }
 
 export interface TechnicianOverviewDto {

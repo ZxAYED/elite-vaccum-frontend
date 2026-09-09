@@ -148,7 +148,7 @@ export function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
-      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-0">
         <Link
           href="/"
           className="flex items-center gap-2 font-bold text-xl text-primary"

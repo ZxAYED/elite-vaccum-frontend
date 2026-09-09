@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -11,7 +10,6 @@ import { inputClassName } from "@/components/forms/formStyles";
 import { Button } from "@/components/ui/Button";
 import { useSchemaForm, type FormSubmissionState } from "@/lib/use-schema-form";
 import { registerSchema } from "@/lib/validation";
-import google from "@/public/common/google.png";
 import { toast } from "sonner";
 import {
   useSignupMutation,
@@ -28,9 +26,6 @@ export function RegisterForm() {
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [otpStatus, setOtpStatus] = useState<FormSubmissionState>({
-    type: "idle",
-  });
-  const [googleStatus, setGoogleStatus] = useState<FormSubmissionState>({
     type: "idle",
   });
 
@@ -242,9 +237,7 @@ export function RegisterForm() {
 
   return (
     <form className="space-y-5" noValidate onSubmit={form.handleSubmit}>
-      <FormStatus
-        status={googleStatus.type === "idle" ? form.status : googleStatus}
-      />
+      <FormStatus status={form.status} />
 
       <FormField
         error={form.errors.fullName}
@@ -349,22 +342,6 @@ export function RegisterForm() {
         type="submit"
       >
         {isSubmitting ? "Creating Account..." : "Create Account"}
-      </Button>
-
-      <Button
-        className="w-full rounded-[var(--radius-control)] py-6 text-base"
-        onClick={() =>
-          setGoogleStatus({
-            type: "ready",
-            message:
-              "Google registration is ready for OAuth wiring. Connect the auth provider to complete account creation.",
-          })
-        }
-        type="button"
-        variant="outline"
-      >
-        <Image alt="" className="h-5 w-5" src={google} />
-        Continue with Google
       </Button>
 
       <p className="text-center text-sm text-slate-600">

@@ -16,13 +16,56 @@ import {
   useRemoveCartItemMutation,
   useClearServerCartMutation,
 } from "@/redux/api/cartApi";
+import { baseApi } from "@/redux/api/baseApi";
 import { calculateCartTotals } from "@/lib/store";
-import type { CartProduct } from "@/data/mock/customer-portal";
-import type { Product } from "@/types/domain";
+import type { CartItemDto } from "@/redux/api/cartApi";
+import type { CartProduct, Product } from "@/types/domain";
+
+/**
+ * The cart endpoint documents flat item fields (`name`, `priceUsd`, `imageUrl`),
+ * but responses can also nest them under `product`. Read both shapes so a
+ * hydrated cart never renders as a nameless $0 row.
+ */
+function toCartProduct(serverItem: CartItemDto): CartProduct {
+  const nested = (serverItem as CartItemDto & { product?: Record<string, unknown> })
+    .product;
+  const pick = <T,>(flat: T | undefined, key: string): T | undefined =>
+    flat !== undefined && flat !== null && flat !== ""
+      ? flat
+      : (nested?.[key] as T | undefined);
+
+  const productId =
+    pick(serverItem.productId, "id") ?? (nested?.id as string | undefined) ?? "";
+  const name = pick(serverItem.name, "name") ?? "";
+  const sku = pick(serverItem.sku, "sku");
+  const rawPrice = pick<string | number>(serverItem.priceUsd, "priceUsd");
+  const priceUsd = Number(rawPrice);
+  const imageUrl = pick(serverItem.imageUrl, "primaryImageUrl");
+
+  return {
+    productId,
+    quantity: Number(serverItem.quantity) || 1,
+    product: {
+      id: productId,
+      name,
+      slug: sku ? sku.toLowerCase() : productId,
+      sku,
+      priceUsd: Number.isFinite(priceUsd) ? priceUsd : 0,
+      status: "active",
+      availability: serverItem.isAvailable === false ? "out-of-stock" : "in-stock",
+      images: imageUrl ? [imageUrl] : undefined,
+      imageAlt: name,
+      summary: "",
+      description: "",
+      isFeatured: false,
+    } as unknown as Product,
+  };
+}
 
 export function useCartSync() {
   const dispatch = useAppDispatch();
   const items = useAppSelector((state) => state.cart.items);
+  const clearedAt = useAppSelector((state) => state.cart.clearedAt);
   const { isAuthenticated } = useAppSelector((state) => state.auth);
 
   const { data: serverCart } = useGetActiveCartQuery(undefined, {
@@ -47,33 +90,17 @@ export function useCartSync() {
     if (
       isAuthenticated &&
       !hasHydratedFromServer.current &&
+      // The cart was emptied in this session; a server response that still
+      // lists the old items is stale and must not be hydrated back in.
+      clearedAt === null &&
       items.length === 0 &&
       serverCart?.items &&
       serverCart.items.length > 0
     ) {
       hasHydratedFromServer.current = true;
-      const hydratedItems: CartProduct[] = serverCart.items.map((si) => ({
-        productId: si.productId,
-        quantity: si.quantity,
-        product: {
-          id: si.productId,
-          name: si.name,
-          slug: si.sku ? si.sku.toLowerCase() : si.productId,
-          sku: si.sku,
-          priceUsd: Number(si.priceUsd) || 0,
-          status: "active",
-          availability: si.isAvailable ? "in-stock" : "out-of-stock",
-          primaryImageUrl: si.imageUrl,
-          imageAlt: si.name,
-          summary: "",
-          isFeatured: false,
-          rating: 5,
-          reviewCount: 0,
-        } as unknown as Product,
-      }));
-      dispatch(setCartItems(hydratedItems));
+      dispatch(setCartItems(serverCart.items.map(toCartProduct)));
     }
-  }, [isAuthenticated, items.length, serverCart?.items, dispatch]);
+  }, [isAuthenticated, clearedAt, items.length, serverCart?.items, dispatch]);
 
   const totals = useMemo(() => calculateCartTotals(items), [items]);
 
@@ -190,8 +217,13 @@ export function useCartSync() {
       try {
         await clearServerCartApi().unwrap();
       } catch {
-        // Graceful fallback
+        // Graceful fallback — e.g. the backend already consumed the cart while
+        // creating the order, so DELETE /store/cart reports nothing to clear.
       }
+      // Drop the cached cart either way. `invalidatesTags` only fires on a
+      // successful mutation, which would otherwise leave every consumer of
+      // `getActiveCart` (badge, checkout summary) reading the pre-order cart.
+      dispatch(baseApi.util.invalidateTags(["Cart"]));
     }
   }, [dispatch, isAuthenticated, clearServerCartApi]);
 

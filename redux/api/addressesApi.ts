@@ -51,11 +51,16 @@ function normalizeAddress(raw: unknown): DeliveryAddressDto {
 function normalizeAddressList(raw: unknown): DeliveryAddressDto[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(normalizeAddress);
-  if (typeof raw === "object" && "items" in raw && Array.isArray((raw as { items: unknown[] }).items)) {
-    return (raw as { items: unknown[] }).items.map(normalizeAddress);
-  }
-  if (typeof raw === "object" && "data" in raw && Array.isArray((raw as { data: unknown[] }).data)) {
-    return (raw as { data: unknown[] }).data.map(normalizeAddress);
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    if (Array.isArray(obj.items)) return obj.items.map(normalizeAddress);
+    if (Array.isArray(obj.addresses)) return obj.addresses.map(normalizeAddress);
+    if (Array.isArray(obj.data)) return obj.data.map(normalizeAddress);
+    if (obj.data && typeof obj.data === "object") {
+      const inner = obj.data as Record<string, unknown>;
+      if (Array.isArray(inner.items)) return inner.items.map(normalizeAddress);
+      if (Array.isArray(inner.addresses)) return inner.addresses.map(normalizeAddress);
+    }
   }
   return [];
 }
@@ -75,18 +80,19 @@ export const addressesApi = baseApi.injectEndpoints({
     }),
     createAddress: builder.mutation<DeliveryAddressDto, CreateAddressDto>({
       query: (body) => {
-        const payload = {
+        const payload: Record<string, unknown> = {
           label: body.label || body.fullName || "Delivery Address",
-          line1: body.line1 || body.street,
-          line2: body.line2 || body.apartment || undefined,
+          line1: body.line1 || body.street || "",
           city: body.city,
           state: body.state,
-          postalCode: body.postalCode || body.zipCode,
+          postalCode: body.postalCode || body.zipCode || "",
           country: body.country || "USA",
-          isDefault: body.isDefault ?? false,
-          phone: body.phone,
-          fullName: body.fullName,
+          isDefault: Boolean(body.isDefault),
         };
+        const line2 = body.line2 || body.apartment;
+        if (line2 && line2.trim()) {
+          payload.line2 = line2.trim();
+        }
         return {
           url: "/store/addresses",
           method: "POST",
@@ -98,13 +104,32 @@ export const addressesApi = baseApi.injectEndpoints({
     }),
     updateAddress: builder.mutation<
       DeliveryAddressDto,
-      { id: string; data: Partial<DeliveryAddressDto> }
+      { id: string; data: Partial<CreateAddressDto> }
     >({
-      query: ({ id, data }) => ({
-        url: `/store/addresses/${id}`,
-        method: "PATCH",
-        body: data,
-      }),
+      query: ({ id, data }) => {
+        const payload: Record<string, unknown> = {};
+        if (data.label !== undefined) payload.label = data.label;
+        if (data.line1 !== undefined || data.street !== undefined) {
+          payload.line1 = data.line1 || data.street;
+        }
+        const line2 = data.line2 || data.apartment;
+        if (line2 !== undefined) {
+          if (line2.trim()) payload.line2 = line2.trim();
+        }
+        if (data.city !== undefined) payload.city = data.city;
+        if (data.state !== undefined) payload.state = data.state;
+        if (data.postalCode !== undefined || data.zipCode !== undefined) {
+          payload.postalCode = data.postalCode || data.zipCode;
+        }
+        if (data.country !== undefined) payload.country = data.country;
+        if (data.isDefault !== undefined) payload.isDefault = Boolean(data.isDefault);
+
+        return {
+          url: `/store/addresses/${id}`,
+          method: "PATCH",
+          body: payload,
+        };
+      },
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Address", id },
         { type: "Address", id: "LIST" },

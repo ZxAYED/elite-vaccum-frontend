@@ -316,8 +316,14 @@ export function getCustomerQuotationByRequestId(requestId: string) {
   return getCustomerQuotations().find((item) => item.request.id === requestId);
 }
 
-export function getProductBySlug(slug: string) {
-  return getSharedProducts().find((product) => product.slug === slug);
+export function getProductBySlug(slugOrSku: string) {
+  const normalized = (slugOrSku || "").trim().toLowerCase();
+  return getSharedProducts().find(
+    (product) =>
+      product.slug?.toLowerCase() === normalized ||
+      product.sku?.toLowerCase() === normalized ||
+      product.id?.toLowerCase() === normalized,
+  );
 }
 
 export function getProductById(productId: string) {

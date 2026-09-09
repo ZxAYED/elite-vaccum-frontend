@@ -228,6 +228,7 @@ export const servicesApi = baseApi.injectEndpoints({
         }
         return [];
       },
+      keepUnusedDataFor: 300,
       providesTags: (result) =>
         Array.isArray(result)
           ? [

@@ -17,9 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
-import type { ServiceOffering, ServiceRequestAttachment } from "@/types/domain";
-import { mockCurrentUser } from "@/data/mock/user";
-import { createSharedServiceRequest } from "@/data/mock/shared-business-store";
+import type { ServiceOffering } from "@/types/domain";
 import { cn } from "@/lib/utils";
 
 import { FormField } from "./FormField";
@@ -38,14 +36,13 @@ import {
   type ScheduleSlot,
 } from "@/redux/api/servicesApi";
 import { useSubmitServiceRequestMutation } from "@/redux/api/serviceRequestsApi";
+import { useGetMeQuery } from "@/redux/api/authApi";
+import { useGetSavedAddressesQuery } from "@/redux/api/addressesApi";
+import { useAppSelector } from "@/redux/hooks";
 import { toast } from "sonner";
 
 interface ServiceRequestFormProps {
   service: ServiceOffering;
-  defaultValues: Pick<
-    ServiceRequestFormValues,
-    "fullName" | "phone" | "address" | "city" | "state" | "zipCode"
-  >;
 }
 
 const timeWindows = [
@@ -219,31 +216,18 @@ const urgencyOptions: Array<{
 const fieldGridClassName = "grid gap-5 md:grid-cols-2";
 const inputClassName = "bg-slate-50 shadow-none focus-visible:bg-white";
 
-function toServiceRequestAttachments(
-  media: ServiceRequestFormValues["media"],
-): ServiceRequestAttachment[] {
-  const uploadedAt = new Date().toISOString();
-
-  return media.map((file) => ({
-    id: file.id,
-    fileName: file.name,
-    fileType: file.type,
-    sizeBytes: file.size,
-    uploadedAt,
-    kind: file.type.startsWith("video/") ? "video" : "photo",
-  }));
-}
-
-export function ServiceRequestForm({
-  service,
-  defaultValues,
-}: ServiceRequestFormProps) {
+export function ServiceRequestForm({ service }: ServiceRequestFormProps) {
   const form = useForm<ServiceRequestFormValues>({
     resolver: zodResolver(serviceRequestSchema),
     defaultValues: {
       serviceSlug: service.slug,
       serviceTitle: service.title,
-      ...defaultValues,
+      fullName: "",
+      phone: "",
+      address: "",
+      city: "",
+      state: "",
+      zipCode: "",
       problemLocation: "",
       otherProblemLocation: "",
       requestedDate: "",
@@ -274,6 +258,48 @@ export function ServiceRequestForm({
   const showOtherLocation = watchedValues.problemLocation === "Other";
 
   const [submitServiceRequestMutation] = useSubmitServiceRequestMutation();
+
+  // Prefill contact + location from the signed-in customer's profile
+  // (`GET /auth/me`) and default saved address (`GET /store/addresses`).
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const authUser = useAppSelector((state) => state.auth.user);
+  const { data: meUser } = useGetMeQuery(undefined, { skip: !isAuthenticated });
+  const { data: savedAddresses } = useGetSavedAddressesQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const currentUser = meUser ?? authUser;
+  const defaultAddress = useMemo(
+    () =>
+      savedAddresses?.find((address) => address.isDefault) ?? savedAddresses?.[0],
+    [savedAddresses],
+  );
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const fullName =
+      [currentUser.firstName, currentUser.lastName].filter(Boolean).join(" ").trim() ||
+      currentUser.fullName?.trim() ||
+      "";
+
+    // `setValue` only where the visitor has not typed anything yet.
+    if (fullName && !form.getValues("fullName")) {
+      form.setValue("fullName", fullName);
+    }
+    if (currentUser.phone && !form.getValues("phone")) {
+      form.setValue("phone", currentUser.phone);
+    }
+  }, [currentUser, form]);
+
+  useEffect(() => {
+    if (!defaultAddress || form.getValues("address")) return;
+    form.setValue("address", defaultAddress.line1 || defaultAddress.street || "");
+    form.setValue("city", defaultAddress.city || "");
+    form.setValue("state", defaultAddress.state || "");
+    form.setValue(
+      "zipCode",
+      defaultAddress.postalCode || defaultAddress.zipCode || "",
+    );
+  }, [defaultAddress, form]);
 
   const requestedDate = watchedValues.requestedDate;
   const requestedTime = watchedValues.requestedTime;
@@ -351,30 +377,6 @@ export function ServiceRequestForm({
       const finalId = res?.id || "REQ-SUBMITTED";
       setSubmittedRequestId(finalId);
       setIsSubmitted(true);
-
-      createSharedServiceRequest({
-        serviceSlug: service.slug,
-        customerId: mockCurrentUser.customerId ?? "cust-1001",
-        fullName: values.fullName,
-        email: mockCurrentUser.email ?? "customer@example.com",
-        phone: values.phone,
-        address: values.address,
-        city: values.city,
-        state: values.state,
-        zipCode: values.zipCode,
-        requestedDate: values.requestedDate,
-        requestedTime: values.requestedTime,
-        urgency: values.urgency || "MEDIUM",
-        problemDescription: values.problemDescription,
-        problemLocation: values.problemLocation,
-        otherProblemLocation: values.otherProblemLocation,
-        manufacturer: values.manufacturer,
-        modelNumber: values.modelNumber,
-        serialNumber: values.serialNumber,
-        unitLocation: values.unitLocation,
-        additionalNotes: values.additionalNotes,
-        media: toServiceRequestAttachments(values.media),
-      });
 
       toast.success("Service request submitted successfully!", {
         description: `Request ID: ${finalId}`,

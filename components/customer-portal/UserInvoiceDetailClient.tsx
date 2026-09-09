@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -33,12 +33,10 @@ import {
   useCreateStripePaymentIntentMutation,
   useConfirmStripePaymentMutation,
 } from "@/redux/api/billingApi";
-import { getBillingInvoiceById } from "@/data/mock/shared-billing";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
   const { data: apiInvoice, isLoading } = useGetInvoiceByIdQuery(invoiceId);
-  const mockInvoice = useMemo(() => getBillingInvoiceById(invoiceId), [invoiceId]);
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -46,41 +44,8 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
   const [createStripePaymentIntent] = useCreateStripePaymentIntentMutation();
   const [confirmStripePayment] = useConfirmStripePaymentMutation();
 
-  const invoice = useMemo(() => {
-    if (apiInvoice) return apiInvoice;
-    if (mockInvoice) {
-      return {
-        id: mockInvoice.id,
-        businessId: mockInvoice.id,
-        orderId: mockInvoice.relatedOrderId,
-        serviceOrderId: mockInvoice.relatedOrderId,
-        customerId: mockInvoice.customerId,
-        type: mockInvoice.type,
-        status: mockInvoice.status.toUpperCase(),
-        subtotalUsd: mockInvoice.totals.subtotalUsd,
-        taxUsd: mockInvoice.totals.taxUsd,
-        discountUsd: mockInvoice.totals.discountUsd,
-        totalUsd: mockInvoice.totals.totalUsd,
-        lineItems: mockInvoice.lineItems.map((li) => ({
-          description: li.label,
-          quantity: li.quantity || 1,
-          unitPriceUsd: li.unitPriceUsd || li.amountUsd,
-          totalUsd: li.amountUsd,
-        })),
-        createdAt: mockInvoice.createdAt,
-        dueDate: mockInvoice.dueDate,
-        paidAt: mockInvoice.paymentStatus === "paid" ? mockInvoice.createdAt : undefined,
-        notes: mockInvoice.description,
-        customer: {
-          id: mockInvoice.customerId,
-          firstName: mockInvoice.customerName.split(" ")[0] || "Valued",
-          lastName: mockInvoice.customerName.split(" ")[1] || "Customer",
-          email: "customer@example.com",
-        },
-      };
-    }
-    return null;
-  }, [apiInvoice, mockInvoice]);
+  // Phase 12.3 GET /billing/invoices/:id
+  const invoice = apiInvoice ?? null;
 
   function handlePrintHtml() {
     const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000";

@@ -121,21 +121,61 @@ export const productSchema = z.object({
     .number({ error: "Price is required." })
     .min(0, "Price cannot be negative.")
     .max(100000, "Price is too high."),
-  availability: z.enum(["in-stock", "special-order"]),
-  status: z.enum(["active", "draft", "archived"]),
-  quantity: z.number().int().min(0).optional(),
-  isFeatured: z.boolean().optional(),
-  taxable: z.boolean().optional(),
+  availability: z.enum([
+    "IN_STOCK",
+    "LOW_STOCK",
+    "OUT_OF_STOCK",
+    "BACKORDER",
+    "PREORDER",
+    "DISCONTINUED",
+  ]),
+  status: z.enum(["ACTIVE", "DRAFT", "ARCHIVED"]),
+  quantity: z.number().int().min(0),
+  isFeatured: z.boolean(),
+  taxable: z.boolean(),
   shippingLabel: z
     .string()
     .trim()
     .max(120, "Shipping information must be 120 characters or fewer.")
     .optional()
     .or(z.literal("")),
+  imageAlt: z
+    .string()
+    .trim()
+    .max(160, "Image alt text must be 160 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  popularityRank: z.number().optional(),
+  highlights: z
+    .array(
+      z.object({
+        text: z.string(),
+        sortOrder: z.number().optional(),
+      }),
+    )
+    .optional(),
+  specifications: z
+    .array(
+      z.object({
+        label: z.string(),
+        value: z.string(),
+        sortOrder: z.number().optional(),
+      }),
+    )
+    .optional(),
+  shippingNotes: z
+    .array(
+      z.object({
+        text: z.string(),
+        sortOrder: z.number().optional(),
+      }),
+    )
+    .optional(),
   images: z
     .string()
     .trim()
     .min(1, "Upload at least 1 product image."),
+  deleteImageIds: z.array(z.string()).optional(),
 });
 
 export const serviceCatalogSchema = z.object({

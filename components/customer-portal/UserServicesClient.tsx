@@ -3,27 +3,33 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   CalendarDays,
   FileCheck2,
   FileText,
-  Loader2,
   MapPin,
   Search,
   Wrench,
-  X,
   Zap,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
+import {
+  PortalCard,
+  PortalCardAction,
+  PortalCardFooter,
+  PortalCardTitle,
+  PortalCardTop,
+  PortalDetailAction,
+  PortalFact,
+  PortalFilterBar,
+  PortalList,
+  PortalLoading,
+} from "@/components/customer-portal/PortalUI";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Input } from "@/components/ui/Input";
 import { useGetMyServiceRequestsQuery } from "@/redux/api/serviceRequestsApi";
 import { useGetMyQuotationsQuery } from "@/redux/api/quotationsApi";
-import { getCustomerServiceRequests } from "@/data/mock/customer-portal";
-import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import {
   formatCurrencyUsd,
   formatLongDate,
@@ -42,7 +48,6 @@ const filters = [
 ] as const;
 
 export function UserServicesClient() {
-  useSharedBusinessStoreVersion();
   const [selectedFilter, setSelectedFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -62,35 +67,9 @@ export function UserServicesClient() {
     useGetMyServiceRequestsQuery(queryParams);
   const { data: myQuotations } = useGetMyQuotationsQuery();
 
-  const mockRequests = useMemo(() => getCustomerServiceRequests(), []);
-
-  // Server response with fallback to mock data when API is offline or empty
-  const displayedRequests = useMemo(() => {
-    const apiItems = apiResponse?.items;
-    if (apiItems && apiItems.length > 0) {
-      return apiItems;
-    }
-    // If backend returns empty array specifically for an active search or filter
-    if (apiItems && apiItems.length === 0 && (selectedFilter !== "all" || searchQuery.trim())) {
-      return [];
-    }
-    // Offline / demo fallback with corresponding filter
-    if (selectedFilter === "all" && !searchQuery.trim()) {
-      return mockRequests;
-    }
-    return mockRequests.filter((r) => {
-      if (selectedFilter !== "all" && r.status.toLowerCase() !== selectedFilter) return false;
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        return (
-          r.title?.toLowerCase().includes(q) ||
-          r.id?.toLowerCase().includes(q) ||
-          r.serviceAddress?.city?.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [apiResponse, mockRequests, selectedFilter, searchQuery]);
+  // Status and search are applied server-side (Phase 8.2), so the response
+  // is already the filtered list.
+  const displayedRequests = apiResponse?.items ?? [];
 
   return (
     <div className="space-y-6 sm:space-y-7 pb-12">
@@ -108,59 +87,21 @@ export function UserServicesClient() {
         }
       />
 
-      {/* SEARCH AND BACKEND FILTER BAR */}
-      <div className="flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs">
-        <div className="flex flex-wrap items-center gap-2">
-          {filters.map((filter) => {
-            const isSelected = selectedFilter === filter.value;
-            return (
-              <Button
-                key={filter.value}
-                size="sm"
-                variant={isSelected ? "default" : "outline"}
-                onClick={() => setSelectedFilter(filter.value)}
-                className={`rounded-md text-xs sm:text-sm font-medium h-9 px-4 transition-colors ${
-                  isSelected
-                    ? "bg-teal-700 text-white hover:bg-teal-800"
-                    : "border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                {filter.label}
-              </Button>
-            );
-          })}
-        </div>
-
-        <div className="relative flex items-center pt-1">
-          <Search size={16} className="pointer-events-none absolute left-3.5 text-slate-400" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by request title, customer address, or keyword..."
-            className="h-11 rounded-md border-slate-200/80 bg-slate-50/60 pl-10 pr-10 text-xs sm:text-sm font-medium focus-visible:bg-white focus-visible:ring-teal-600"
-          />
-          {searchQuery ? (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              aria-label="Clear search"
-              className="absolute right-3 flex size-6 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition"
-            >
-              <X size={14} />
-            </button>
-          ) : null}
-        </div>
-      </div>
+      <PortalFilterBar
+        filters={filters}
+        onChange={setSelectedFilter}
+        onSearchChange={setSearchQuery}
+        search={searchQuery}
+        searchPlaceholder="Search by request title, customer address, or keyword..."
+        value={selectedFilter}
+      />
 
       {isLoadingRequests && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200/80 bg-white py-20 text-teal-700 shadow-xs">
-          <Loader2 size={28} className="animate-spin text-teal-600" />
-          <span className="mt-3 text-xs sm:text-sm font-medium text-slate-700">Loading service requests...</span>
-        </div>
+        <PortalLoading label="Loading service requests..." />
       )}
 
       {!isLoadingRequests && (
-        <div className="space-y-4 sm:space-y-5">
+        <PortalList>
           {displayedRequests.length === 0 ? (
             <EmptyState
               icon={searchQuery ? Search : Wrench}
@@ -252,143 +193,98 @@ export function UserServicesClient() {
                 (cancelMatch ? cancelMatch[1].trim() : null);
 
               return (
-                <article
-                  key={request.id}
-                  className="rounded-lg border border-slate-200/80 bg-white p-5 sm:p-6 shadow-xs transition-all hover:border-teal-300 hover:shadow-sm"
-                >
-                  {/* CARD TOP HEADER: Badges and Submission Time */}
-                  <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <StatusBadge status={request.status} />
-
-                      {request.urgency && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/80 px-2.5 py-0.5 text-xs font-medium text-amber-900">
-                          <Zap size={12} className="text-amber-700" />
-                          {request.urgency} Priority
+                <PortalCard key={request.id}>
+                  <PortalCardTop
+                    badges={
+                      <>
+                        <StatusBadge status={request.status} />
+                        {request.urgency ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/80 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                            <Zap className="text-amber-700" size={12} />
+                            {request.urgency} Priority
+                          </span>
+                        ) : null}
+                        {request.service?.category ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-800">
+                            {request.service.category.replace(/_/g, " ")}
+                          </span>
+                        ) : null}
+                      </>
+                    }
+                    meta={
+                      <>
+                        Submitted:{" "}
+                        <span className="font-medium text-slate-700">
+                          {request.submittedAt || reqAny.createdAt
+                            ? formatShortDateTime(
+                                request.submittedAt || reqAny.createdAt || "",
+                              )
+                            : formatLongDate(new Date().toISOString())}
                         </span>
-                      )}
+                      </>
+                    }
+                  />
 
-                      {request.service?.category && (
-                        <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-800">
-                          {request.service.category.replace(/_/g, " ")}
-                        </span>
-                      )}
-                    </div>
+                  <PortalCardTitle href={`/user/services/${request.id}`}>
+                    {displayTitle}
+                  </PortalCardTitle>
 
-                    <span className="text-xs text-slate-500 font-medium">
-                      Submitted:{" "}
-                      <span className="text-slate-700 font-medium">
-                        {request.submittedAt || reqAny.createdAt
-                          ? formatShortDateTime(request.submittedAt || reqAny.createdAt || "")
-                          : formatLongDate(new Date().toISOString())}
+                  {cancelReason ? (
+                    <div className="mb-4 -mt-2 inline-flex items-center gap-2 rounded-md border border-rose-200/80 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-800 sm:text-sm">
+                      <span className="font-semibold text-rose-950">
+                        Cancellation Reason:
                       </span>
-                    </span>
-                  </div>
-
-                  {/* CARD BODY: Clean Title & Optional Cancellation Showcase */}
-                  <div className="pt-1 pb-4">
-                    <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-primary">
-                      <Link
-                        href={`/user/services/${request.id}`}
-                        className="hover:opacity-80 transition"
-                      >
-                        {displayTitle}
-                      </Link>
-                    </h2>
-
-                    {cancelReason && (
-                      <div className="mt-2.5 inline-flex items-center gap-2 rounded-md bg-rose-50 border border-rose-200/80 px-3 py-1.5 text-xs sm:text-sm font-medium text-rose-800">
-                        <span className="font-semibold text-rose-950">Cancellation Reason:</span>
-                        <span>{cancelReason}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* CARD FOOTER: Essential Facts & Direct Action */}
-                  <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
-                    {/* Key Facts */}
-                    <div className="flex flex-wrap items-center gap-5 sm:gap-7 text-xs sm:text-sm">
-                      {/* Preferred Slot */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-teal-50 text-teal-700">
-                          <CalendarDays size={15} />
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Preferred Slot
-                          </span>
-                          <span className="font-medium text-slate-800">
-                            {displaySchedule}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Location */}
-                      <div className="flex items-center gap-2">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-600">
-                          <MapPin size={15} />
-                        </div>
-                        <div>
-                          <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                            Service Location
-                          </span>
-                          <span className="font-medium text-slate-800 truncate max-w-[180px] sm:max-w-[220px] block">
-                            {displayAddress}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Quotation preview if present */}
-                      {quoteTotal ? (
-                        <div className="flex items-center gap-2">
-                          <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-amber-50 text-amber-800">
-                            <FileCheck2 size={15} />
-                          </div>
-                          <div>
-                            <span className="block text-[10px] font-semibold uppercase tracking-wider text-amber-800">
-                              Official Quote
-                            </span>
-                            <span className="font-semibold text-slate-800">
-                              {formatCurrencyUsd(quoteTotal)}
-                            </span>
-                          </div>
-                        </div>
-                      ) : null}
+                      <span>{cancelReason}</span>
                     </div>
+                  ) : null}
 
-                    {/* Actions */}
-                    <div className="flex shrink-0 items-center gap-2">
-                      {isQuoted && quotation && (
-                        <Button
-                          asChild
-                          size="sm"
-                          className="rounded-md bg-amber-600 text-white hover:bg-amber-700 font-medium shadow-xs text-xs sm:text-sm"
-                        >
-                          <Link href={`/user/services/${request.id}#quotation`}>
-                            <FileText size={14} className="mr-1" />
-                            Review Quotation
-                          </Link>
-                        </Button>
-                      )}
-
-                      <Button
-                        asChild
-                        variant="outline"
-                        size="sm"
-                        className="rounded-md text-slate-800 hover:bg-slate-50 font-medium text-xs sm:text-sm"
-                      >
-                        <Link href={`/user/services/${request.id}`}>
-                          View Details
-                          <ArrowRight size={14} className="ml-1 text-teal-600" />
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </article>
+                  <PortalCardFooter
+                    actions={
+                      <>
+                        <PortalDetailAction href={`/user/services/${request.id}`} />
+                        {isQuoted && quotation ? (
+                          <PortalCardAction
+                            href={`/user/services/${request.id}#quotation`}
+                            icon={FileText}
+                            label="Review Quotation"
+                            tone="accent"
+                          />
+                        ) : null}
+                      </>
+                    }
+                    facts={
+                      <>
+                        <PortalFact
+                          icon={CalendarDays}
+                          label="Preferred Slot"
+                          placeholder="Pending schedule"
+                          tone="brand"
+                          value={displaySchedule}
+                        />
+                        <PortalFact
+                          icon={MapPin}
+                          label="Service Location"
+                          placeholder="Address on file"
+                          truncate
+                          value={displayAddress}
+                        />
+                        {quoteTotal ? (
+                          <PortalFact
+                            emphasis
+                            icon={FileCheck2}
+                            label="Official Quote"
+                            tone="warning"
+                            value={formatCurrencyUsd(quoteTotal)}
+                          />
+                        ) : null}
+                      </>
+                    }
+                  />
+                </PortalCard>
               );
             })
           )}
-        </div>
+        </PortalList>
       )}
     </div>
   );

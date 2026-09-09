@@ -8,9 +8,26 @@ export interface RatingSummary {
   distribution: Record<string, number>;
 }
 
+/**
+ * Shape returned by the public `GET /reviews` feed (Phase 13.1). It differs
+ * from the authenticated `CustomerReview` — the author is anonymised to
+ * `authorName` and there is no moderation history.
+ */
+export interface PublicReview {
+  id: string;
+  authorName: string;
+  rating: number;
+  title: string;
+  body: string;
+  type: "PRODUCT" | "SERVICE";
+  serviceType?: string;
+  verifiedPurchase: boolean;
+  createdAt: string;
+}
+
 export interface PublicReviewsResponse {
   ratingSummary: RatingSummary;
-  items: CustomerReview[];
+  items: PublicReview[];
 }
 
 export interface SubmitReviewRequest {
@@ -34,28 +51,69 @@ export interface GetAdminReviewsParams {
   limit?: number;
 }
 
-function unwrapPublicReviews(raw: unknown): PublicReviewsResponse {
-  if (!raw || typeof raw !== "object") {
-    return {
-      ratingSummary: { averageRating: 5.0, totalReviews: 0, distribution: { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 } },
-      items: [],
-    };
-  }
-  const obj = raw as Record<string, unknown>;
-  const rawItems = Array.isArray(obj.items)
-    ? obj.items
-    : Array.isArray(raw)
-    ? raw
-    : [];
+const EMPTY_DISTRIBUTION = { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 };
 
-  const summary = (obj.ratingSummary || obj.summary) as RatingSummary | undefined;
-  const ratingSummary: RatingSummary = summary || {
-    averageRating: 4.9,
-    totalReviews: rawItems.length,
-    distribution: { "5": rawItems.length, "4": 0, "3": 0, "2": 0, "1": 0 },
+function normalizePublicReview(raw: unknown, index: number): PublicReview {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const rating = Number(r.rating);
+
+  return {
+    id: String(r.id || `review-${index}`),
+    // The public feed uses `authorName`; the admin/customer feed uses
+    // `customerName`. Accept either so one endpoint change cannot blank the UI.
+    authorName: String(r.authorName || r.customerName || "Verified customer"),
+    rating: Number.isFinite(rating) ? Math.min(Math.max(rating, 1), 5) : 5,
+    title: String(r.title || ""),
+    body: String(r.body || r.comment || ""),
+    type: r.type === "PRODUCT" ? "PRODUCT" : "SERVICE",
+    serviceType: r.serviceType
+      ? String(r.serviceType)
+      : r.relatedName
+        ? String(r.relatedName)
+        : undefined,
+    verifiedPurchase: Boolean(r.verifiedPurchase),
+    createdAt: String(r.createdAt || r.publishedAt || r.submittedAt || ""),
   };
+}
 
-  return { ratingSummary, items: rawItems as CustomerReview[] };
+function unwrapPublicReviews(raw: unknown): PublicReviewsResponse {
+  const rawItems: unknown[] = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === "object"
+      ? (() => {
+          const obj = raw as Record<string, unknown>;
+          if (Array.isArray(obj.items)) return obj.items;
+          const data = obj.data as Record<string, unknown> | undefined;
+          if (data && Array.isArray(data.items)) return data.items;
+          if (Array.isArray(obj.data)) return obj.data;
+          return [];
+        })()
+      : [];
+
+  const container = (
+    raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}
+  ) as Record<string, unknown>;
+  const containerData = (container.data ?? {}) as Record<string, unknown>;
+  const summary = (container.ratingSummary ||
+    container.summary ||
+    containerData.ratingSummary) as RatingSummary | undefined;
+
+  const items = rawItems.map(normalizePublicReview);
+  const averageFromItems = items.length
+    ? Number(
+        (items.reduce((sum, r) => sum + r.rating, 0) / items.length).toFixed(1),
+      )
+    : 0;
+
+  return {
+    ratingSummary:
+      summary ?? {
+        averageRating: averageFromItems,
+        totalReviews: items.length,
+        distribution: { ...EMPTY_DISTRIBUTION },
+      },
+    items,
+  };
 }
 
 function unwrapAdminReviews(raw: unknown): PaginatedResponse<CustomerReview> {

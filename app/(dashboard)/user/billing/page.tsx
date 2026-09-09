@@ -3,25 +3,19 @@ import { UserBillingClient } from "@/components/customer-portal/UserBillingClien
 interface BillingPageProps {
   searchParams: Promise<{
     tab?: string;
-    type?: string;
     q?: string;
   }>;
 }
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
   const params = await searchParams;
-  const tab = params.tab === "payments" ? "payments" : "invoices";
-  const type =
-    params.type === "PRODUCT" || params.type === "SERVICE"
-      ? params.type
-      : "ALL";
-  const query = (params.q ?? "").trim();
+  // `payments` is kept as an alias so older links still land on receipts.
+  const tab =
+    params.tab === "receipts" || params.tab === "payments"
+      ? "receipts"
+      : "invoices";
 
   return (
-    <UserBillingClient
-      initialTab={tab}
-      initialType={type}
-      initialQuery={query}
-    />
+    <UserBillingClient initialQuery={(params.q ?? "").trim()} initialTab={tab} />
   );
 }

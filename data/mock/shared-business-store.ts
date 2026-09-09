@@ -1232,6 +1232,12 @@ type ProductMutationValues = {
   model?: string;
   imageAlt?: string;
   taxable?: boolean;
+  isFeatured?: boolean;
+  quantity?: number;
+  popularityRank?: number;
+  highlights?: Array<{ text: string; sortOrder?: number }>;
+  specifications?: Array<{ label: string; value: string; sortOrder?: number }>;
+  shippingNotes?: Array<{ text: string; sortOrder?: number }>;
   shippingLabel?: string;
   status: ProductStatus;
   availability?: Product["availability"];
@@ -1256,6 +1262,12 @@ export function createSharedProduct(values: ProductMutationValues) {
     sku: values.sku,
     model: values.model,
     taxable: values.taxable,
+    isFeatured: values.isFeatured,
+    quantity: values.quantity,
+    popularityRank: values.popularityRank,
+    highlights: values.highlights?.map((h) => h.text),
+    specifications: values.specifications?.map((s) => ({ label: s.label, value: s.value })),
+    shippingNotes: values.shippingNotes?.map((n) => n.text),
     shippingLabel: values.shippingLabel,
     images: values.images,
   };
@@ -1273,6 +1285,15 @@ export function updateSharedProduct(productId: string, values: ProductMutationVa
         ? {
             ...product,
             ...values,
+            highlights: values.highlights
+              ? values.highlights.map((h) => h.text)
+              : product.highlights,
+            specifications: values.specifications
+              ? values.specifications.map((s) => ({ label: s.label, value: s.value }))
+              : product.specifications,
+            shippingNotes: values.shippingNotes
+              ? values.shippingNotes.map((n) => n.text)
+              : product.shippingNotes,
             imageAlt: values.imageAlt ?? product.imageAlt,
           }
         : product,

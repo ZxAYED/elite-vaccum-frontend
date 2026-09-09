@@ -7,24 +7,48 @@ export interface GetCategoriesParams {
   status?: "ACTIVE" | "INACTIVE";
   page?: number;
   limit?: number;
+  perPage?: number;
 }
 
-function unwrapCategoriesResponse(raw: unknown): PaginatedResponse<ProductCategory> {
+export interface CategoriesApiResponse extends PaginatedResponse<ProductCategory> {
+  totalActiveProducts?: number;
+}
+
+function unwrapCategoriesResponse(raw: unknown): CategoriesApiResponse {
   if (!raw || typeof raw !== "object") {
-    return { items: [], meta: { page: 1, limit: 50, total: 0, totalPages: 0 } };
+    return { items: [], meta: { page: 1, limit: 50, total: 0, totalPages: 0 }, totalActiveProducts: 0 };
   }
 
   const payload = raw as Record<string, unknown>;
   const data = (payload.data && typeof payload.data === "object" ? payload.data : payload) as Record<string, unknown>;
 
-  let items: ProductCategory[] = [];
+  let rawItems: unknown[] = [];
   if (Array.isArray(data)) {
-    items = data as ProductCategory[];
+    rawItems = data;
   } else if (Array.isArray(data.items)) {
-    items = data.items as ProductCategory[];
+    rawItems = data.items;
   } else if (Array.isArray(payload.items)) {
-    items = payload.items as ProductCategory[];
+    rawItems = payload.items;
   }
+
+  const items: ProductCategory[] = rawItems.map((rawItem) => {
+    const item = (rawItem && typeof rawItem === "object" ? rawItem : {}) as Record<string, unknown>;
+    const countObj = item._count as { products?: number } | undefined;
+    const count =
+      typeof item.productCount === "number"
+        ? item.productCount
+        : typeof countObj?.products === "number"
+        ? countObj.products
+        : 0;
+
+    return {
+      ...(item as unknown as ProductCategory),
+      productCount: count,
+      _count: {
+        products: count,
+      },
+    };
+  });
 
   const rawMeta = (data.meta || payload.meta) as Record<string, unknown> | undefined;
   const meta = {
@@ -34,7 +58,14 @@ function unwrapCategoriesResponse(raw: unknown): PaginatedResponse<ProductCatego
     totalPages: Number(rawMeta?.totalPages ?? 1),
   };
 
-  return { items, meta };
+  const totalActiveProducts =
+    typeof payload.totalActiveProducts === "number"
+      ? payload.totalActiveProducts
+      : typeof (data as Record<string, unknown>).totalActiveProducts === "number"
+      ? ((data as Record<string, unknown>).totalActiveProducts as number)
+      : items.reduce((acc, cat) => acc + (cat.productCount || 0), 0);
+
+  return { items, meta, totalActiveProducts };
 }
 
 function unwrapSingleCategory(raw: unknown): ProductCategory {
@@ -46,12 +77,20 @@ function unwrapSingleCategory(raw: unknown): ProductCategory {
 
 export const categoriesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getCategories: builder.query<PaginatedResponse<ProductCategory>, GetCategoriesParams | void>({
-      query: (params) => ({
-        url: "/categories",
-        params: params || undefined,
-      }),
+    getCategories: builder.query<CategoriesApiResponse, GetCategoriesParams | void>({
+      query: (params) => {
+        if (!params) return { url: "/categories" };
+        const queryParams: Record<string, unknown> = { ...params };
+        if (params.limit && !params.perPage) {
+          queryParams.perPage = params.limit;
+        }
+        return {
+          url: "/categories",
+          params: queryParams,
+        };
+      },
       transformResponse: unwrapCategoriesResponse,
+      keepUnusedDataFor: 300,
       providesTags: (result) =>
         result
           ? [

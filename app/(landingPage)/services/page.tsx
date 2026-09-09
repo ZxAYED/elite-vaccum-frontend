@@ -1,5 +1,7 @@
 import { ServicesCatalog } from "@/components/landing/service/ServicesCatalog";
 
+export const revalidate = 60;
+
 export const metadata = {
   title: "Services - Elite Central Vacuum",
   description:

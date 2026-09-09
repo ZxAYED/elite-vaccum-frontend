@@ -20,10 +20,8 @@ import { useLogoutMutation } from "@/redux/api/authApi";
 import { useAppDispatch } from "@/redux/hooks";
 import { logout } from "@/redux/slices/authSlice";
 
-import {
-  getCurrentTechnicianProfile,
-  getTechnicianUnreadNotificationCount,
-} from "@/data/mock/technician-dashboard";
+import { useGetTechnicianProfileQuery } from "@/redux/api/technicianApi";
+import { useGetUnreadNotificationsCountQuery } from "@/redux/api/notificationsApi";
 
 const navItems = [
   { label: "Overview", href: "/technician", icon: StretchHorizontal },
@@ -46,8 +44,10 @@ export default function TechnicianDashboardSidebar({
   const dispatch = useAppDispatch();
   const [logoutMutation] = useLogoutMutation();
 
-  const technician = getCurrentTechnicianProfile();
-  const unreadCount = getTechnicianUnreadNotificationCount();
+  // Phase 17.4 `GET /technicians/me/profile` + Phase 11.2 unread badge count.
+  const { data: technician } = useGetTechnicianProfileQuery();
+  const { data: unread } = useGetUnreadNotificationsCountQuery();
+  const unreadCount = unread?.unreadCount ?? 0;
 
   const handleLogout = async () => {
     try {
@@ -130,16 +130,20 @@ export default function TechnicianDashboardSidebar({
         <div className="border-t border-slate-100 p-4">
           <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 shadow-xs">
             <Image
-              src="/nav_profile.jpg"
-              alt="Technician"
+              src={technician?.avatarUrl || "/nav_profile.jpg"}
+              alt={technician?.displayName || "Technician"}
               width={38}
               height={38}
-              className="rounded-full object-cover"
+              className="size-9.5 rounded-full object-cover"
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-bold text-slate-900">
-                {technician.displayName}
-              </p>
+              {technician ? (
+                <p className="truncate text-sm font-bold text-slate-900">
+                  {technician.displayName}
+                </p>
+              ) : (
+                <span className="block h-4 w-24 animate-pulse rounded bg-slate-200" />
+              )}
               <p className="text-xs text-slate-500">Field Technician</p>
             </div>
             <Shield className="text-teal-700 shrink-0" size={18} />

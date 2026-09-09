@@ -26,7 +26,7 @@ export function AuthLayout({
     <div className="min-h-svh bg-[linear-gradient(180deg,#fbfdfc_0%,#f2f8f6_100%)] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto grid min-h-[calc(100svh-3rem)] max-w-7xl items-center gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(26rem,0.95fr)]">
         <main className="flex w-full justify-center">
-          <section className="w-full max-w-[29rem] rounded-[1.75rem] bg-white/80 p-6 shadow-[0_24px_70px_-52px_rgba(28,79,80,0.55)] backdrop-blur sm:p-8">
+          <section className="w-full max-w-[29rem] rounded-[1.75rem] bg-white/80 p-6 sm:p-8">
             <Link href="/" className="mb-10 inline-flex items-center">
               <Image
                 src={logo}
@@ -51,7 +51,7 @@ export function AuthLayout({
         </main>
 
         <aside className="hidden lg:block">
-          <div className="relative mx-auto aspect-[4/5] max-h-[calc(100svh-5rem)] overflow-hidden rounded-[2rem] bg-[var(--brand-soft)] shadow-[0_30px_90px_-56px_rgba(28,79,80,0.72)]">
+          <div className="relative mx-auto aspect-[4/5] max-h-[calc(100svh-5rem)] overflow-hidden rounded-[2rem] ">
             <Image
               src={image}
               alt={imageAlt}
