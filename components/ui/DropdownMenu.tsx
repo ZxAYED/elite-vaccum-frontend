@@ -61,7 +61,7 @@ function DropdownMenuContent({
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
         className={cn(
-          "z-50 min-w-60 overflow-hidden rounded-[var(--radius-card)] border border-[rgba(209,227,229,0.92)] bg-white p-2 text-slate-900 shadow-[0_24px_64px_-34px_rgba(28,79,80,0.38)]",
+          "z-[80] min-w-60 overflow-hidden rounded-[var(--radius-card)] border border-[rgba(209,227,229,0.92)] bg-white p-2 text-slate-900 shadow-[0_24px_64px_-34px_rgba(28,79,80,0.38)]",
           className,
         )}
         data-slot="dropdown-menu-content"
@@ -219,7 +219,7 @@ function DropdownMenuSubContent({
   return (
     <DropdownMenuPrimitive.SubContent
       className={cn(
-        "z-50 min-w-56 overflow-hidden rounded-[var(--radius-card)] border border-[rgba(209,227,229,0.92)] bg-white p-2 text-slate-900 shadow-[0_24px_64px_-34px_rgba(28,79,80,0.38)]",
+        "z-[80] min-w-56 overflow-hidden rounded-[var(--radius-card)] border border-[rgba(209,227,229,0.92)] bg-white p-2 text-slate-900 shadow-[0_24px_64px_-34px_rgba(28,79,80,0.38)]",
         className,
       )}
       data-slot="dropdown-menu-sub-content"

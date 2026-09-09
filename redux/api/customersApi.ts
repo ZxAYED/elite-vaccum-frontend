@@ -48,6 +48,22 @@ function unwrapSingleCustomer(raw: unknown): Customer {
   return raw as Customer;
 }
 
+function serializeCustomerProfile(data: Partial<Customer>) {
+  const fullName =
+    data.displayName ??
+    [data.firstName, data.lastName].filter(Boolean).join(" ").trim() ??
+    undefined;
+
+  return {
+    name: fullName || undefined,
+    email: data.email,
+    phone: data.phone,
+    cellphone: data.cellphone,
+    companyName: data.company,
+    status: data.status,
+  };
+}
+
 export const customersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getCustomers: builder.query<PaginatedResponse<Customer>, GetCustomersParams | void>({
@@ -76,7 +92,7 @@ export const customersApi = baseApi.injectEndpoints({
       query: ({ id, data }) => ({
         url: `/customers/${id}`,
         method: "PATCH",
-        body: data,
+        body: serializeCustomerProfile(data),
       }),
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Customer", id },

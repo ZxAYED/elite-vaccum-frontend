@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import {
+  AlertCircle,
   CheckCircle2,
+  Clock,
   Download,
   FileText,
   Loader2,
@@ -19,7 +21,11 @@ import { toStatusSlug } from "@/lib/customer-orders";
 import { invoiceFileName, saveBlobAsFile } from "@/lib/download-file";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import type { StoreOrderInvoiceDto } from "@/redux/api/ordersApi";
+import { isOrderTerminalFailure } from "@/lib/invoice-state";
+import type {
+  StoreOrderInvoiceDto,
+  StoreOrderStatus,
+} from "@/redux/api/ordersApi";
 import {
   useDownloadStoreOrderInvoiceMutation,
   useGenerateStoreOrderInvoiceMutation,
@@ -28,7 +34,11 @@ import {
 interface OrderInvoiceCardProps {
   /** Order id or businessId — the invoice endpoints are keyed by order. */
   orderId: string;
+  /** Absent until the order's payment has resolved. */
   invoice?: StoreOrderInvoiceDto;
+  /** Drives the pre-invoice states — payment status is read from here. */
+  orderStatus: StoreOrderStatus;
+  paymentMethod?: string;
   /** Admin-only: re-render the stored PDF after editing the order. */
   canRegenerate?: boolean;
   className?: string;
@@ -44,6 +54,8 @@ interface OrderInvoiceCardProps {
 export function OrderInvoiceCard({
   orderId,
   invoice,
+  orderStatus,
+  paymentMethod,
   canRegenerate = false,
   className,
 }: OrderInvoiceCardProps) {
@@ -53,25 +65,47 @@ export function OrderInvoiceCard({
     useGenerateStoreOrderInvoiceMutation();
   const [hasDownloaded, setHasDownloaded] = useState(false);
 
+  /*
+   * An invoice only exists once the payment resolved. While a card order is
+   * PENDING there is no invoice and no payment row, and both the JSON and
+   * PDF endpoints reject the request — so the download button stays hidden
+   * and the state is read from the order instead.
+   */
   if (!invoice) {
+    const isAwaitingPayment =
+      orderStatus === "PENDING" && paymentMethod !== "COD";
+    const isFailed = isOrderTerminalFailure(orderStatus);
+
     return (
       <section
         className={cn(
-          "rounded-lg border border-slate-200 bg-white p-5 shadow-xs",
+          "rounded-lg border bg-white p-5 shadow-xs",
+          isFailed
+            ? "border-rose-200"
+            : "border-slate-200",
           className,
         )}
       >
         <div className="flex items-center gap-2.5">
-          <FileText className="text-slate-400" size={18} />
+          {isFailed ? (
+            <AlertCircle className="text-rose-500" size={18} />
+          ) : isAwaitingPayment ? (
+            <Clock className="text-amber-500" size={18} />
+          ) : (
+            <FileText className="text-slate-400" size={18} />
+          )}
           <h2 className="text-sm font-bold text-slate-900">Invoice</h2>
         </div>
-        <p className="mt-2.5 text-xs leading-relaxed text-slate-500">
-          No invoice has been issued for this order yet.
+        <p className="mt-2.5 text-xs leading-relaxed text-slate-600">
+          {isFailed
+            ? "This order's payment did not complete, so no invoice was issued. Nothing was charged."
+            : isAwaitingPayment
+              ? "Your invoice is issued as soon as payment clears. It will appear here with a PDF to download."
+              : "No invoice has been issued for this order."}
         </p>
       </section>
     );
   }
-
   const reference = invoice.businessId || invoice.id;
   const isPaid = invoice.status === "PAID" || Boolean(invoice.paidAt);
   const discount = Number(invoice.discountUsd);
@@ -125,7 +159,10 @@ export function OrderInvoiceCard({
             {reference}
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <StatusBadge status={toStatusSlug(invoice.status)} />
+            <StatusBadge
+              label={refunds.length > 0 ? "Refunded" : undefined}
+              status={refunds.length > 0 ? "refunded" : toStatusSlug(invoice.status)}
+            />
             {isPaid && invoice.paidAt ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700">
                 <CheckCircle2 size={12} />

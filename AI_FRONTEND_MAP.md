@@ -79,6 +79,8 @@ All endpoints extend `baseApi.ts` using Redux Toolkit Query (`createApi`) with a
 | **Billing & Invoices** (universal) | `redux/api/billingApi.ts` | `GET /billing/invoices` (+KPIs), `GET /billing/invoices/me`, `GET /billing/invoices/:id`, `GET /billing/invoices/:id/html`, `POST /billing/invoices`, `PATCH /billing/invoices/:id`, `POST /billing/invoices/:id/payments`, `POST /billing/invoices/:id/refunds`, `POST /billing/invoices/:id/stripe/payment-intent`, `POST .../stripe/confirm` | `Invoice`, `Payment` | `UserBillingClient`, `UserInvoiceDetailClient`, `AdminFinancialsClient`, `AdminInvoiceDetailClient` | `redux/api/billingApi.ts` |
 | **Customer Addresses**| `redux/api/addressesApi.ts` | `GET /addresses`, `POST /addresses`, `PATCH /addresses/:id`, `DELETE /addresses/:id` | `Address` | `ShippingAddressForm`, `UserProfileClient` | `types/domain.ts` |
 | **Reviews** | `redux/api/reviewsApi.ts` | `GET /reviews`, `POST /reviews`, `PATCH /reviews/:id` | `Review` | `ProductDetailTabs`, `AdminReviewsClient` | `types/domain.ts` |
+| **Admin Dashboard** | `redux/api/dashboardApi.ts` | `GET /dashboard` (no params, 60s cache) | `Dashboard` | `app/(dashboard)/admin/page.tsx` | `redux/api/dashboardApi.ts` |
+| **Reports** | `redux/api/reportsApi.ts` | `GET /reports/overview` (period, from/to, orderType), `/reports/sales`, `/reports/service-operations` (period, from/to), `/reports/technicians` and `/reports/customers` (**no params**), `GET /reports/export/{orders,service-requests,invoices,customers}/csv` | `Report` | `AdminReportsClient`, `ExportReportMenu` | `redux/api/reportsApi.ts` |
 | **Notifications** | `redux/api/notificationsApi.ts` | `GET /notifications`, `PATCH /notifications/:id/read` | `Notification` | `UserNotificationsClient`, `AdminNotificationsClient`, `Navbar` | `types/domain.ts` |
 
 ---
@@ -98,6 +100,27 @@ Built with Radix UI primitives, Lucide icons, and Tailwind tokens (Elite Teal: `
 - **Core Primitives**: `Button.tsx`, `Input.tsx`, `Textarea.tsx`, `Select.tsx`, `Checkbox.tsx`, `RadioGroup.tsx`, `Switch.tsx`.
 - **Feedback & Overlay**: `Dialog.tsx`, `Sheet.tsx` (slideout drawer), `DropdownMenu.tsx`, `Tooltip.tsx`, `Toaster.tsx` (Sonner), `Alert.tsx`, `Skeleton.tsx`.
 - **Data Display & Layout**: `Card.tsx`, `Badge.tsx`, `Table.tsx`, `Tabs.tsx`, `Carousel.tsx`, `Separator.tsx`, `Accordion.tsx`.
+
+### Reporting Caveats (read before editing the dashboard or reports)
+
+- `/dashboard` is one request backing every card, chart and list on the admin
+  overview. `revenueTrend` is always exactly 6 pre-seeded monthly buckets, so
+  empty months plot as 0. `serviceDistribution.percentage` is server-computed —
+  never recompute it.
+- `/reports/overview` mixes scopes: **revenue** honours the selected range, but
+  the count metrics are **lifetime totals**, and `revenueOverTime` is a fixed
+  **14 daily points** that ignores the range entirely. The UI labels all three
+  explicitly; don't relabel them as range-scoped. For a monthly series use
+  `/dashboard`'s `revenueTrend`.
+- `orderType` is accepted by `/reports/overview` only.
+- `/reports/technicians` and `/reports/customers` take **no parameters**, so the
+  reports screen hides the range selector on those tabs rather than showing a
+  filter that does nothing. `/reports/technicians` returns a **bare array**.
+- There is no payments-list, refunds-list or report `search` endpoint. Those
+  views are derived from data already loaded.
+- CSV exports are server-generated `text/csv` attachments and are authenticated
+  — fetch as a blob via `saveBlobAsFile`, never a plain link (a new tab drops the
+  bearer token and 401s). Same rule as invoice PDFs and printable HTML.
 
 ### Customer Portal Design System (`components/customer-portal/PortalUI.tsx`)
 

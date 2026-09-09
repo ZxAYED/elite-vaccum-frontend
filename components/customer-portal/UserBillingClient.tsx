@@ -43,6 +43,7 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { readApiMessage } from "@/lib/api-error";
+import { canPayInvoiceOnline, getInvoiceState, invoiceKind } from "@/lib/invoice-state";
 import { toStatusSlug } from "@/lib/customer-orders";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 import {
@@ -64,9 +65,6 @@ import {
 const PAGE_SIZE = 10;
 
 type BillingView = "invoices" | "receipts";
-
-/** Statuses that still owe money, so the pay action is worth surfacing. */
-const PAYABLE_STATUSES = ["ISSUED", "SENT", "OVERDUE", "PARTIALLY_PAID"];
 
 export function UserBillingClient({
   initialTab = "invoices",
@@ -138,14 +136,17 @@ export function UserBillingClient({
 
     try {
       const intent = await createStripePaymentIntent(payTarget.id).unwrap();
-      const paymentIntentId = intent.clientSecret?.split("_secret_")[0];
-      if (!paymentIntentId) {
+      // The API returns the intent id directly — never parse it out of
+      // the client secret.
+      if (!intent.paymentIntentId) {
         throw new Error("The payment gateway did not return a payment intent.");
       }
 
+      // Confirming server-side is what makes the payment real; the client
+      // result alone never marks an invoice paid.
       const result = await confirmStripePayment({
         invoiceId: payTarget.id,
-        paymentIntentId,
+        paymentIntentId: intent.paymentIntentId,
       }).unwrap();
 
       toast.success(result.message || "Payment completed.", {
@@ -264,7 +265,7 @@ export function UserBillingClient({
                       <>
                         <StatusBadge status={toStatusSlug(payment.status)} />
                         <PortalRef>{invoice.businessId || invoice.id}</PortalRef>
-                        <TypeBadge type={resolveInvoiceType(invoice)} />
+                        <TypeBadge type={invoiceKind(invoice)} />
                       </>
                     }
                     meta={
@@ -294,9 +295,9 @@ export function UserBillingClient({
                   <PortalCardFooter
                     actions={
                       <>
-                        {invoice.orderId ? (
+                        {invoice.productOrderId ? (
                           <PortalDetailAction
-                            href={`/user/orders/${invoice.orderId}`}
+                            href={`/user/orders/${invoice.productOrderId}`}
                             label="View Order"
                           />
                         ) : null}
@@ -427,18 +428,6 @@ export function UserBillingClient({
   );
 }
 
-/**
- * A store-order invoice is identified by carrying an `orderId`, not by its
- * `type` field — the backend currently labels product-order invoices
- * `SERVICE`, so trusting `type` mislabels them in the UI.
- */
-function resolveInvoiceType(invoice: InvoiceDto): "PRODUCT" | "SERVICE" {
-  if (invoice.orderId) return "PRODUCT";
-  if (invoice.serviceOrderId) return "SERVICE";
-  return String(invoice.type ?? "SERVICE").toUpperCase() === "PRODUCT"
-    ? "PRODUCT"
-    : "SERVICE";
-}
 
 function InvoiceCardRow({
   invoice,
@@ -451,9 +440,10 @@ function InvoiceCardRow({
   onPrint: () => void;
   isPrinting: boolean;
 }) {
-  const status = String(invoice.status ?? "").toUpperCase();
-  const isPaid = status === "PAID" || Boolean(invoice.paidAt);
-  const canPay = !isPaid && PAYABLE_STATUSES.includes(status);
+  const state = getInvoiceState(invoice);
+  // Billing refuses card payment for a store order — that rail is store
+  // checkout. DRAFT, VOID and settled invoices are never payable either.
+  const canPay = canPayInvoiceOnline(invoice);
   const lineItem = invoice.lineItems?.[0]?.description;
   const extraLines = Math.max(0, (invoice.lineItems?.length ?? 0) - 1);
 
@@ -462,16 +452,16 @@ function InvoiceCardRow({
       <PortalCardTop
         badges={
           <>
-            <StatusBadge status={toStatusSlug(invoice.status ?? "issued")} />
+            <StatusBadge label={state.label} status={state.slug} />
             <PortalRef>{invoice.businessId || invoice.id}</PortalRef>
-            <TypeBadge type={resolveInvoiceType(invoice)} />
+            <TypeBadge type={invoiceKind(invoice)} />
           </>
         }
         meta={
           <>
             Issued:{" "}
             <span className="font-medium text-slate-700">
-              {invoice.createdAt ? formatLongDate(invoice.createdAt) : "—"}
+              {invoice.issueDate ? formatLongDate(invoice.issueDate) : "—"}
             </span>
           </>
         }
@@ -514,34 +504,61 @@ function InvoiceCardRow({
         }
         facts={
           <>
+            {/*
+              The balance is derived, never stored:
+              total − Σ(SUCCEEDED payments) + Σ(COMPLETED refunds).
+            */}
             <PortalFact
               emphasis
               icon={Wallet}
-              label={isPaid ? "Amount Paid" : "Balance Due"}
-              tone={isPaid ? "success" : "warning"}
-              value={formatCurrencyUsd(Number(invoice.totalUsd))}
+              label={
+                state.hasRefund
+                  ? "Refunded"
+                  : state.balance > 0
+                    ? "Balance Due"
+                    : "Amount Paid"
+              }
+              tone={state.balance > 0 ? "warning" : "success"}
+              value={formatCurrencyUsd(
+                state.hasRefund
+                  ? state.refunded
+                  : state.balance > 0
+                    ? state.balance
+                    : state.paid || state.total,
+              )}
             />
+            {state.balance > 0 && state.paid > 0 ? (
+              <PortalFact
+                icon={Receipt}
+                label="Part Paid"
+                value={`${formatCurrencyUsd(state.paid)} of ${formatCurrencyUsd(state.total)}`}
+              />
+            ) : null}
             <PortalFact
               icon={CalendarClock}
-              label={isPaid ? "Paid On" : "Due Date"}
-              placeholder={isPaid ? "Not recorded" : "No due date"}
-              tone={!isPaid && status === "OVERDUE" ? "danger" : "neutral"}
+              label={state.balance > 0 ? "Due Date" : "Paid On"}
+              placeholder={state.balance > 0 ? "No due date" : "Not recorded"}
+              tone={
+                state.balance > 0 && state.slug === "overdue"
+                  ? "danger"
+                  : "neutral"
+              }
               value={
-                isPaid
-                  ? invoice.paidAt
-                    ? formatLongDate(invoice.paidAt)
-                    : undefined
-                  : invoice.dueDate
+                state.balance > 0
+                  ? invoice.dueDate
                     ? formatLongDate(invoice.dueDate)
+                    : undefined
+                  : invoice.paidAt
+                    ? formatLongDate(invoice.paidAt)
                     : undefined
               }
             />
-            {invoice.orderId ? (
+            {invoice.productOrderId ? (
               <PortalFact
                 icon={Receipt}
                 label="Linked Order"
                 truncate
-                value={invoice.orderId}
+                value={invoice.productOrderId}
               />
             ) : null}
           </>

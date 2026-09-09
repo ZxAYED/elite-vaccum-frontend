@@ -9,7 +9,6 @@ import {
   MoreHorizontal,
   Package,
   Settings2,
-  Truck,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -125,10 +124,6 @@ function OrdersRowActions({
         <DropdownMenuItem onSelect={() => router.push(`${href}#status`)}>
           <Settings2 size={16} />
           Update Status
-        </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => router.push(`${href}#shipping`)}>
-          <Truck size={16} />
-          Shipping / Tracking
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => router.push(`${href}#billing`)}>
           <FileText size={16} />

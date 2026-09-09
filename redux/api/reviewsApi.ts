@@ -53,6 +53,39 @@ export interface GetAdminReviewsParams {
 
 const EMPTY_DISTRIBUTION = { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 };
 
+function num(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeRatingSummary(
+  raw: RatingSummary | undefined,
+  fallbackAverage: number,
+  fallbackTotal: number,
+): RatingSummary {
+  if (!raw) {
+    return {
+      averageRating: fallbackAverage,
+      totalReviews: fallbackTotal,
+      distribution: { ...EMPTY_DISTRIBUTION },
+    };
+  }
+
+  return {
+    averageRating: num(raw.averageRating, fallbackAverage),
+    totalReviews: num(raw.totalReviews, fallbackTotal),
+    distribution: {
+      ...EMPTY_DISTRIBUTION,
+      ...Object.fromEntries(
+        Object.entries(raw.distribution ?? {}).map(([key, value]) => [
+          key,
+          num(value),
+        ]),
+      ),
+    },
+  };
+}
+
 function normalizePublicReview(raw: unknown, index: number): PublicReview {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const rating = Number(r.rating);
@@ -106,12 +139,7 @@ function unwrapPublicReviews(raw: unknown): PublicReviewsResponse {
     : 0;
 
   return {
-    ratingSummary:
-      summary ?? {
-        averageRating: averageFromItems,
-        totalReviews: items.length,
-        distribution: { ...EMPTY_DISTRIBUTION },
-      },
+    ratingSummary: normalizeRatingSummary(summary, averageFromItems, items.length),
     items,
   };
 }
@@ -232,11 +260,14 @@ export const reviewsApi = baseApi.injectEndpoints({
         method: "POST",
         body,
       }),
-      invalidatesTags: [
+      invalidatesTags: (_result, _error, body) => [
         { type: "Review", id: "PUBLIC_LIST" },
         { type: "Review", id: "MY_LIST" },
         { type: "Review", id: "MY_PRODUCTS" },
         { type: "Review", id: "ADMIN_LIST" },
+        ...(body.productId
+          ? [{ type: "Review" as const, id: `PRODUCT_${body.productId}` }]
+          : []),
       ],
     }),
     getAdminReviews: builder.query<PaginatedResponse<CustomerReview>, GetAdminReviewsParams | void>({

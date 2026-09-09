@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Eye, EyeOff, LockKeyhole, SlidersHorizontal } from "lucide-react";
+import type { ChangeEvent } from "react";
+import { Camera, Eye, EyeOff, LockKeyhole, Mail, SlidersHorizontal, Trash2, UserRound } from "lucide-react";
 import { z } from "zod";
 
 import {
@@ -19,10 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { toast } from "sonner";
-import { useChangePasswordMutation } from "@/redux/api/authApi";
+import { useChangePasswordMutation, useGetMeQuery } from "@/redux/api/authApi";
 import {
   useGetTechnicianProfileQuery,
+  useRemoveTechnicianPhotoMutation,
   useUpdateTechnicianAvailabilityMutation,
+  useUpdateTechnicianProfileMutation,
+  useUploadTechnicianPhotoMutation,
 } from "@/redux/api/technicianApi";
 
 const passwordFormSchema = z
@@ -52,10 +56,17 @@ const TIMEZONES = [
 ];
 
 export default function TechnicianSettingsPage() {
+  const { data: authUser } = useGetMeQuery();
   // Phase 17.4 profile provides the current availability + timezone.
   const { data: technician } = useGetTechnicianProfileQuery();
   const [updateAvailabilityApi, { isLoading: isUpdatingAvailability }] =
     useUpdateTechnicianAvailabilityMutation();
+  const [updateTechnicianProfile, { isLoading: isSavingProfile }] =
+    useUpdateTechnicianProfileMutation();
+  const [uploadTechnicianPhoto, { isLoading: isUploadingPhoto }] =
+    useUploadTechnicianPhotoMutation();
+  const [removeTechnicianPhoto, { isLoading: isRemovingPhoto }] =
+    useRemoveTechnicianPhotoMutation();
   const [changePasswordApi, { isLoading: isChangingPassword }] =
     useChangePasswordMutation();
 
@@ -91,6 +102,23 @@ export default function TechnicianSettingsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [passwordSubmitAttempted, setPasswordSubmitAttempted] = useState(false);
+  const [profileDraft, setProfileDraft] = useState<{
+    displayName?: string;
+    phone?: string;
+    specializationsText?: string;
+  }>({});
+
+  const profileValues = {
+    displayName:
+      profileDraft.displayName ??
+      technician?.displayName ??
+      [authUser?.firstName, authUser?.lastName].filter(Boolean).join(" ").trim() ??
+      "",
+    phone: profileDraft.phone ?? technician?.phone ?? authUser?.phone ?? "",
+    specializationsText:
+      profileDraft.specializationsText ?? (technician?.specializations ?? []).join(", "),
+  };
+  const hasProfileChanges = Object.keys(profileDraft).length > 0;
 
   const passwordErrors = useMemo(() => {
     const parsed = passwordFormSchema.safeParse({
@@ -137,6 +165,53 @@ export default function TechnicianSettingsPage() {
     }
   }
 
+  async function handleSaveProfile() {
+    if (!profileValues.displayName.trim()) {
+      toast.error("Display name is required.");
+      return;
+    }
+
+    try {
+      await updateTechnicianProfile({
+        displayName: profileValues.displayName.trim(),
+        phone: profileValues.phone.trim(),
+        specializations: profileValues.specializationsText
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      }).unwrap();
+      setProfileDraft({});
+      toast.success("Technician profile updated.");
+    } catch {
+      toast.error("Could not update technician profile. Please try again.");
+    }
+  }
+
+  async function handlePhotoUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("photo", file);
+
+    try {
+      await uploadTechnicianPhoto(formData).unwrap();
+      toast.success("Profile photo uploaded.");
+    } catch {
+      toast.error("Could not upload profile photo. Please try again.");
+    }
+  }
+
+  async function handleRemovePhoto() {
+    try {
+      await removeTechnicianPhoto().unwrap();
+      toast.success("Profile photo removed.");
+    } catch {
+      toast.error("Could not remove profile photo. Please try again.");
+    }
+  }
+
   return (
     <TechnicianRouteShell
       eyebrow="Technician Account"
@@ -144,6 +219,109 @@ export default function TechnicianSettingsPage() {
       description="Account security, availability, and notification preferences."
     >
       <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <AdminSurface className="xl:col-span-2">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:items-start">
+            <div className="flex items-start gap-4">
+              <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-teal-200 bg-teal-50 text-lg font-semibold text-primary">
+                {technician?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={technician.avatarUrl}
+                    alt={`${technician.displayName || "Technician"} profile`}
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  <UserRound className="size-7" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-2xl font-semibold text-primary">Technician Profile</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {authUser?.email ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Mail className="size-4 text-teal-700" />
+                      {authUser.email}
+                    </span>
+                  ) : (
+                    "Account identity loads from /auth/me."
+                  )}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <label className="cursor-pointer">
+                      <Camera className="size-4" />
+                      {isUploadingPhoto ? "Uploading..." : "Upload Photo"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        className="sr-only"
+                        disabled={isUploadingPhoto}
+                        onChange={handlePhotoUpload}
+                      />
+                    </label>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isRemovingPhoto}
+                    onClick={handleRemovePhoto}
+                  >
+                    <Trash2 className="size-4" />
+                    {isRemovingPhoto ? "Removing..." : "Remove Photo"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2">
+                <span className="text-sm font-semibold text-slate-700">Display Name</span>
+                <Input
+                  value={profileValues.displayName}
+                  onChange={(event) =>
+                    setProfileDraft((current) => ({
+                      ...current,
+                      displayName: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-semibold text-slate-700">Phone</span>
+                <Input
+                  value={profileValues.phone}
+                  onChange={(event) =>
+                    setProfileDraft((current) => ({ ...current, phone: event.target.value }))
+                  }
+                />
+              </label>
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm font-semibold text-slate-700">Specializations</span>
+                <Input
+                  value={profileValues.specializationsText}
+                  onChange={(event) =>
+                    setProfileDraft((current) => ({
+                      ...current,
+                      specializationsText: event.target.value,
+                    }))
+                  }
+                  placeholder="Maintenance Visits, Accessory Fit Service, Pipe Flush"
+                />
+              </label>
+              <div className="flex justify-end md:col-span-2">
+                <Button
+                  type="button"
+                  disabled={!hasProfileChanges || isSavingProfile}
+                  onClick={handleSaveProfile}
+                >
+                  {isSavingProfile ? "Saving..." : "Save Technician Profile"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </AdminSurface>
+
         <AdminSurface>
           <div className="mb-6 flex items-center gap-3">
             <LockKeyhole className="text-teal-700" size={22} />
@@ -302,4 +480,3 @@ function PasswordField({
     </label>
   );
 }
-

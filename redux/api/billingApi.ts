@@ -34,6 +34,27 @@ function readKpi(value: unknown): Record<string, number> | undefined {
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+function str(value: unknown, fallback = ""): string {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return fallback;
+}
+
+/** Reads a key off the envelope or its `data` wrapper, whichever carries it. */
+function picker(response: unknown) {
+  const outer = (response ?? {}) as Record<string, unknown>;
+  const inner = (unwrapData(response) ?? {}) as Record<string, unknown>;
+  return (key: string): unknown => outer[key] ?? inner[key];
+}
+
+/** Most write endpoints answer `{ success, message, invoice }`. */
+function readInvoice(response: unknown): InvoiceDto {
+  const pick = picker(response);
+  return (pick("invoice") ?? unwrapData(response)) as InvoiceDto;
+}
+
 function unwrapPaginated<T>(
   response: ApiResponse<PaginatedResponse<T> | T[]> | PaginatedResponse<T> | T[]
 ): PaginatedResponse<T> {
@@ -111,23 +132,55 @@ function unwrapPaginated<T>(
   };
 }
 
+/**
+ * An invoice exists only once a payment has **resolved**. A card order that is
+ * still being paid has no invoice and no payment row at all:
+ *
+ *   STRIPE order → PENDING  → invoices: []      (nothing to show yet)
+ *                  paid     → Invoice PAID
+ *                  failed   → Invoice VOID (audit record), order FAILED
+ *   COD order    → placed   → Invoice ISSUED   (courier collects)
+ *                  delivered→ Invoice PAID, payment SUCCEEDED
+ *
+ * So payment state for a store order is read from `order.status`, never from
+ * `invoices[0]`. See `lib/invoice-state.ts` for the derived helpers.
+ */
+export type InvoiceStatus =
+  | "DRAFT"
+  | "ISSUED"
+  | "PARTIALLY_PAID"
+  | "PAID"
+  | "VOID"
+  | "OVERDUE";
+
+export type InvoicePaymentStatus =
+  | "PENDING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "REFUNDED"
+  | "PARTIALLY_REFUNDED";
+
+/** Plain string server-side, not an enum. */
+export type RefundOutcome = "COMPLETED" | "MANUAL_REQUIRED";
+
 export interface InvoiceLineItemDto {
   description: string;
   quantity: number;
-  unitPriceUsd: number;
-  totalUsd?: number;
+  unitPriceUsd: string | number;
+  totalUsd?: string | number;
+  sortOrder?: number;
 }
 
 /**
- * Payments and refunds as the billing API returns them. Money arrives as a
- * decimal string, so callers must `Number()` before arithmetic.
+ * Money always arrives as a decimal string — coerce before arithmetic.
  */
 export interface InvoicePaymentDto {
   id: string;
-  status: string;
+  status: InvoicePaymentStatus | string;
   amountUsd: string | number;
   methodLabel?: string;
   transactionReference?: string;
+  processedAt?: string;
   paidAt?: string;
   createdAt?: string;
 }
@@ -135,7 +188,7 @@ export interface InvoicePaymentDto {
 export interface InvoiceRefundDto {
   id: string;
   paymentId?: string;
-  status: string;
+  status: RefundOutcome | string;
   amountUsd: string | number;
   reason?: string;
   transactionReference?: string;
@@ -146,66 +199,135 @@ export interface InvoiceRefundDto {
 export interface InvoiceDto {
   id: string;
   businessId: string;
-  orderId?: string;
-  serviceOrderId?: string;
   customerId: string;
-  type?: "SERVICE" | "PRODUCT" | string;
-  status: "DRAFT" | "SENT" | "PAID" | "OVERDUE" | "CANCELLED" | "REFUNDED" | string;
+  /** Set when this invoice belongs to a store order — see the boundary rule. */
+  productOrderId?: string | null;
+  serviceOrderId?: string | null;
+  status: InvoiceStatus | string;
+  issueDate?: string;
+  dueDate?: string;
+  paidAt?: string;
   subtotalUsd: string | number;
   taxUsd: string | number;
   discountUsd?: string | number;
   totalUsd: string | number;
-  lineItems: InvoiceLineItemDto[];
-  dueDate?: string;
-  paidAt?: string;
   notes?: string;
   customer?: {
     id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
+    displayName?: string;
+    email?: string;
     phone?: string;
   };
+  /** Includes the freight line, so Σ(lineItems) + tax − discount === totalUsd. */
+  lineItems: InvoiceLineItemDto[];
   payments?: InvoicePaymentDto[];
   refunds?: InvoiceRefundDto[];
-  createdAt: string;
-  updatedAt?: string;
+}
+
+/** Platform-wide status counts. NOT affected by the current list filters. */
+export interface InvoiceKpi {
+  issued: number;
+  paid: number;
+  partiallyPaid: number;
+  overdue: number;
+  void: number;
+  total: number;
 }
 
 export interface GetInvoicesParams {
-  status?: string;
-  search?: string;
   page?: number;
+  /** Max 100. */
   limit?: number;
+  status?: InvoiceStatus | string;
+  /** Admin list only: businessId / customer name / email. */
+  search?: string;
+  /** Admin list only. */
+  customerId?: string;
 }
 
+/**
+ * Service and custom invoices only — store orders self-invoice, so never
+ * create one for a product order.
+ */
 export interface CreateInvoiceRequest {
   customerId: string;
-  serviceOrderId?: string;
-  orderId?: string;
-  lineItems: {
+  lineItems: Array<{
     description: string;
-    quantity: number;
+    quantity?: number;
     unitPriceUsd: number;
-  }[];
+  }>;
+  serviceOrderId?: string;
   discountUsd?: number;
   taxUsd?: number;
+  /** `YYYY-MM-DD`. Defaults to +14 days server-side. */
+  dueDate?: string;
   notes?: string;
-  dueDays?: number;
+  status?: InvoiceStatus;
+}
+
+/** Sending `lineItems` REPLACES every existing line. */
+export interface UpdateInvoiceRequest {
+  lineItems?: Array<{
+    description: string;
+    quantity?: number;
+    unitPriceUsd: number;
+  }>;
+  discountUsd?: number;
+  taxUsd?: number;
+  dueDate?: string;
+  notes?: string;
+  status?: InvoiceStatus;
 }
 
 export interface RecordOfflinePaymentRequest {
   amountUsd: number;
-  methodLabel?: string;
-  method?: "CASH" | "CHECK" | "BANK_TRANSFER" | "OTHER" | string;
+  /** Required. Cash / Check / Wire. A card label is rejected for store orders. */
+  methodLabel: string;
   transactionReference?: string;
-  reference?: string;
+  status?: InvoicePaymentStatus;
 }
 
+export interface RecordPaymentResult {
+  success: boolean;
+  message: string;
+  payment?: InvoicePaymentDto;
+  invoice?: InvoiceDto;
+}
+
+/** Refunds ONE specific payment. Partial amounts allowed. */
 export interface RecordRefundRequest {
   paymentId: string;
   amountUsd: number;
   reason?: string;
+}
+
+export interface RecordRefundResult {
+  success: boolean;
+  message: string;
+  refund: InvoiceRefundDto;
+  stripeRefundId: string | null;
+  /**
+   * `true` means **no money moved** (cash/check settlement) — somebody has to
+   * repay the customer by hand. Always branch on this.
+   */
+  requiresManualPayout: boolean;
+  invoice?: InvoiceDto;
+}
+
+export interface StripeInvoiceIntent {
+  success: boolean;
+  clientSecret: string;
+  paymentIntentId: string;
+  amountUsd: number;
+  currency: string;
+  invoiceBusinessId?: string;
+}
+
+export interface ConfirmStripePaymentResult {
+  success: boolean;
+  message: string;
+  payment?: InvoicePaymentDto;
+  invoice?: InvoiceDto;
 }
 
 export const billingApi = baseApi.injectEndpoints({
@@ -226,10 +348,16 @@ export const billingApi = baseApi.injectEndpoints({
             ]
           : [{ type: "Invoice", id: "ADMIN_LIST" }],
     }),
+    /** DRAFT invoices are always excluded, even if `status=DRAFT` is passed. */
     getMyInvoices: builder.query<PaginatedResponse<InvoiceDto>, GetInvoicesParams | void>({
       query: (params) => ({
         url: "/billing/invoices/me",
-        params: params || undefined,
+        params: params
+          ? {
+              ...params,
+              ...(params.limit ? { limit: Math.min(params.limit, 100) } : {}),
+            }
+          : undefined,
       }),
       transformResponse: (
         response: ApiResponse<PaginatedResponse<InvoiceDto> | InvoiceDto[]> | PaginatedResponse<InvoiceDto> | InvoiceDto[]
@@ -253,44 +381,66 @@ export const billingApi = baseApi.injectEndpoints({
         responseHandler: (response) => response.text(),
       }),
     }),
-    createInvoice: builder.mutation<InvoiceDto, CreateInvoiceRequest | Partial<InvoiceDto>>({
+    createInvoice: builder.mutation<InvoiceDto, CreateInvoiceRequest>({
       query: (body) => ({
         url: "/billing/invoices",
         method: "POST",
         body,
       }),
-      transformResponse: (response: ApiResponse<InvoiceDto> | InvoiceDto) => unwrapData(response),
+      transformResponse: (response: unknown) => readInvoice(response),
       invalidatesTags: [
         { type: "Invoice", id: "ADMIN_LIST" },
         { type: "Invoice", id: "MY_LIST" },
       ],
     }),
-    updateInvoice: builder.mutation<InvoiceDto, { id: string; body: Partial<InvoiceDto> }>({
+
+    /** Sending `lineItems` replaces every existing line. 400 once paid. */
+    updateInvoice: builder.mutation<
+      InvoiceDto,
+      { id: string; body: UpdateInvoiceRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/billing/invoices/${id}`,
         method: "PATCH",
         body,
       }),
-      transformResponse: (response: ApiResponse<InvoiceDto> | InvoiceDto) => unwrapData(response),
+      transformResponse: (response: unknown) => readInvoice(response),
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Invoice", id },
         { type: "Invoice", id: "ADMIN_LIST" },
         { type: "Invoice", id: "MY_LIST" },
       ],
     }),
-    recordOfflinePayment: builder.mutation<InvoicePaymentDto, { id: string; body: RecordOfflinePaymentRequest }>({
+
+    /**
+     * Records an offline settlement — cash, check or wire. A card `methodLabel`
+     * is rejected on a store-order invoice (409 on a duplicate reference).
+     */
+    recordOfflinePayment: builder.mutation<
+      RecordPaymentResult,
+      { id: string; body: RecordOfflinePaymentRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/billing/invoices/${id}/payments`,
         method: "POST",
         body: {
           amountUsd: body.amountUsd,
-          methodLabel: body.methodLabel || body.method || "Cash",
-          method: body.method || body.methodLabel || "CASH",
-          transactionReference: body.transactionReference || body.reference || "Offline payment",
-          reference: body.reference || body.transactionReference || "Offline payment",
+          methodLabel: body.methodLabel,
+          ...(body.transactionReference?.trim()
+            ? { transactionReference: body.transactionReference.trim() }
+            : {}),
+          ...(body.status ? { status: body.status } : {}),
         },
       }),
-      transformResponse: (response: unknown) => unwrapData(response as never),
+      transformResponse: (response: unknown): RecordPaymentResult => {
+        const pick = picker(response);
+        return {
+          success: pick("success") !== false,
+          message: str(pick("message"), "Payment recorded."),
+          payment: pick("payment") as InvoicePaymentDto | undefined,
+          invoice: pick("invoice") as InvoiceDto | undefined,
+        };
+      },
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Invoice", id },
         { type: "Invoice", id: "ADMIN_LIST" },
@@ -298,13 +448,36 @@ export const billingApi = baseApi.injectEndpoints({
         { type: "Payment", id: "LIST" },
       ],
     }),
-    recordInvoiceRefund: builder.mutation<InvoiceRefundDto, { id: string; body: RecordRefundRequest }>({
+
+    /**
+     * Refunds ONE specific payment on the invoice. Partial amounts allowed.
+     * Callers MUST branch on `requiresManualPayout` — true means no money
+     * moved and someone has to repay the customer by hand.
+     */
+    recordInvoiceRefund: builder.mutation<
+      RecordRefundResult,
+      { id: string; body: RecordRefundRequest }
+    >({
       query: ({ id, body }) => ({
         url: `/billing/invoices/${id}/refunds`,
         method: "POST",
         body,
       }),
-      transformResponse: (response: unknown) => unwrapData(response as never),
+      transformResponse: (response: unknown): RecordRefundResult => {
+        const pick = picker(response);
+        const refund = (pick("refund") ?? {}) as InvoiceRefundDto;
+        const stripeRefundId = str(pick("stripeRefundId"));
+        return {
+          success: pick("success") !== false,
+          message: str(pick("message"), "Refund processed."),
+          refund,
+          stripeRefundId: stripeRefundId || null,
+          requiresManualPayout:
+            Boolean(pick("requiresManualPayout")) ||
+            String(refund?.status ?? "").toUpperCase() === "MANUAL_REQUIRED",
+          invoice: pick("invoice") as InvoiceDto | undefined,
+        };
+      },
       invalidatesTags: (_result, _error, { id }) => [
         { type: "Invoice", id },
         { type: "Invoice", id: "ADMIN_LIST" },
@@ -312,25 +485,36 @@ export const billingApi = baseApi.injectEndpoints({
         { type: "Payment", id: "LIST" },
       ],
     }),
-    createStripePaymentIntent: builder.mutation<{ clientSecret: string }, string>({
+
+    /**
+     * Service and custom invoices only. 400 for a store-order invoice, or one
+     * already PAID / VOID / DRAFT / with nothing outstanding.
+     */
+    createStripePaymentIntent: builder.mutation<StripeInvoiceIntent, string>({
       query: (invoiceId) => ({
         url: `/billing/invoices/${invoiceId}/stripe/payment-intent`,
         method: "POST",
       }),
-      transformResponse: (
-        response: ApiResponse<{ clientSecret: string }> | { clientSecret: string }
-      ) => {
-        const unwrapped = unwrapData(response);
+      transformResponse: (response: unknown): StripeInvoiceIntent => {
+        const pick = picker(response);
         return {
-          clientSecret:
-            (unwrapped as { clientSecret?: string })?.clientSecret ||
-            (response as { clientSecret?: string })?.clientSecret ||
-            "",
+          success: pick("success") !== false,
+          clientSecret: str(pick("clientSecret")),
+          // Returned directly now — never parse it out of the client secret.
+          paymentIntentId: str(pick("paymentIntentId")),
+          amountUsd: Number(pick("amountUsd")) || 0,
+          currency: str(pick("currency"), "usd"),
+          invoiceBusinessId: str(pick("invoiceBusinessId")) || undefined,
         };
       },
     }),
+
+    /**
+     * Server re-verifies with Stripe and checks the intent belongs to this
+     * invoice. Idempotent: a repeat call reports the payment already recorded.
+     */
     confirmStripePayment: builder.mutation<
-      { success: boolean; message: string },
+      ConfirmStripePaymentResult,
       { invoiceId: string; paymentIntentId: string }
     >({
       query: ({ invoiceId, paymentIntentId }) => ({
@@ -338,16 +522,13 @@ export const billingApi = baseApi.injectEndpoints({
         method: "POST",
         body: { paymentIntentId },
       }),
-      transformResponse: (
-        response: ApiResponse<{ success: boolean; message: string }> | { success: boolean; message: string }
-      ) => {
-        const unwrapped = unwrapData(response);
+      transformResponse: (response: unknown): ConfirmStripePaymentResult => {
+        const pick = picker(response);
         return {
-          success: (unwrapped as { success?: boolean })?.success ?? true,
-          message:
-            (unwrapped as { message?: string })?.message ||
-            (response as { message?: string })?.message ||
-            "Payment confirmed.",
+          success: pick("success") !== false,
+          message: str(pick("message"), "Payment confirmed."),
+          payment: pick("payment") as InvoicePaymentDto | undefined,
+          invoice: pick("invoice") as InvoiceDto | undefined,
         };
       },
       invalidatesTags: (_result, _error, { invoiceId }) => [

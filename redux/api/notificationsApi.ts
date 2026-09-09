@@ -10,6 +10,20 @@ export interface GetNotificationsParams {
 }
 
 export interface NotificationPreferencesDto {
+  id?: string;
+  userId?: string;
+  emailNotifications: boolean;
+  smsNotifications: boolean;
+  pushNotifications: boolean;
+  preferences?: {
+    orderUpdates?: boolean;
+    serviceUpdates?: boolean;
+    billingUpdates?: boolean;
+    marketing?: boolean;
+    [key: string]: unknown;
+  } | null;
+  updatedAt?: string;
+  /** Backward-compatible aliases used by older portal widgets. */
   email: boolean;
   sms: boolean;
   push: boolean;
@@ -63,13 +77,61 @@ function unwrapPreferencesResponse(raw: unknown): NotificationPreferencesDto {
   if (raw && typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
     const target = (obj.preferences || obj.data || obj) as Record<string, unknown>;
+    const nested =
+      target.preferences && typeof target.preferences === "object"
+        ? (target.preferences as NotificationPreferencesDto["preferences"])
+        : null;
+    const email =
+      typeof target.emailNotifications === "boolean"
+        ? target.emailNotifications
+        : typeof target.email === "boolean"
+          ? target.email
+          : true;
+    const sms =
+      typeof target.smsNotifications === "boolean"
+        ? target.smsNotifications
+        : typeof target.sms === "boolean"
+          ? target.sms
+          : false;
+    const push =
+      typeof target.pushNotifications === "boolean"
+        ? target.pushNotifications
+        : typeof target.push === "boolean"
+          ? target.push
+          : true;
     return {
-      email: typeof target.email === "boolean" ? target.email : true,
-      sms: typeof target.sms === "boolean" ? target.sms : false,
-      push: typeof target.push === "boolean" ? target.push : true,
+      id: typeof target.id === "string" ? target.id : undefined,
+      userId: typeof target.userId === "string" ? target.userId : undefined,
+      emailNotifications: email,
+      smsNotifications: sms,
+      pushNotifications: push,
+      preferences: nested,
+      updatedAt: typeof target.updatedAt === "string" ? target.updatedAt : undefined,
+      email,
+      sms,
+      push,
     };
   }
-  return { email: true, sms: false, push: true };
+  return {
+    emailNotifications: true,
+    smsNotifications: false,
+    pushNotifications: true,
+    preferences: null,
+    email: true,
+    sms: false,
+    push: true,
+  };
+}
+
+function serializePreferencesRequest(
+  body: Partial<NotificationPreferencesDto>,
+) {
+  return {
+    emailNotifications: body.emailNotifications ?? body.email,
+    smsNotifications: body.smsNotifications ?? body.sms,
+    pushNotifications: body.pushNotifications ?? body.push,
+    preferences: body.preferences,
+  };
 }
 
 export const notificationsApi = baseApi.injectEndpoints({
@@ -105,8 +167,9 @@ export const notificationsApi = baseApi.injectEndpoints({
       query: (body) => ({
         url: "/notifications/preferences",
         method: "PATCH",
-        body,
+        body: serializePreferencesRequest(body),
       }),
+      transformResponse: unwrapPreferencesResponse,
       invalidatesTags: [{ type: "Notification", id: "PREFERENCES" }],
     }),
     adminEnqueueNotification: builder.mutation<{ success: boolean; jobId: string }, AdminEnqueueNotificationRequest>({

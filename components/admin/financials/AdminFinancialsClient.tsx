@@ -60,6 +60,7 @@ import {
 } from "@/redux/api/billingApi";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { readApiMessage } from "@/lib/api-error";
+import { getInvoiceState } from "@/lib/invoice-state";
 import { toStatusSlug } from "@/lib/customer-orders";
 import { formatCurrencyUsd, formatShortDate } from "@/lib/formatters";
 
@@ -69,10 +70,19 @@ const PAGE_SIZE = 20;
 
 /** Invoices may carry a nested customer, or only an id. */
 function customerLabel(invoice: InvoiceDto) {
-  const first = invoice.customer?.firstName?.trim();
-  const last = invoice.customer?.lastName?.trim();
-  const full = [first, last].filter(Boolean).join(" ");
-  return full || invoice.customer?.email || "Customer";
+  return (
+    invoice.customer?.displayName?.trim() ||
+    invoice.customer?.email ||
+    "Customer"
+  );
+}
+
+/**
+ * A store-order invoice is identified by `productOrderId`. Only service and
+ * custom invoices are created through billing.
+ */
+function invoiceKind(invoice: InvoiceDto): "PRODUCT" | "SERVICE" {
+  return invoice.productOrderId ? "PRODUCT" : "SERVICE";
 }
 
 const invoiceStatusOptions = [
@@ -101,7 +111,7 @@ export function AdminFinancialsClient() {
   >([{ description: "Central Vacuum Service Visit", quantity: 1, unitPriceUsd: 150 }]);
   const [taxUsd, setTaxUsd] = useState("12.00");
   const [discountUsd, setDiscountUsd] = useState("0.00");
-  const [dueDays, setDueDays] = useState("14");
+  const [dueDate, setDueDate] = useState("");
   const [invoiceNotes, setInvoiceNotes] = useState("");
 
   // Record Payment Modal State
@@ -112,6 +122,7 @@ export function AdminFinancialsClient() {
 
   // Refund Modal State
   const [refundTarget, setRefundTarget] = useState<InvoiceDto | null>(null);
+  const [refundPaymentId, setRefundPaymentId] = useState("");
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
 
@@ -175,35 +186,39 @@ export function AdminFinancialsClient() {
   );
 
   /**
-   * `GET /billing/invoices` returns KPI counts spanning every invoice; use
-   * them when present. Otherwise these describe only the page on screen, which
-   * the card labels make explicit.
+   * `meta.kpi` is a set of platform-wide status **counts** and is NOT
+   * affected by the current filters — so it is labelled as such. Money
+   * figures have no KPI equivalent, so they are summed from the page on
+   * screen and labelled that way too.
    */
   const stats = useMemo(() => {
     const kpi = meta?.kpi;
-    let invoiced = 0;
+    let billed = 0;
     let collected = 0;
-    let overdueCount = 0;
+    let outstanding = 0;
 
     invoices.forEach((invoice) => {
-      const amount = Number(invoice.totalUsd) || 0;
-      invoiced += amount;
-      const status = String(invoice.status ?? "").toLowerCase();
-      if (status === "paid") collected += amount;
-      if (status === "overdue") overdueCount += 1;
+      const state = getInvoiceState(invoice);
+      if (state.isVoid || state.isDraft) return;
+      billed += state.total;
+      collected += state.paid - state.refunded;
+      outstanding += state.balance;
     });
 
     return {
-      isGlobal: Boolean(kpi),
-      invoiced: kpi?.totalInvoicedUsd ?? invoiced,
-      collected: kpi?.totalCollectedUsd ?? kpi?.paidUsd ?? collected,
-      outstanding:
-        kpi?.outstandingUsd ??
-        Math.max(0, (kpi?.totalInvoicedUsd ?? invoiced) - (kpi?.totalCollectedUsd ?? collected)),
-      overdueCount: kpi?.overdue ?? kpi?.overdueCount ?? overdueCount,
+      hasKpi: Boolean(kpi),
+      counts: {
+        total: kpi?.total ?? invoices.length,
+        paid: kpi?.paid ?? 0,
+        issued: kpi?.issued ?? 0,
+        partiallyPaid: kpi?.partiallyPaid ?? 0,
+        overdue: kpi?.overdue ?? 0,
+      },
+      billed,
+      collected,
+      outstanding,
     };
   }, [invoices, meta?.kpi]);
-
   // Create Invoice Calculation
   const subtotalCalculation = useMemo(() => {
     return lineItems.reduce(
@@ -267,7 +282,7 @@ export function AdminFinancialsClient() {
         })),
         taxUsd: Number(taxUsd) || 0,
         discountUsd: Number(discountUsd) || 0,
-        dueDays: Number(dueDays) || 14,
+        ...(dueDate ? { dueDate } : {}),
         notes: invoiceNotes.trim() || undefined,
       };
 
@@ -282,6 +297,7 @@ export function AdminFinancialsClient() {
       setServiceOrderId("");
       setInvoiceNotes("");
       setLineItems([{ description: "", quantity: 1, unitPriceUsd: 0 }]);
+      setDueDate("");
     } catch (err: unknown) {
       const errObj = err as { data?: { message?: string }; message?: string };
       const msg =
@@ -325,38 +341,77 @@ export function AdminFinancialsClient() {
     }
   }
 
+  /** Only SUCCEEDED (or partly refunded) payments can be refunded against. */
+  const refundablePayments = (refundTarget?.payments ?? []).filter((payment) =>
+    ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(
+      String(payment.status).toUpperCase(),
+    ),
+  );
+
+  function openRefund(invoice: InvoiceDto) {
+    const settled = (invoice.payments ?? []).find((payment) =>
+      ["SUCCEEDED", "PARTIALLY_REFUNDED"].includes(
+        String(payment.status).toUpperCase(),
+      ),
+    );
+    setRefundTarget(invoice);
+    setRefundPaymentId(settled?.id ?? "");
+    setRefundAmount(settled ? String(settled.amountUsd) : "");
+    setRefundReason("");
+  }
+
+  /**
+   * A refund settles against ONE specific payment, so the id has to be a
+   * real payment on this invoice — never synthesised.
+   */
   async function handleRecordRefund(e: React.FormEvent) {
     e.preventDefault();
     if (!refundTarget) return;
+
     const amount = Number(refundAmount);
     if (!amount || amount <= 0) {
-      toast.error("Please enter a valid refund amount.");
+      toast.error("Enter a refund amount greater than zero.");
+      return;
+    }
+    if (!refundPaymentId) {
+      toast.error("Select which payment to refund.");
       return;
     }
 
-    const toastId = toast.loading("Processing refund record...");
+    const toastId = toast.loading("Processing refund...");
     try {
-      await recordRefundMutation({
+      const result = await recordRefundMutation({
         id: refundTarget.id,
         body: {
-          paymentId: refundTarget.payments?.[0]?.id || `pay_${refundTarget.id}`,
+          paymentId: refundPaymentId,
           amountUsd: amount,
-          reason: refundReason.trim() || "Administrative refund adjustment",
+          ...(refundReason.trim() ? { reason: refundReason.trim() } : {}),
         },
       }).unwrap();
 
-      toast.success("Refund processed successfully!", {
-        id: toastId,
-        description: `Refund of ${formatCurrencyUsd(amount)} logged.`,
-      });
+      // No money moves on a cash/check refund — say so loudly.
+      if (result.requiresManualPayout) {
+        toast.warning("Refund recorded — manual payout required", {
+          id: toastId,
+          description: result.message,
+          duration: 12000,
+        });
+      } else {
+        toast.success("Refund issued", {
+          id: toastId,
+          description: result.message,
+        });
+      }
+
       setRefundTarget(null);
       setRefundAmount("");
       setRefundReason("");
-    } catch (err: unknown) {
-      const errObj = err as { data?: { message?: string }; message?: string };
-      const msg =
-        errObj?.data?.message || errObj?.message || "Failed to process refund.";
-      toast.error(msg, { id: toastId });
+      setRefundPaymentId("");
+    } catch (err) {
+      toast.error("Refund failed", {
+        id: toastId,
+        description: readApiMessage(err, "The refund was rejected."),
+      });
     }
   }
 
@@ -395,30 +450,37 @@ export function AdminFinancialsClient() {
         }
       />
 
-      {/* KPI Statistic Cards */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Platform-wide status counts (unaffected by the filters below). */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <AdminStatCard
-          label={stats.isGlobal ? "Total Invoiced" : "Invoiced (this page)"}
-          value={formatCurrencyUsd(stats.invoiced)}
-          tone="default"
+          helper={stats.hasKpi ? "All invoices" : "This page"}
+          label="Invoices"
+          value={stats.counts.total}
         />
         <AdminStatCard
-          label={stats.isGlobal ? "Total Collected" : "Collected (this page)"}
-          value={formatCurrencyUsd(stats.collected)}
+          helper={stats.hasKpi ? "All invoices" : "This page"}
+          label="Paid"
           tone="success"
+          value={stats.counts.paid}
         />
         <AdminStatCard
-          label="Outstanding Balance"
-          value={formatCurrencyUsd(stats.outstanding)}
+          helper={stats.hasKpi ? "All invoices" : "This page"}
+          label="Awaiting Payment"
+          value={stats.counts.issued + stats.counts.partiallyPaid}
+        />
+        <AdminStatCard
+          helper={stats.hasKpi ? "All invoices" : "This page"}
+          label="Overdue"
+          tone={stats.counts.overdue > 0 ? "warning" : "default"}
+          value={stats.counts.overdue}
+        />
+        <AdminStatCard
+          helper="Summed from this page"
+          label="Outstanding"
           tone="warning"
-        />
-        <AdminStatCard
-          label="Overdue Invoices"
-          value={stats.overdueCount}
-          tone={stats.overdueCount > 0 ? "warning" : "default"}
+          value={formatCurrencyUsd(stats.outstanding)}
         />
       </div>
-
       {/* Toolbar & Filters */}
       <AdminSurface className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -546,21 +608,19 @@ export function AdminFinancialsClient() {
                         </td>
                         <td className="py-3 px-4">
                           <p className="font-semibold text-slate-900">
-                            {invoice.customer?.firstName
-                              ? `${invoice.customer.firstName} ${invoice.customer.lastName}`
-                              : "Valued Customer"}
+                            {customerLabel(invoice)}
                           </p>
-                          {invoice.orderId && (
+                          {invoice.productOrderId ? (
                             <p className="text-[11px] text-slate-400 font-mono">
-                              Order: {invoice.orderId}
+                              Order: {invoice.productOrderId}
                             </p>
-                          )}
+                          ) : null}
                         </td>
                         <td className="py-3 px-4">
-                          <TypeBadge type={invoice.type === "PRODUCT" ? "PRODUCT" : "SERVICE"} />
+                          <TypeBadge type={invoiceKind(invoice)} />
                         </td>
                         <td className="py-3 px-4 text-slate-500">
-                          {formatShortDate(invoice.createdAt)}
+                          {invoice.issueDate ? formatShortDate(invoice.issueDate) : "—"}
                           {invoice.dueDate && (
                             <p className="text-[10px] text-slate-400">
                               Due {formatShortDate(invoice.dueDate)}
@@ -612,10 +672,7 @@ export function AdminFinancialsClient() {
                               )}
                               {isPaid && (
                                 <DropdownMenuItem
-                                  onClick={() => {
-                                    setRefundTarget(invoice);
-                                    setRefundAmount(String(invoice.totalUsd));
-                                  }}
+                                  onClick={() => openRefund(invoice)}
                                   className="flex items-center gap-2 text-rose-700"
                                 >
                                   <RotateCcw size={14} /> Issue Refund
@@ -917,16 +974,22 @@ export function AdminFinancialsClient() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Payment Due (Days)
+                <label
+                  className="text-xs font-semibold text-slate-700 block mb-1"
+                  htmlFor="invoice-due-date"
+                >
+                  Payment Due Date
                 </label>
                 <Input
-                  type="number"
-                  min={1}
-                  value={dueDays}
-                  onChange={(e) => setDueDays(e.target.value)}
+                  id="invoice-due-date"
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
                   className="rounded-md text-xs sm:text-sm"
                 />
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Leave empty to default to 14 days from today.
+                </p>
               </div>
             </div>
 
@@ -1097,6 +1160,48 @@ export function AdminFinancialsClient() {
               </DialogDescription>
             </DialogHeader>
 
+            {refundablePayments.length === 0 ? (
+              <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+                This invoice has no settled payment, so there is nothing to
+                refund yet.
+              </p>
+            ) : (
+              <div>
+                <label
+                  className="mb-1 block text-xs font-semibold text-slate-700"
+                  htmlFor="refund-payment"
+                >
+                  Refund Which Payment *
+                </label>
+                <select
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm"
+                  id="refund-payment"
+                  onChange={(event) => {
+                    setRefundPaymentId(event.target.value);
+                    const chosen = refundablePayments.find(
+                      (payment) => payment.id === event.target.value,
+                    );
+                    setRefundAmount(chosen ? String(chosen.amountUsd) : "");
+                  }}
+                  value={refundPaymentId}
+                >
+                  {refundablePayments.map((payment) => (
+                    <option key={payment.id} value={payment.id}>
+                      {formatCurrencyUsd(Number(payment.amountUsd))} ·{" "}
+                      {payment.methodLabel || "Payment"}
+                      {payment.transactionReference
+                        ? ` · ${payment.transactionReference}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Card payments refund through Stripe. Cash and check
+                  refunds have to be paid out by hand.
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="text-xs font-semibold text-slate-700 block mb-1">
                 Refund Amount ($) *
@@ -1114,10 +1219,9 @@ export function AdminFinancialsClient() {
 
             <div>
               <label className="text-xs font-semibold text-slate-700 block mb-1">
-                Reason for Refund *
+                Reason for Refund
               </label>
               <Textarea
-                required
                 rows={3}
                 placeholder="e.g. Scope adjustment, goodwill discount, returned component..."
                 value={refundReason}
@@ -1141,7 +1245,7 @@ export function AdminFinancialsClient() {
                 type="submit"
                 size="sm"
                 variant="destructive"
-                disabled={isRecordingRefund}
+                disabled={isRecordingRefund || refundablePayments.length === 0}
                 className="rounded-md"
               >
                 {isRecordingRefund ? (

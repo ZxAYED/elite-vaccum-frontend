@@ -15,6 +15,7 @@ import {
   useForgotPasswordMutation,
   useResetPasswordMutation,
 } from "@/redux/api/authApi";
+import { PasswordInput } from "./PasswordInput";
 
 export function ForgotPasswordForm() {
   const router = useRouter();
@@ -160,15 +161,13 @@ export function ForgotPasswordForm() {
         </FormField>
 
         <FormField htmlFor="newPassword" label="New Password" required>
-          <input
+          <PasswordInput
             id="newPassword"
             name="newPassword"
             autoComplete="new-password"
-            className={inputClassName}
             placeholder="Enter new secure password..."
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            type="password"
             minLength={8}
             required
           />

@@ -159,6 +159,7 @@ export const baseApi = createApi({
     "FAQ",
     "Policy",
     "Report",
+    "Dashboard",
     "Chat",
     "Technician",
   ],

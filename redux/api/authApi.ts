@@ -33,6 +33,7 @@ export interface ResetPasswordRequest {
 }
 
 export interface ChangePasswordRequest {
+  oldPassword?: string;
   currentPassword?: string;
   newPassword?: string;
 }
@@ -198,7 +199,10 @@ export const authApi = baseApi.injectEndpoints({
       query: (body) => ({
         url: "/auth/change-password",
         method: "POST",
-        body,
+        body: {
+          oldPassword: body.oldPassword ?? body.currentPassword,
+          newPassword: body.newPassword,
+        },
       }),
       transformResponse: (
         response: ApiResponse<{ message?: string }> | { message?: string }

@@ -2,136 +2,130 @@
 
 import { useState } from "react";
 import { Download, FileSpreadsheet, Loader2 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/Select";
-import { downloadReportCsv, type ExportReportType } from "@/lib/exportCsv";
-import { getAdminOrders } from "@/data/mock/admin-orders";
-import {
-  getSharedServiceRequests,
-  getSharedCustomers,
-} from "@/data/mock/shared-business-store";
-import type { AdminUnifiedOrder, Customer, ServiceRequest } from "@/types/domain";
+import { toast } from "sonner";
 
-export function ExportReportMenu() {
-  const [exporting, setExporting] = useState(false);
+import { Button } from "@/components/ui/Button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu";
+import { readApiMessage } from "@/lib/api-error";
+import { saveBlobAsFile } from "@/lib/download-file";
+import {
+  useExportCustomersCsvMutation,
+  useExportInvoicesCsvMutation,
+  useExportOrdersCsvMutation,
+  useExportServiceRequestsCsvMutation,
+  type ReportPeriod,
+} from "@/redux/api/reportsApi";
 
-  async function handleExport(type: ExportReportType) {
-    setExporting(true);
+/**
+ * CSV exports are generated **server-side** and streamed back as a
+ * `text/csv` attachment. They are authenticated, so the file has to be fetched
+ * as a blob and saved — a plain link would drop the bearer token and 401.
+ */
+
+type ExportKind = "orders" | "service-requests" | "invoices" | "customers";
+
+const EXPORTS: Array<{
+  kind: ExportKind;
+  label: string;
+  /** The customers export takes no date parameters. */
+  ranged: boolean;
+}> = [
+  { kind: "orders", label: "Orders", ranged: true },
+  { kind: "service-requests", label: "Service Requests", ranged: true },
+  { kind: "invoices", label: "Invoices", ranged: true },
+  { kind: "customers", label: "Customers", ranged: false },
+];
+
+export function ExportReportMenu({ period }: { period?: ReportPeriod }) {
+  const [pending, setPending] = useState<ExportKind | null>(null);
+
+  const [exportOrders] = useExportOrdersCsvMutation();
+  const [exportServiceRequests] = useExportServiceRequestsCsvMutation();
+  const [exportInvoices] = useExportInvoicesCsvMutation();
+  const [exportCustomers] = useExportCustomersCsvMutation();
+
+  async function handleExport(kind: ExportKind, ranged: boolean) {
+    setPending(kind);
+    const params = ranged && period ? { period } : undefined;
+
     try {
-      if (type === "orders") {
-        const orders: AdminUnifiedOrder[] = getAdminOrders();
-        await downloadReportCsv<AdminUnifiedOrder>(
-          "orders",
-          orders,
-          [
-            { header: "Order ID", accessor: (r) => r.id },
-            { header: "Type", accessor: (r) => r.type },
-            { header: "Customer ID", accessor: (r) => r.customerId },
-            { header: "Status", accessor: (r) => r.status },
-            { header: "Total ($)", accessor: (r) => r.total.totalUsd },
-            { header: "Created At", accessor: (r) => r.createdAt },
-          ],
-        );
-      } else if (type === "service-requests") {
-        const reqs: ServiceRequest[] = getSharedServiceRequests();
-        await downloadReportCsv<ServiceRequest>(
-          "service-requests",
-          reqs,
-          [
-            { header: "Request ID", accessor: (r) => r.id },
-            { header: "Title", accessor: (r) => r.title },
-            { header: "Customer ID", accessor: (r) => r.customerId },
-            { header: "Status", accessor: (r) => r.status },
-            { header: "Urgency", accessor: (r) => r.urgency },
-            { header: "Preferred Date", accessor: (r) => r.preferredDate },
-            { header: "Preferred Time", accessor: (r) => r.preferredTime },
-          ],
-        );
-      } else if (type === "customers") {
-        const customers: Customer[] = getSharedCustomers();
-        await downloadReportCsv<Customer>(
-          "customers",
-          customers,
-          [
-            { header: "Customer ID", accessor: (r) => r.id },
-            { header: "Name", accessor: (r) => r.displayName || `${r.firstName} ${r.lastName}` },
-            { header: "Email", accessor: (r) => r.email },
-            { header: "Phone", accessor: (r) => r.phone },
-            { header: "Status", accessor: (r) => r.status },
-            { header: "Total Orders", accessor: (r) => r.totalOrders },
-            { header: "Lifetime Value ($)", accessor: (r) => r.lifetimeValueUsd },
-          ],
-        );
-      } else if (type === "invoices") {
-        const orders: AdminUnifiedOrder[] = getAdminOrders();
-        await downloadReportCsv<AdminUnifiedOrder>(
-          "invoices",
-          orders,
-          [
-            { header: "Invoice ID", accessor: (r) => `INV-${r.id.slice(0, 8)}` },
-            { header: "Related Order", accessor: (r) => r.id },
-            { header: "Customer ID", accessor: (r) => r.customerId },
-            { header: "Amount ($)", accessor: (r) => r.total.totalUsd },
-            { header: "Status", accessor: (r) => r.status },
-            { header: "Date", accessor: (r) => r.createdAt },
-          ],
-        );
-      }
+      const blob = await (kind === "orders"
+        ? exportOrders(params).unwrap()
+        : kind === "service-requests"
+          ? exportServiceRequests(params).unwrap()
+          : kind === "invoices"
+            ? exportInvoices(params).unwrap()
+            : exportCustomers().unwrap());
+
+      const suffix = ranged && period ? `-${period}` : "";
+      const stamp = new Date().toISOString().slice(0, 10);
+      saveBlobAsFile(blob, `${kind}${suffix}-${stamp}.csv`);
+      toast.success(`${kind.replace(/-/g, " ")} exported.`);
+    } catch (err) {
+      toast.error("Export failed", {
+        description: readApiMessage(
+          err,
+          "The report could not be generated. Please try again.",
+        ),
+      });
     } finally {
-      setExporting(false);
+      setPending(null);
     }
   }
 
+  const isBusy = pending !== null;
+
   return (
-    <div className="flex items-center gap-2">
-      <Select
-        onValueChange={(val) => {
-          if (val) handleExport(val as ExportReportType);
-        }}
-      >
-        <SelectTrigger className="h-10 min-w-[180px] rounded-lg border-teal-200 bg-white font-medium text-teal-900 shadow-sm hover:border-teal-300">
-          <div className="flex items-center gap-2">
-            {exporting ? (
-              <Loader2 className="size-4 animate-spin text-teal-700" />
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          className="flex items-center gap-2 border-teal-200 font-semibold text-teal-900 shadow-sm hover:border-teal-300"
+          disabled={isBusy}
+          size="sm"
+          variant="outline"
+        >
+          {isBusy ? (
+            <Loader2 className="animate-spin text-teal-700" size={14} />
+          ) : (
+            <Download className="text-teal-700" size={14} />
+          )}
+          {isBusy ? "Exporting..." : "Export CSV"}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Download report</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {EXPORTS.map((entry) => (
+          <DropdownMenuItem
+            disabled={isBusy}
+            key={entry.kind}
+            onSelect={(event) => {
+              // Keep the menu from closing before the request is issued.
+              event.preventDefault();
+              void handleExport(entry.kind, entry.ranged);
+            }}
+          >
+            {pending === entry.kind ? (
+              <Loader2 className="animate-spin" size={15} />
             ) : (
-              <Download className="size-4 text-teal-700" />
+              <FileSpreadsheet size={15} />
             )}
-            <span className="text-xs font-semibold">
-              {exporting ? "Exporting..." : "Export CSV Report"}
-            </span>
-          </div>
-        </SelectTrigger>
-        <SelectContent align="end" className="w-56">
-          <SelectItem value="orders">
-            <div className="flex items-center gap-2 py-0.5">
-              <FileSpreadsheet className="size-4 text-teal-700" />
-              <span>Orders Report</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="service-requests">
-            <div className="flex items-center gap-2 py-0.5">
-              <FileSpreadsheet className="size-4 text-teal-700" />
-              <span>Service Requests</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="customers">
-            <div className="flex items-center gap-2 py-0.5">
-              <FileSpreadsheet className="size-4 text-teal-700" />
-              <span>Customers CRM</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="invoices">
-            <div className="flex items-center gap-2 py-0.5">
-              <FileSpreadsheet className="size-4 text-teal-700" />
-              <span>Invoices & Billing</span>
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
+            <span className="flex-1">{entry.label}</span>
+            {entry.ranged && period ? (
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                {period}
+              </span>
+            ) : null}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

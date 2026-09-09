@@ -19,7 +19,6 @@ import {
   UserCog,
   UserPlus,
   Wrench,
-  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -37,6 +36,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/Sheet";
 import logo from "@/public/logo.png";
 import { useLogoutMutation } from "@/redux/api/authApi";
 import { useGetUnreadNotificationsCountQuery } from "@/redux/api/notificationsApi";
@@ -147,7 +154,8 @@ export function Navbar() {
   const unreadNotificationCount = unreadNotificationsData?.unreadCount ?? 0;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
+    <header className="h-[4.875rem]">
+      <div className="fixed inset-x-0 top-0 z-[70] border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
       <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-0">
         <Link
           href="/"
@@ -509,129 +517,153 @@ export function Navbar() {
           </DropdownMenu>
 
           {/* Mobile hamburger trigger */}
-          <button
-            className="inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-[var(--brand-soft)] xl:hidden"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
-            type="button"
-          >
-            {isOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <button
+                className="inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-[var(--brand-soft)] xl:hidden"
+                aria-label="Open menu"
+                type="button"
+              >
+                <Menu size={22} />
+              </button>
+            </SheetTrigger>
+            <SheetContent className="overflow-y-auto p-5 xl:hidden">
+              <SheetHeader className="border-b border-teal-100 px-1 pb-5 pr-12 pt-1">
+                <Link
+                  href="/"
+                  className="inline-flex w-fit items-center"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Image
+                    src={logo}
+                    alt="Elite Central Vacuum logo"
+                    priority
+                    className="h-auto w-[6rem]"
+                  />
+                </Link>
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Site navigation, account links, cart, and notifications.
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="flex flex-col gap-5">
+                {/* Quick action bar */}
+                <div className="flex items-center justify-between border-b border-teal-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <Link
+                      aria-label="Open cart"
+                      className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
+                      href="/cart"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <ShoppingCart size={18} />
+                      {cartItemsCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+                          {cartItemsCount > 99 ? "99+" : cartItemsCount}
+                        </span>
+                      ) : null}
+                    </Link>
+                    <Link
+                      aria-label="View notifications"
+                      className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
+                      href={notificationsHref}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Bell size={18} />
+                      {isAuthenticated && unreadNotificationCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+                          {unreadNotificationCount > 99
+                            ? "99+"
+                            : unreadNotificationCount}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </div>
+
+                  {isAuthenticated ? (
+                    <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-teal-800">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 font-bold text-teal-900">
+                        {initials}
+                      </span>
+                      <span className="truncate">{fullName}</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Navigation links */}
+                <div className="flex flex-col gap-3">
+                  {navItems.map((item) => (
+                    <Link
+                      href={item.href}
+                      className={navLinkClass(item.href)}
+                      key={item.href}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Mobile Auth Actions */}
+                <div className="border-t border-teal-100 pt-3">
+                  {!isAuthenticated ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button asChild size="pill" variant="outline">
+                        <Link
+                          href="/auth/login"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Sign in
+                        </Link>
+                      </Button>
+                      <Button asChild size="pill">
+                        <Link
+                          href="/auth/register"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Sign up
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Button asChild size="pill">
+                        <Link
+                          href={
+                            isAdmin
+                              ? "/admin"
+                              : isTechnician
+                                ? "/technician"
+                                : "/user"
+                          }
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <LayoutDashboard size={16} />
+                          Go to Dashboard
+                        </Link>
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setIsOpen(false);
+                          handleLogout();
+                        }}
+                        size="pill"
+                        variant="ghost"
+                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      >
+                        <LogOut size={16} />
+                        Logout
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </nav>
-
-      {/* Mobile Drawer */}
-      {isOpen ? (
-        <div className="border-t border-[#e5f2ef] xl:hidden">
-          <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-5 sm:px-6">
-            {/* Quick action bar */}
-            <div className="flex items-center justify-between border-b border-teal-100 pb-4">
-              <div className="flex items-center gap-3">
-                <Link
-                  aria-label="Open cart"
-                  className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
-                  href="/cart"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <ShoppingCart size={18} />
-                  {cartItemsCount > 0 ? (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
-                      {cartItemsCount > 99 ? "99+" : cartItemsCount}
-                    </span>
-                  ) : null}
-                </Link>
-                <Link
-                  aria-label="View notifications"
-                  className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
-                  href={notificationsHref}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <Bell size={18} />
-                  {isAuthenticated && unreadNotificationCount > 0 ? (
-                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
-                      {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-                    </span>
-                  ) : null}
-                </Link>
-              </div>
-
-              {isAuthenticated ? (
-                <div className="flex items-center gap-2 text-xs font-semibold text-teal-800">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-teal-100 text-teal-900 font-bold">
-                    {initials}
-                  </span>
-                  <span className="max-w-32 truncate">{fullName}</span>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Navigation links */}
-            <div className="flex flex-col gap-3">
-              {navItems.map((item) => (
-                <Link
-                  href={item.href}
-                  className={navLinkClass(item.href)}
-                  key={item.href}
-                  onClick={() => setIsOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-
-            {/* Mobile Auth Actions */}
-            <div className="border-t border-teal-100 pt-3">
-              {!isAuthenticated ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button asChild size="pill" variant="outline">
-                    <Link href="/auth/login" onClick={() => setIsOpen(false)}>
-                      Sign in
-                    </Link>
-                  </Button>
-                  <Button asChild size="pill">
-                    <Link
-                      href="/auth/register"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Sign up
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Button asChild size="pill">
-                    <Link
-                      href={
-                        isAdmin
-                          ? "/admin"
-                          : isTechnician
-                            ? "/technician"
-                            : "/user"
-                      }
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <LayoutDashboard size={16} />
-                      Go to Dashboard
-                    </Link>
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setIsOpen(false);
-                      handleLogout();
-                    }}
-                    size="pill"
-                    variant="ghost"
-                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                  >
-                    <LogOut size={16} />
-                    Logout
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      </div>
     </header>
   );
 }

@@ -16,6 +16,7 @@ import {
   useVerifyOtpMutation,
   useResendOtpMutation,
 } from "@/redux/api/authApi";
+import { PasswordInput } from "./PasswordInput";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -294,12 +295,10 @@ export function RegisterForm() {
         label="Password"
         required
       >
-        <input
+        <PasswordInput
           {...form.getInputProps("password")}
           autoComplete="new-password"
-          className={inputClassName}
           placeholder="Create a secure password..."
-          type="password"
         />
       </FormField>
 

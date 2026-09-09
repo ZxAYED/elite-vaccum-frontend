@@ -47,6 +47,7 @@ import {
   useLazyGetInvoiceHtmlQuery,
 } from "@/redux/api/billingApi";
 import { readApiMessage } from "@/lib/api-error";
+import { invoiceKind, lineItemTotal } from "@/lib/invoice-state";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 
 export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
@@ -202,8 +203,8 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
         eyebrow="Invoice Management"
         title={`Invoice #${invoice.businessId || invoice.id}`}
         description={
-          invoice.orderId
-            ? `Connected to order ${invoice.orderId}.`
+          invoice.productOrderId
+            ? `Connected to order ${invoice.productOrderId}.`
             : "General ledger billing record."
         }
         action={
@@ -258,7 +259,7 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
       />
 
       <div className="flex flex-wrap items-center gap-2.5">
-        <TypeBadge type={invoice.type === "PRODUCT" ? "PRODUCT" : "SERVICE"} />
+        <TypeBadge type={invoiceKind(invoice) === "PRODUCT" ? "PRODUCT" : "SERVICE"} />
         <StatusBadge status={invoice.status || "SENT"} />
       </div>
 
@@ -270,7 +271,7 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
                 Created
               </p>
               <p className="mt-1 text-sm font-semibold text-slate-900">
-                {formatLongDate(invoice.createdAt)}
+                {formatLongDate(invoice.issueDate)}
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
@@ -278,9 +279,7 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
                 Customer
               </p>
               <p className="mt-1 text-sm font-semibold text-slate-900">
-                {invoice.customer?.firstName
-                  ? `${invoice.customer.firstName} ${invoice.customer.lastName}`
-                  : "Customer"}
+                {invoice.customer?.displayName || "Customer"}
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4 border border-slate-100">
@@ -295,7 +294,7 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
 
           <div>
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              {(invoice.type || "").toUpperCase() === "PRODUCT" ? (
+              {(invoiceKind(invoice) || "").toUpperCase() === "PRODUCT" ? (
                 <Package className="text-teal-700" size={18} />
               ) : (
                 <Wrench className="text-teal-700" size={18} />
@@ -321,9 +320,7 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
                       ) : null}
                     </div>
                     <p className="text-base font-bold text-slate-900">
-                      {formatCurrencyUsd(
-                        Number(lineItem.totalUsd ?? lineItem.unitPriceUsd * lineItem.quantity)
-                      )}
+                      {formatCurrencyUsd(lineItemTotal(lineItem))}
                     </p>
                   </div>
                 ))
@@ -384,9 +381,9 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
             )}
           </section>
 
-          {invoice.orderId && (
+          {invoice.productOrderId && (
             <Button asChild className="w-full rounded-md font-medium" variant="outline" size="sm">
-              <Link href={`/admin/orders/${invoice.orderId}`}>
+              <Link href={`/admin/orders/${invoice.productOrderId}`}>
                 View Linked Order
               </Link>
             </Button>

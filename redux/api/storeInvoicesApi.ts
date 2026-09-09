@@ -109,7 +109,10 @@ function unwrap(response: unknown): unknown {
 }
 
 export function normalizeStoreInvoice(input: unknown): StoreInvoiceDto {
-  const raw = asRecord(unwrap(input));
+  const envelope = asRecord(unwrap(input));
+  // The endpoint answers { orderId, orderBusinessId, invoice } — unwrap the
+  // invoice, tolerating a bare invoice body from older deployments.
+  const raw = envelope.invoice ? asRecord(envelope.invoice) : envelope;
   const subtotalUsd = money(raw.subtotalUsd);
 
   return {

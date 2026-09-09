@@ -5,10 +5,12 @@ import Link from "next/link";
 import {
   Eye,
   Globe2,
+  Mail,
   Pencil,
   Plus,
   Save,
   Trash2,
+  UserRound,
 } from "lucide-react";
 
 import {
@@ -29,6 +31,7 @@ import {
   useDeleteFaqMutation,
   useUpdatePolicyMutation,
 } from "@/redux/api/settingsApi";
+import { useGetMeQuery } from "@/redux/api/authApi";
 import {
   Dialog,
   DialogContent,
@@ -786,6 +789,7 @@ function parsePolicyContent(text: string): { intro: string; sections: PolicySect
 }
 
 export default function AdminSettingsPage() {
+  const { data: adminUser, isLoading: isAdminLoading } = useGetMeQuery();
   const { data: apiProfile } = useGetBusinessProfileQuery();
   const [updateBusinessProfile] = useUpdateBusinessProfileMutation();
   const [createFaqMutation] = useCreateFaqMutation();
@@ -809,7 +813,26 @@ export default function AdminSettingsPage() {
       businessName: apiProfile.companyName || curr.businessName,
       supportEmail: apiProfile.email || curr.supportEmail,
       primaryPhone: apiProfile.phone || curr.primaryPhone,
+      secondaryPhone: apiProfile.secondaryPhone || curr.secondaryPhone,
       businessAddress: apiProfile.address || curr.businessAddress,
+      city: apiProfile.city || curr.city,
+      state: apiProfile.state || curr.state,
+      zipCode: apiProfile.zipCode || curr.zipCode,
+      country: apiProfile.country || curr.country,
+      serviceCoverageMessage: apiProfile.coverageMessage || curr.serviceCoverageMessage,
+      coverageNotes: apiProfile.coverageNotes || curr.coverageNotes,
+      facebook: apiProfile.socialLinks?.facebook || curr.facebook,
+      instagram: apiProfile.socialLinks?.instagram || curr.instagram,
+      linkedIn: apiProfile.socialLinks?.linkedin || curr.linkedIn,
+      hours: Object.keys(apiProfile.operatingHours || {}).length
+        ? curr.hours.map((entry) => ({
+            ...entry,
+            hours:
+              apiProfile.operatingHours?.[entry.day.toLowerCase()] ??
+              apiProfile.operatingHours?.[entry.day] ??
+              entry.hours,
+          }))
+        : curr.hours,
     }));
   }
 
@@ -1068,10 +1091,25 @@ export default function AdminSettingsPage() {
   async function saveContactSettings() {
     try {
       await updateBusinessProfile({
-        companyName: contactSettings.businessName,
-        email: contactSettings.supportEmail,
-        phone: contactSettings.primaryPhone,
+        businessName: contactSettings.businessName,
+        supportEmail: contactSettings.supportEmail,
+        primaryPhone: contactSettings.primaryPhone,
+        secondaryPhone: contactSettings.secondaryPhone,
         address: contactSettings.businessAddress,
+        city: contactSettings.city,
+        state: contactSettings.state,
+        zipCode: contactSettings.zipCode,
+        country: contactSettings.country,
+        coverageMessage: contactSettings.serviceCoverageMessage,
+        coverageNotes: contactSettings.coverageNotes,
+        operatingHours: Object.fromEntries(
+          contactSettings.hours.map((entry) => [entry.day.toLowerCase(), entry.hours]),
+        ),
+        socialLinks: {
+          facebook: contactSettings.facebook,
+          instagram: contactSettings.instagram,
+          linkedin: contactSettings.linkedIn,
+        },
       }).unwrap();
       toast.success("Business profile saved successfully.");
     } catch {
@@ -1133,6 +1171,31 @@ export default function AdminSettingsPage() {
         title="System Configuration"
         description="Manage customer-facing content, business information, policies, and system notifications."
       />
+
+      <AdminSurface className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800">
+            <UserRound className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-primary">Admin account</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {isAdminLoading
+                ? "Loading account identity from /auth/me..."
+                : `${[adminUser?.firstName, adminUser?.lastName].filter(Boolean).join(" ").trim() || adminUser?.fullName || "Admin"} is signed in with ${adminUser?.role ?? "ADMIN"} access.`}
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 md:text-right">
+          <span className="inline-flex items-center gap-2 md:justify-end">
+            <Mail className="size-4 text-teal-700" />
+            {adminUser?.email ?? "Account email loading"}
+          </span>
+          <span className="inline-flex items-center gap-2 md:justify-end">
+            {adminUser?.isActive === false ? "Inactive account" : "Active account"}
+          </span>
+        </div>
+      </AdminSurface>
 
       <AdminSurface className="space-y-4">
         <div className="flex gap-2 overflow-x-auto pb-1">

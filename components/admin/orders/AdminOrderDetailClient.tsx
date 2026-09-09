@@ -713,6 +713,8 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             canRegenerate
             invoice={order.invoice ?? order.invoices[0]}
             orderId={order.id}
+            orderStatus={order.status}
+            paymentMethod={order.paymentMethod}
           />
           {/* Only shown when an order somehow carries more than one invoice. */}
           {order.invoices.length > 1 ? <InvoicesPanel order={order} /> : null}

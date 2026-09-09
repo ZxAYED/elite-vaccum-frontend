@@ -17,6 +17,7 @@ import { setCredentials } from "@/redux/slices/authSlice";
 
 import { Zap } from "lucide-react";
 import { OneClickLoginModal, type DemoRoleAccount } from "./OneClickLoginModal";
+import { PasswordInput } from "./PasswordInput";
 
 export function LoginForm() {
   const router = useRouter();
@@ -168,12 +169,10 @@ export function LoginForm() {
           label="Password"
           required
         >
-          <input
+          <PasswordInput
             {...form.getInputProps("password")}
             autoComplete="current-password"
-            className={inputClassName}
             placeholder="Enter your password..."
-            type="password"
           />
         </FormField>
 

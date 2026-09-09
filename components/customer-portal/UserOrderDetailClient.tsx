@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import {
   AlertCircle,
   Check,
@@ -35,11 +35,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { readApiMessage } from "@/lib/api-error";
 import { buildProductTimeline, toStatusSlug } from "@/lib/customer-orders";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import type { CustomerReview } from "@/types/domain";
+import {
+  useGetMyReviewsQuery,
+  useSubmitReviewMutation,
+  type SubmitReviewRequest,
+} from "@/redux/api/reviewsApi";
 import {
   CUSTOMER_CANCELLABLE_STATUSES,
   RETURNABLE_ORDER_STATUSES,
@@ -50,6 +57,8 @@ import {
   useLazyGetStripeCheckoutSessionQuery,
   useSubmitOrderReturnMutation,
   type StoreOrderDto,
+  type StoreOrderInvoiceDto,
+  type StoreOrderItemDto,
 } from "@/redux/api/ordersApi";
 
 /**
@@ -57,6 +66,20 @@ import {
  * work is tracked from `/user/services` off its service request, so nothing
  * here branches on an order "type".
  */
+
+type ReviewDraft = {
+  itemId: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  title: string;
+  body: string;
+};
+
+const emptyReviewDraft: ReviewDraft = {
+  itemId: "",
+  rating: 5,
+  title: "",
+  body: "",
+};
 
 export function UserOrderDetailClient({ orderId }: { orderId: string }) {
   const {
@@ -79,6 +102,11 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
     useLazyGetStripeCheckoutSessionQuery();
   const [submitReturn, { isLoading: isSubmittingReturn }] =
     useSubmitOrderReturnMutation();
+  const { data: myProductReviews = [] } = useGetMyReviewsQuery({
+    type: "PRODUCT",
+  });
+  const [submitReview, { isLoading: isSubmittingReview }] =
+    useSubmitReviewMutation();
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
@@ -88,6 +116,7 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
   const [returnNote, setReturnNote] = useState("");
   // The server does not deduplicate return requests, so latch locally too.
   const [returnFiled, setReturnFiled] = useState(false);
+  const [reviewDraft, setReviewDraft] = useState<ReviewDraft>(emptyReviewDraft);
 
   if (isLoading) {
     return (
@@ -130,8 +159,8 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
   const canReview =
     order.status === "DELIVERED" || order.status === "COMPLETED";
   const refund = order.refundSummary;
-  // The server guarantees a primary invoice, creating one on the fly for
-  // orders that predate invoicing.
+  // An invoice exists only once payment resolved — a PENDING card order has
+  // none, and `invoices` is []. The card renders the waiting state instead.
   const invoice = order.invoice ?? order.invoices[0];
   const latestReturnEntry =
     returnStatus?.returnHistory[returnStatus.returnHistory.length - 1];
@@ -186,6 +215,35 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
         description: readApiMessage(
           err,
           "Returns can only be requested for delivered orders.",
+        ),
+      });
+    }
+  }
+
+  async function handleSubmitProductReview(item: StoreOrderItemDto) {
+    if (!order) return;
+    if (!reviewDraft.title.trim() || reviewDraft.body.trim().length < 20) {
+      return;
+    }
+
+    const body: SubmitReviewRequest = {
+      type: "PRODUCT",
+      productId: item.productId,
+      productOrderId: order.id,
+      rating: reviewDraft.rating,
+      title: reviewDraft.title.trim(),
+      body: reviewDraft.body.trim(),
+    };
+
+    try {
+      await submitReview(body).unwrap();
+      toast.success("Product review submitted for moderation.");
+      setReviewDraft(emptyReviewDraft);
+    } catch (err) {
+      toast.error("Could not submit this review", {
+        description: readApiMessage(
+          err,
+          "Please check the review details and try again.",
         ),
       });
     }
@@ -259,7 +317,7 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
       {refund?.isRefunded ? (
         <div className="flex items-start gap-3 rounded-lg border border-slate-300 bg-slate-50 p-4 text-slate-800">
           <RotateCcw className="mt-0.5 size-5 shrink-0 text-slate-500" />
-          <div className="text-xs">
+          <div className="text-sm">
             <p className="font-bold">
               Refunded {formatCurrencyUsd(Number(refund.totalRefundedUsd))}
             </p>
@@ -277,7 +335,7 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
       {latestReturnEntry ? (
         <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900">
           <RotateCcw className="mt-0.5 size-5 shrink-0 text-amber-600" />
-          <div className="text-xs">
+          <div className="text-sm">
             <p className="font-bold">Return request on file</p>
             <p className="mt-0.5 text-amber-800">
               {latestReturnEntry.note ||
@@ -290,7 +348,7 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
       {order.status === "FAILED" ? (
         <div className="flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-rose-900">
           <AlertCircle className="mt-0.5 size-5 shrink-0 text-rose-600" />
-          <div className="text-xs">
+          <div className="text-sm">
             <p className="font-bold">Payment was not completed</p>
             <p className="mt-0.5 text-rose-800">
               Nothing was charged and the items were returned to stock. Please
@@ -303,7 +361,7 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={toStatusSlug(order.status)} />
         {order.paymentMethod ? (
-          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+          <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-600">
             {order.paymentMethod === "COD" ? "Cash on delivery" : "Paid online"}
           </span>
         ) : null}
@@ -312,14 +370,36 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">
           <DeliveryProgress status={order.status} />
-          <OrderItems order={order} />
+          <OrderItems
+            activeDraft={reviewDraft}
+            canReview={canReview}
+            isSubmittingReview={isSubmittingReview}
+            order={order}
+            productReviews={myProductReviews}
+            onCancelReview={() => setReviewDraft(emptyReviewDraft)}
+            onChangeDraft={setReviewDraft}
+            onStartReview={(item) =>
+              setReviewDraft({
+                itemId: item.id,
+                rating: 5,
+                title: "",
+                body: "",
+              })
+            }
+            onSubmitReview={handleSubmitProductReview}
+          />
           <StatusHistory order={order} />
         </div>
 
         <div className="space-y-6 lg:col-span-4">
-          <ShippingPanel order={order} />
+          <ShippingPanel invoice={invoice} order={order} />
           <TotalSummary order={order} />
-          <OrderInvoiceCard invoice={invoice} orderId={order.id} />
+          <OrderInvoiceCard
+            invoice={invoice}
+            orderId={order.id}
+            orderStatus={order.status}
+            paymentMethod={order.paymentMethod}
+          />
         </div>
       </div>
 
@@ -369,7 +449,7 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
               instructions — no refund is issued until then.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 space-y-4 text-xs">
+          <div className="mt-4 space-y-4 text-sm">
             <div>
               <label className="font-semibold text-slate-800" htmlFor="return-reason">
                 Return Reason
@@ -448,10 +528,10 @@ function DeliveryProgress({ status }: { status: StoreOrderDto["status"] }) {
             >
               <Check size={16} />
             </div>
-            <p className="mt-2 text-xs font-bold text-slate-900">
+            <p className="mt-2 text-sm font-bold text-slate-900">
               {step.label}
             </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">{step.detail}</p>
+            <p className="mt-0.5 text-xs text-slate-500">{step.detail}</p>
           </div>
         ))}
       </div>
@@ -459,51 +539,258 @@ function DeliveryProgress({ status }: { status: StoreOrderDto["status"] }) {
   );
 }
 
-function OrderItems({ order }: { order: StoreOrderDto }) {
+interface OrderItemsProps {
+  order: StoreOrderDto;
+  canReview: boolean;
+  productReviews: CustomerReview[];
+  activeDraft: ReviewDraft;
+  isSubmittingReview: boolean;
+  onStartReview: (item: StoreOrderItemDto) => void;
+  onCancelReview: () => void;
+  onChangeDraft: Dispatch<SetStateAction<ReviewDraft>>;
+  onSubmitReview: (item: StoreOrderItemDto) => void;
+}
+
+function OrderItems({
+  order,
+  canReview,
+  productReviews,
+  activeDraft,
+  isSubmittingReview,
+  onStartReview,
+  onCancelReview,
+  onChangeDraft,
+  onSubmitReview,
+}: OrderItemsProps) {
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
-      <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-slate-500">
+      <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
         Order Items ({order.items.length})
       </p>
       <div className="space-y-3">
-        {order.items.map((item) => (
-          <div
-            key={item.id}
-            className="flex flex-col gap-3 rounded-md border border-slate-200 p-3.5 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex items-center gap-3.5">
-              <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-                {item.imageUrl ? (
-                  <Image
-                    src={item.imageUrl}
-                    alt={item.productName}
-                    fill
-                    className="object-contain p-2"
-                  />
-                ) : (
-                  <Package size={22} className="text-slate-400" />
-                )}
+        {order.items.map((item) => {
+          const existingReview = productReviews.find(
+            (review) =>
+              review.type === "PRODUCT" &&
+              review.relatedEntityId === item.productId,
+          );
+          const isComposing = activeDraft.itemId === item.id;
+
+          return (
+            <div
+              key={item.id}
+              className={cn(
+                "rounded-md border border-slate-200 bg-white p-4 transition",
+                isComposing ? "border-teal-200 shadow-sm" : "hover:border-teal-100",
+              )}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 sm:size-20">
+                    {item.imageUrl ? (
+                      <Image
+                        src={item.imageUrl}
+                        alt={item.productName}
+                        fill
+                        className="object-contain p-2"
+                      />
+                    ) : (
+                      <Package size={24} className="text-slate-400" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold leading-snug text-slate-900">
+                      {item.productName}
+                    </h3>
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      Qty: {item.quantity}
+                      {item.productSku ? ` · SKU: ${item.productSku}` : ""}
+                    </p>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                      {formatCurrencyUsd(Number(item.unitPriceUsd))} each
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-start gap-2 sm:items-end">
+                  <p className="text-lg font-bold text-slate-900">
+                    {formatCurrencyUsd(Number(item.totalUsd))}
+                  </p>
+                  {existingReview ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-800">
+                        <Star className="size-3.5 fill-amber-400 text-amber-500" />
+                        {existingReview.rating}/5
+                      </span>
+                      <StatusBadge
+                        label={
+                          existingReview.status === "PENDING"
+                            ? "Review pending"
+                            : existingReview.status === "PUBLISHED"
+                              ? "Review published"
+                              : "Review hidden"
+                        }
+                        status={existingReview.status.toLowerCase()}
+                      />
+                    </div>
+                  ) : canReview ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={isComposing ? "default" : "outline"}
+                      className="rounded-md"
+                      onClick={() => onStartReview(item)}
+                    >
+                      <Star className="mr-1.5 size-4" />
+                      Review product
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  {item.productName}
-                </h3>
-                <p className="mt-1 text-[11px] font-medium text-slate-500">
-                  Qty: {item.quantity}
-                  {item.productSku ? ` · SKU: ${item.productSku}` : ""}
-                </p>
-                <p className="mt-0.5 text-[11px] text-slate-500">
-                  {formatCurrencyUsd(Number(item.unitPriceUsd))} each
-                </p>
-              </div>
+
+              {isComposing ? (
+                <ProductReviewComposer
+                  draft={activeDraft}
+                  item={item}
+                  isSubmitting={isSubmittingReview}
+                  onCancel={onCancelReview}
+                  onChangeDraft={onChangeDraft}
+                  onSubmit={() => onSubmitReview(item)}
+                />
+              ) : null}
             </div>
-            <p className="text-base font-bold text-slate-900">
-              {formatCurrencyUsd(Number(item.totalUsd))}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
+  );
+}
+
+function ProductReviewComposer({
+  draft,
+  item,
+  isSubmitting,
+  onChangeDraft,
+  onSubmit,
+  onCancel,
+}: {
+  draft: ReviewDraft;
+  item: StoreOrderItemDto;
+  isSubmitting: boolean;
+  onChangeDraft: Dispatch<SetStateAction<ReviewDraft>>;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  const canSubmit = Boolean(draft.title.trim()) && draft.body.trim().length >= 20;
+
+  return (
+    <div className="mt-4 rounded-md border border-teal-100 bg-teal-50/40 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h4 className="text-base font-bold text-slate-900">
+            Review {item.productName}
+          </h4>
+          <p className="mt-0.5 text-sm text-slate-600">
+            Your review is submitted to moderation before it appears publicly.
+          </p>
+        </div>
+        <div className="flex gap-1.5" aria-label={`${draft.rating} out of 5 stars`}>
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button
+              key={value}
+              type="button"
+              aria-label={`Rate ${value} star${value > 1 ? "s" : ""}`}
+              className={cn(
+                "inline-flex size-10 items-center justify-center rounded-md border bg-white transition hover:border-amber-300 hover:bg-amber-50",
+                draft.rating >= value
+                  ? "border-amber-300 text-amber-500"
+                  : "border-slate-200 text-slate-300",
+              )}
+              onClick={() =>
+                onChangeDraft((current) => ({
+                  ...current,
+                  rating: value as ReviewDraft["rating"],
+                }))
+              }
+            >
+              <Star
+                className={cn(
+                  "size-4",
+                  draft.rating >= value ? "fill-amber-400" : "fill-transparent",
+                )}
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        <div>
+          <label
+            className="mb-1.5 block text-sm font-semibold text-slate-800"
+            htmlFor={`review-title-${item.id}`}
+          >
+            Review headline
+          </label>
+          <Input
+            id={`review-title-${item.id}`}
+            value={draft.title}
+            onChange={(event) =>
+              onChangeDraft((current) => ({
+                ...current,
+                title: event.target.value,
+              }))
+            }
+            placeholder="Summarize your experience"
+          />
+        </div>
+
+        <div>
+          <label
+            className="mb-1.5 block text-sm font-semibold text-slate-800"
+            htmlFor={`review-body-${item.id}`}
+          >
+            Review details
+          </label>
+          <Textarea
+            id={`review-body-${item.id}`}
+            className="min-h-28"
+            value={draft.body}
+            onChange={(event) =>
+              onChangeDraft((current) => ({
+                ...current,
+                body: event.target.value,
+              }))
+            }
+            placeholder="Share installation fit, product quality, suction performance, or anything future buyers should know."
+          />
+          <p className="mt-1.5 text-xs text-slate-500">
+            Minimum 20 characters.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          className="rounded-md"
+          disabled={isSubmitting || !canSubmit}
+          onClick={onSubmit}
+        >
+          {isSubmitting ? "Submitting..." : "Submit review"}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="rounded-md"
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -525,12 +812,12 @@ function StatusHistory({ order }: { order: StoreOrderDto }) {
                 <StatusBadge
                   status={toStatusSlug(entry.status)}
                 />
-                <span className="text-[11px] text-slate-500">
+                <span className="text-xs text-slate-500">
                   {formatLongDate(entry.changedAt)}
                 </span>
               </div>
               {entry.note ? (
-                <p className="mt-1 text-xs text-slate-700">{entry.note}</p>
+                <p className="mt-1 text-sm text-slate-700">{entry.note}</p>
               ) : null}
             </div>
           </li>
@@ -540,18 +827,31 @@ function StatusHistory({ order }: { order: StoreOrderDto }) {
   );
 }
 
-function ShippingPanel({ order }: { order: StoreOrderDto }) {
+function ShippingPanel({
+  invoice,
+  order,
+}: {
+  invoice?: StoreOrderInvoiceDto;
+  order: StoreOrderDto;
+}) {
   const address = order.shippingAddress;
+  const invoiceConfirmsPayment = Boolean(
+    invoice &&
+      (order.paymentMethod !== "COD" ||
+        invoice.status === "PAID" ||
+        invoice.paidAt ||
+        invoice.payments?.some((payment) => payment.status === "SUCCEEDED")),
+  );
 
   return (
     <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs">
       <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
         <Truck className="text-teal-700" size={18} />
-        <h2 className="text-sm font-bold text-slate-900">Shipping Info</h2>
+        <h2 className="text-base font-bold text-slate-900">Shipping Info</h2>
       </div>
-      <div className="mt-4 space-y-3 text-xs">
+      <div className="mt-4 space-y-3 text-sm">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Delivery Address
           </p>
           {address?.line1 ? (
@@ -587,7 +887,7 @@ function ShippingPanel({ order }: { order: StoreOrderDto }) {
 
         {/* Tracking only exists once an admin dispatches the order. */}
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
             Tracking
           </p>
           {order.trackingNumber ? (
@@ -601,7 +901,7 @@ function ShippingPanel({ order }: { order: StoreOrderDto }) {
 
         {order.shippingProvider ? (
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
               Carrier
             </p>
             <p className="mt-1 font-semibold text-slate-900">
@@ -621,18 +921,18 @@ function ShippingPanel({ order }: { order: StoreOrderDto }) {
       <div className="mt-5 border-t border-slate-100 pt-4">
         <div className="mb-2 flex items-center gap-2">
           <CreditCard className="text-teal-700" size={16} />
-          <h3 className="text-xs font-bold text-slate-900">Payment</h3>
+          <h3 className="text-sm font-bold text-slate-900">Payment</h3>
         </div>
-        {order.paymentStatus ? (
+        {invoiceConfirmsPayment ? (
+          <StatusBadge status="paid" />
+        ) : invoice && order.paymentMethod === "COD" ? (
+          <p className="text-sm text-slate-500">Cash on delivery</p>
+        ) : !invoice && order.paymentStatus ? (
           <StatusBadge
             status={toStatusSlug(order.paymentStatus)}
           />
         ) : (
-          <p className="text-xs text-slate-500">
-            {order.paymentMethod === "COD"
-              ? "Collected on delivery"
-              : "Awaiting confirmation"}
-          </p>
+          <p className="text-sm text-slate-500">Awaiting confirmation</p>
         )}
       </div>
     </section>
@@ -646,7 +946,7 @@ function TotalSummary({ order }: { order: StoreOrderDto }) {
   return (
     <section className="rounded-lg border border-teal-800 bg-teal-900 p-5 text-white shadow-xs sm:p-6">
       <h2 className="text-base font-bold text-white">Order Summary</h2>
-      <div className="mt-4 space-y-2.5 text-xs text-teal-100/80 sm:text-sm">
+      <div className="mt-4 space-y-2.5 text-sm text-teal-100/80">
         <div className="flex justify-between">
           <span>Subtotal</span>
           <span className="font-semibold text-white">

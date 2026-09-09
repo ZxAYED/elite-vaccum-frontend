@@ -77,9 +77,9 @@ export function TestimonialsCarousel() {
     });
   };
 
-  // Nothing published yet (or the feed is unreachable): drop the section
-  // rather than showing an empty shell on the marketing page.
-  if (!isLoading && !hasTestimonials) return null;
+  // Nothing published yet: drop the section rather than showing an empty shell
+  // on the marketing page. API errors still render a compact trust-section state.
+  if (!isLoading && !isError && !hasTestimonials) return null;
 
   return (
     <section className="bg-white py-20 md:py-24">
