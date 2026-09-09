@@ -11,7 +11,6 @@ import {
   Settings,
   Shield,
   StretchHorizontal,
-  UserRound,
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -28,7 +27,6 @@ const navItems = [
   { label: "My Jobs", href: "/technician/jobs", icon: ClipboardList },
   { label: "Schedule", href: "/technician/schedule", icon: CalendarDays },
   { label: "Notifications", href: "/technician/notifications", icon: Bell },
-  { label: "Profile", href: "/technician/profile", icon: UserRound },
   { label: "Settings", href: "/technician/settings", icon: Settings },
 ];
 

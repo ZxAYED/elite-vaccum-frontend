@@ -55,7 +55,7 @@ export default function TechnicianDashboardHeader({
         </Link>
 
         <Link
-          href="/technician/profile"
+          href="/technician/settings"
           className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-1.5 pr-3 shadow-xs transition hover:border-teal-300 hover:bg-slate-50"
         >
           <div className="flex size-7 items-center justify-center rounded-lg bg-teal-800 text-xs font-bold text-white">

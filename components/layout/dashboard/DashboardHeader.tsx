@@ -37,7 +37,7 @@ export default function DashboardHeader({
           ) : null}
         </Link>
 
-        <Link href="/admin/profile" className={styles.headerProfile}>
+        <Link href="/admin/settings" className={styles.headerProfile}>
           <div className={styles.headerProfileInfo}>
             <span className={styles.headerProfileName}>Admin</span>
             <span className={styles.headerProfileRole}>Control Center</span>

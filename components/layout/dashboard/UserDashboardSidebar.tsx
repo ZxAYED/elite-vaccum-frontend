@@ -13,7 +13,6 @@ import {
   Star,
   SquareCheckBig,
   StretchHorizontal,
-  UserRound,
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -33,7 +32,6 @@ const navItems = [
   { label: "Billing", href: "/user/billing", icon: ReceiptText },
   { label: "Reviews", href: "/user/reviews", icon: Star },
   { label: "Notifications", href: "/user/notifications", icon: Bell },
-  { label: "Profile", href: "/user/profile", icon: UserRound },
   { label: "Settings", href: "/user/settings", icon: Settings },
 ];
 

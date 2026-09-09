@@ -334,7 +334,7 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/admin/profile"
+                        href="/admin/settings"
                         className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
                       >
                         <UserCircle2 size={16} className="text-teal-600" />
@@ -410,11 +410,11 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/technician/profile"
+                        href="/technician/settings"
                         className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
                       >
                         <UserCircle2 size={16} className="text-teal-600" />
-                        My Profile
+                        Settings
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
@@ -495,11 +495,11 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/user/profile"
+                        href="/user/settings"
                         className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
                       >
                         <UserCircle2 size={16} className="text-teal-600" />
-                        Profile
+                        Settings
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
