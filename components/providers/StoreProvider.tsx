@@ -3,9 +3,14 @@
 import { useState } from "react";
 import { Provider } from "react-redux";
 import { makeStore, type AppStore } from "@/redux/store";
+import { NotificationSocketProvider } from "./NotificationSocketProvider";
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [store] = useState<AppStore>(() => makeStore());
 
-  return <Provider store={store}>{children}</Provider>;
+  return (
+    <Provider store={store}>
+      <NotificationSocketProvider>{children}</NotificationSocketProvider>
+    </Provider>
+  );
 }

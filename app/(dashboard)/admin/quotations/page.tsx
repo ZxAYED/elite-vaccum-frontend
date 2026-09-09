@@ -5,6 +5,7 @@ import {
   Edit3,
   FileText,
   Plus,
+  Search,
   Send,
   Trash2,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import {
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +39,6 @@ import {
 } from "@/components/ui/Select";
 import {
   getQuotationCustomer,
-  getQuotationRequest,
   getQuotationService,
   type AdminQuotationFilterStatus,
 } from "@/data/mock/quotations";
@@ -47,6 +48,7 @@ import {
   upsertSharedQuotation,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import { useGetAdminQuotationsQuery } from "@/redux/api/quotationsApi";
 import { formatCurrencyUsd, formatShortDate } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import type { AdminQuotation } from "@/types/domain";
@@ -69,7 +71,17 @@ export default function AdminQuotationsPage() {
   const [status, setStatus] = useState<AdminQuotationFilterStatus>("all");
   const [sort, setSort] = useState<SortValue>("newest");
   const [deleteTarget, setDeleteTarget] = useState<AdminQuotation | null>(null);
-  const quotations = getSharedQuotations();
+
+  const { data: apiResponse } = useGetAdminQuotationsQuery();
+  const mockQuotations = getSharedQuotations();
+
+  const quotations = useMemo(() => {
+    const apiItems = apiResponse?.items || [];
+    if (apiItems.length > 0) {
+      return apiItems;
+    }
+    return mockQuotations;
+  }, [apiResponse, mockQuotations]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -225,7 +237,6 @@ export default function AdminQuotationsPage() {
               {filtered.map((quote) => {
                 const customer = getQuotationCustomer(quote);
                 const service = getQuotationService(quote);
-                const request = getQuotationRequest(quote);
 
                 return (
                   <article
@@ -239,9 +250,11 @@ export default function AdminQuotationsPage() {
                       >
                         {quote.id}
                       </Link>
-                      <p className="text-sm text-slate-500">
-                        {`${request?.id ?? quote.serviceRequestId} · v${quote.version}`}
-                      </p>
+                      {quote.version ? (
+                        <p className="text-sm text-slate-500">
+                          {`Version ${quote.version}`}
+                        </p>
+                      ) : null}
                     </div>
                     <div>
                       <p className="font-medium text-slate-900">
@@ -307,15 +320,26 @@ export default function AdminQuotationsPage() {
             </div>
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 p-8 text-center">
-            <FileText className="mx-auto size-8 text-teal-700" />
-            <h2 className="mt-3 text-xl font-semibold text-primary">
-              No quotations found
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Adjust your filters or create a quotation from an accepted service request.
-            </p>
-          </div>
+          <EmptyState
+            icon={query ? Search : FileText}
+            title={query ? "No matching quotations" : "No quotations generated yet"}
+            description={
+              query
+                ? `No quotations matched "${query}". Try adjusting your search query or status filter.`
+                : "Create and dispatch formal quotations for incoming customer service requests."
+            }
+            action={
+              query
+                ? {
+                    label: "Clear Search",
+                    onClick: () => setQuery(""),
+                    variant: "outline",
+                  }
+                : undefined
+            }
+            tone="dashed"
+            className="py-14"
+          />
         )}
       </AdminSurface>
 

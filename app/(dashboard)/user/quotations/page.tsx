@@ -1,91 +1,177 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight, FileText } from "lucide-react";
+import { CalendarClock, FileText, ShieldCheck, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
+import {
+  PortalCard,
+  PortalCardAction,
+  PortalCardFooter,
+  PortalCardTitle,
+  PortalCardTop,
+  PortalDetailAction,
+  PortalFact,
+  PortalList,
+  PortalLoading,
+  PortalRef,
+} from "@/components/customer-portal/PortalUI";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
-import { getCustomerQuotations, getServiceById } from "@/data/mock/customer-portal";
-import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
-import { formatCurrencyUsd, formatMonthDay } from "@/lib/formatters";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { useGetMyQuotationsQuery } from "@/redux/api/quotationsApi";
+import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
+
+/** Quotation statuses that still need a decision from the customer. */
+const AWAITING_DECISION = ["sent", "viewed", "under-review", "quoted"];
 
 export default function UserQuotationsPage() {
-  useSharedBusinessStoreVersion();
-  const quotations = getCustomerQuotations();
+  // Phase 9.7 GET /quotations/me
+  const { data: apiQuotes, isLoading, isError, refetch } =
+    useGetMyQuotationsQuery();
+
+  const quotations = useMemo(
+    () =>
+      (apiQuotes ?? []).map((quote) => ({
+        id: quote.id,
+        reference: quote.businessId || quote.serviceRequestId || quote.id,
+        requestId: quote.serviceRequestId || quote.id,
+        status: quote.status,
+        totalUsd: quote.totalUsd,
+        expiresAt: quote.expiresAt || "",
+        issuedAt: quote.issuedAt || "",
+        title:
+          (quote as unknown as { serviceName?: string }).serviceName ||
+          "Central Vacuum Service",
+        notes: quote.notes || "",
+      })),
+    [apiQuotes],
+  );
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-12 sm:space-y-7">
       <PageHeader
-        eyebrow="Quotations"
-        title="Service Quotations"
-        description="Review pricing prepared after admin review. Quotations stay connected to the original service request and schedule."
         actions={
-          <Button asChild>
-            <Link href="/services">Start new request</Link>
+          <Button
+            asChild
+            className="rounded-md bg-teal-600 font-medium text-white shadow-xs hover:bg-teal-500"
+          >
+            <Link href="/services">
+              <FileText className="mr-1.5" size={15} />
+              Start New Request
+            </Link>
           </Button>
         }
+        description="Review itemised pricing prepared by our technicians. Each quotation stays linked to its original service request."
+        eyebrow="Quotations"
+        title="Service Quotations"
       />
 
-      <div className="space-y-5">
-        {quotations.map(({ request, quote }) => {
-          const service = getServiceById(request.serviceId);
+      {isLoading ? (
+        <PortalLoading label="Loading quotations..." />
+      ) : isError ? (
+        <EmptyState
+          action={{ label: "Try Again", onClick: () => void refetch() }}
+          className="py-12"
+          description="We couldn't load your quotations just now. Please try again in a moment."
+          icon={FileText}
+          title="Quotations unavailable"
+          tone="card"
+        />
+      ) : quotations.length === 0 ? (
+        <EmptyState
+          action={{ label: "Request a Service", href: "/services" }}
+          className="py-12"
+          description="Once our team reviews your service request, itemised quotations appear here for your approval."
+          icon={FileText}
+          title="No quotations yet"
+          tone="card"
+        />
+      ) : (
+        <PortalList>
+          {quotations.map((quote) => {
+            const statusSlug = String(quote.status ?? "")
+              .toLowerCase()
+              .replace(/_/g, "-");
+            const needsDecision = AWAITING_DECISION.includes(statusSlug);
 
-          return (
-            <article
-              key={quote.id}
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex size-11 items-center justify-center rounded-2xl bg-teal-50 text-teal-700">
-                      <FileText size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-500">
-                        {request.id}
-                      </p>
-                      <h2 className="text-2xl font-semibold text-gray-900">
-                        {service?.name ?? request.title}
-                      </h2>
-                    </div>
-                    <StatusBadge status={quote.status} />
-                  </div>
-                  <p className="mt-4 max-w-3xl text-sm leading-6 text-gray-600">
-                    {request.description}
-                  </p>
-                  <p className="mt-3 text-sm text-gray-500">
-                    Requested schedule:{" "}
-                    <span className="font-semibold text-gray-900">
-                      {request.requestedSchedule?.label ??
-                        `${formatMonthDay(request.preferredDate)} at ${request.preferredTime}`}
-                    </span>
-                  </p>
-                </div>
+            return (
+              <PortalCard key={quote.id}>
+                <PortalCardTop
+                  badges={
+                    <>
+                      <StatusBadge status={quote.status} />
+                      <PortalRef>{quote.reference}</PortalRef>
+                      {needsDecision ? (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/80 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                          <ShieldCheck className="text-amber-700" size={12} />
+                          Awaiting your decision
+                        </span>
+                      ) : null}
+                    </>
+                  }
+                  meta={
+                    quote.issuedAt ? (
+                      <>
+                        Issued:{" "}
+                        <span className="font-medium text-slate-700">
+                          {formatLongDate(quote.issuedAt)}
+                        </span>
+                      </>
+                    ) : null
+                  }
+                />
 
-                <div className="w-full rounded-2xl bg-teal-50 p-5 lg:max-w-xs">
-                  <p className="text-sm text-teal-700">Quote total</p>
-                  <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-primary">
-                    {formatCurrencyUsd(quote.totalUsd)}
-                  </p>
-                  {quote.expiresAt ? (
-                    <p className="mt-2 text-sm text-gray-600">
-                      Expires {formatMonthDay(quote.expiresAt)}
-                    </p>
-                  ) : null}
-                  <Button asChild className="mt-5 w-full">
-                    <Link href={`/user/quotations/${request.id}`}>
-                      Review Quotation
-                      <ArrowRight size={16} />
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
+                <PortalCardTitle
+                  href={`/user/quotations/${quote.requestId}`}
+                  subtitle={quote.notes || undefined}
+                >
+                  {quote.title}
+                </PortalCardTitle>
+
+                <PortalCardFooter
+                  actions={
+                    <>
+                      <PortalDetailAction
+                        href={`/user/services/${quote.requestId}`}
+                        label="View Request"
+                      />
+                      <PortalCardAction
+                        href={`/user/quotations/${quote.requestId}`}
+                        icon={FileText}
+                        label="Review Quotation"
+                        tone={needsDecision ? "accent" : "brand"}
+                      />
+                    </>
+                  }
+                  facts={
+                    <>
+                      <PortalFact
+                        emphasis
+                        icon={Wallet}
+                        label="Quote Total"
+                        tone="warning"
+                        value={formatCurrencyUsd(quote.totalUsd)}
+                      />
+                      <PortalFact
+                        icon={CalendarClock}
+                        label="Price Guaranteed Through"
+                        placeholder="No expiry set"
+                        value={
+                          quote.expiresAt
+                            ? formatLongDate(quote.expiresAt)
+                            : undefined
+                        }
+                      />
+                    </>
+                  }
+                />
+              </PortalCard>
+            );
+          })}
+        </PortalList>
+      )}
     </div>
   );
 }

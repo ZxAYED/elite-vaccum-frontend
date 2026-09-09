@@ -9,6 +9,42 @@ export interface GetServiceOrdersParams {
   limit?: number;
 }
 
+interface ApiResponse<T> {
+  success?: boolean;
+  message?: string;
+  data?: T;
+}
+
+function unwrapData<T>(response: ApiResponse<T> | T): T {
+  if (
+    response &&
+    typeof response === "object" &&
+    "data" in response &&
+    response.data !== undefined
+  ) {
+    return response.data as T;
+  }
+  return response as T;
+}
+
+function unwrapPaginated<T>(
+  response: ApiResponse<PaginatedResponse<T> | T[]> | PaginatedResponse<T> | T[]
+): PaginatedResponse<T> {
+  const unwrapped = unwrapData(response);
+  if (Array.isArray(unwrapped)) {
+    return {
+      items: unwrapped,
+      meta: {
+        total: unwrapped.length,
+        page: 1,
+        limit: unwrapped.length || 10,
+        totalPages: 1,
+      },
+    };
+  }
+  return unwrapped as PaginatedResponse<T>;
+}
+
 export const serviceOrdersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getAdminServiceOrders: builder.query<PaginatedResponse<AdminServiceOrder>, GetServiceOrdersParams | void>({
@@ -16,6 +52,14 @@ export const serviceOrdersApi = baseApi.injectEndpoints({
         url: "/service-orders",
         params: params || undefined,
       }),
+      transformResponse: (
+        response:
+          | ApiResponse<PaginatedResponse<AdminServiceOrder> | AdminServiceOrder[]>
+          | PaginatedResponse<AdminServiceOrder>
+          | AdminServiceOrder[]
+      ) => {
+        return unwrapPaginated(response);
+      },
       providesTags: (result) =>
         result
           ? [
@@ -29,6 +73,14 @@ export const serviceOrdersApi = baseApi.injectEndpoints({
         url: "/service-orders/me",
         params: params || undefined,
       }),
+      transformResponse: (
+        response:
+          | ApiResponse<PaginatedResponse<AdminServiceOrder> | AdminServiceOrder[]>
+          | PaginatedResponse<AdminServiceOrder>
+          | AdminServiceOrder[]
+      ) => {
+        return unwrapPaginated(response);
+      },
       providesTags: (result) =>
         result
           ? [
@@ -39,6 +91,9 @@ export const serviceOrdersApi = baseApi.injectEndpoints({
     }),
     getServiceOrderById: builder.query<AdminServiceOrder, string>({
       query: (id) => `/service-orders/${id}`,
+      transformResponse: (response: ApiResponse<AdminServiceOrder> | AdminServiceOrder) => {
+        return unwrapData(response);
+      },
       providesTags: (_result, _error, id) => [{ type: "ServiceOrder", id }],
     }),
     createServiceOrder: builder.mutation<AdminServiceOrder, Partial<AdminServiceOrder>>({

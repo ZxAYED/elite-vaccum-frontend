@@ -7,7 +7,7 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const selectTriggerClassName =
-  "flex h-14 w-full items-center justify-between gap-3 rounded-[1rem] border border-teal-100 bg-white px-4 text-left text-[15px] text-slate-700 shadow-[0_18px_36px_-34px_rgba(28,79,80,0.35)] outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus-visible:border-teal-200 focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-slate-400";
+  "flex h-12 w-full items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-white px-4 text-left text-sm text-slate-700 shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-slate-400 focus-visible:border-teal-200 focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-slate-400";
 
 const Select = SelectPrimitive.Root;
 const SelectGroup = SelectPrimitive.Group;

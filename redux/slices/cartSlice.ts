@@ -1,9 +1,17 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { CartProduct } from "@/data/mock/customer-portal";
+import type { CartProduct } from "@/types/domain";
 
 export interface CartState {
   items: CartProduct[];
   isOpen: boolean;
+  /**
+   * Set when the cart is emptied in this browsing session (checkout completed,
+   * or the user cleared it). Server-cart hydration is suppressed while it is
+   * set so a stale `GET /store/cart` response cannot resurrect the old cart.
+   * Deliberately not persisted: after a full reload the server is authoritative
+   * again.
+   */
+  clearedAt: number | null;
 }
 
 const CART_STORAGE_KEY = "elite_cart_items";
@@ -21,6 +29,7 @@ const getInitialItems = (): CartProduct[] => {
 const initialState: CartState = {
   items: getInitialItems(),
   isOpen: false,
+  clearedAt: null,
 };
 
 export const cartSlice = createSlice({
@@ -29,6 +38,7 @@ export const cartSlice = createSlice({
   reducers: {
     setCartItems: (state, action: PayloadAction<CartProduct[]>) => {
       state.items = action.payload;
+      state.clearedAt = null;
       if (typeof window !== "undefined") {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
       }
@@ -42,6 +52,7 @@ export const cartSlice = createSlice({
       } else {
         state.items.push(action.payload);
       }
+      state.clearedAt = null;
       if (typeof window !== "undefined") {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
       }
@@ -60,18 +71,21 @@ export const cartSlice = createSlice({
           item.quantity = action.payload.quantity;
         }
       }
+      if (state.items.length === 0) state.clearedAt = Date.now();
       if (typeof window !== "undefined") {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
       }
     },
     removeFromCart: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter((item) => item.productId !== action.payload);
+      if (state.items.length === 0) state.clearedAt = Date.now();
       if (typeof window !== "undefined") {
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(state.items));
       }
     },
     clearCart: (state) => {
       state.items = [];
+      state.clearedAt = Date.now();
       if (typeof window !== "undefined") {
         localStorage.removeItem(CART_STORAGE_KEY);
       }

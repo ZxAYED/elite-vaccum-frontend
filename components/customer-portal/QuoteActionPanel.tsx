@@ -1,8 +1,11 @@
 "use client";
 
 import { QuotationDecisionPanel } from "@/components/customer-portal/QuotationDecisionPanel";
-import type { SuggestedSlot } from "@/data/mock/customer-portal";
-import type { QuoteStatus, RejectionHistoryEntry } from "@/types/domain";
+import type {
+  QuoteStatus,
+  RejectionHistoryEntry,
+  SuggestedSlot,
+} from "@/types/domain";
 
 interface QuoteActionPanelProps {
   quotationId: string;

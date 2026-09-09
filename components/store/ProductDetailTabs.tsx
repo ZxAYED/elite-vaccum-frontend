@@ -68,14 +68,19 @@ export function ProductDetailTabs({ product }: ProductDetailTabsProps) {
 
       {activeTab === "Shipping" ? (
         <div className="space-y-4 pt-6 text-sm leading-7 text-slate-600">
-          {product.shippingNotes?.map((note) => (
-            <div
-              key={note}
-              className="rounded-[1.15rem] border border-teal-100 bg-white/90 p-4"
-            >
-              {note}
-            </div>
-          ))}
+          {product.shippingNotes?.map((note, index) => {
+            const text = typeof note === "string" ? note : note?.text || "";
+            const key = typeof note === "string" ? note : note?.id || `shipping-note-${index}`;
+
+            return (
+              <div
+                key={key}
+                className="rounded-[1.15rem] border border-teal-100 bg-white/90 p-4"
+              >
+                {text}
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </section>

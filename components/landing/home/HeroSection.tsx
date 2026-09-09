@@ -102,7 +102,7 @@ export function HeroSection() {
               alt="Elite central vacuum unit with hose and floor attachment"
               priority
               sizes="(max-width: 1279px) 100vw, 42vw"
-              className="relative mx-auto h-auto w-full max-w-[34rem] object-contain drop-shadow-xl"
+              className="relative mx-auto h-auto w-full max-w-[34rem] object-contain "
             />
           </motion.div>
         </FadeIn>

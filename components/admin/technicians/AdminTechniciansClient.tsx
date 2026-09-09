@@ -1,8 +1,11 @@
 "use client";
 
 import {
+  Loader2,
   MoreHorizontal,
   Plus,
+  Search,
+  UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -16,6 +19,7 @@ import {
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +54,15 @@ import {
   updateAdminTechnician,
 } from "@/data/mock/technicians";
 import type { TechnicianValues } from "@/lib/validation";
-import type { AdminTechnician } from "@/types/domain";
+import type { AdminTechnician, AdminTechnicianStatus, TechnicianAvailability } from "@/types/domain";
+import { toast } from "sonner";
+import {
+  useGetAdminTechniciansListQuery,
+  useCreateTechnicianMutation,
+  useUpdateTechnicianMutation,
+  useDeleteTechnicianMutation,
+  type TechnicianProfileDto,
+} from "@/redux/api/technicianApi";
 
 import { TechnicianFormDialog } from "./TechnicianFormDialog";
 import {
@@ -61,6 +73,38 @@ import {
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function mapProfileDtoToAdminTechnician(rawDto: TechnicianProfileDto | unknown): AdminTechnician {
+  const dto =
+    rawDto && typeof rawDto === "object" && "data" in rawDto && (rawDto as { data?: unknown }).data
+      ? ((rawDto as { data: TechnicianProfileDto }).data)
+      : (rawDto as TechnicianProfileDto);
+
+  const fallbackName =
+    dto.displayName ||
+    (dto.user
+      ? `${dto.user.firstName || ""} ${dto.user.lastName || ""}`.trim()
+      : "") ||
+    dto.email ||
+    "Technician";
+
+  return {
+    id: dto.id,
+    userId: dto.userId || `user-${dto.id}`,
+    displayName: fallbackName,
+    email: dto.email || dto.user?.email || "",
+    phone: dto.phone || "",
+    status: (dto.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") as AdminTechnicianStatus,
+    availability: (dto.availability as TechnicianAvailability) || "AVAILABLE",
+    rating: typeof dto.rating === "number" ? dto.rating : parseFloat(dto.rating || "5") || 5,
+    completedJobs: dto.completedJobs ?? dto._count?.assignedJobs ?? dto.stats?.completedJobs ?? 0,
+    verified: dto.isVerified ?? true,
+    specializations: dto.specializations && dto.specializations.length > 0 ? dto.specializations : ["General Service"],
+    notes: dto.adminNotes || dto.bio || undefined,
+    createdAt: dto.createdAt || new Date().toISOString(),
+    updatedAt: dto.updatedAt || new Date().toISOString(),
+  };
 }
 
 export function AdminTechniciansClient() {
@@ -75,17 +119,51 @@ export function AdminTechniciansClient() {
   const [deactivateTargetId, setDeactivateTargetId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
+  const {
+    data: apiData,
+    isLoading,
+    refetch,
+  } = useGetAdminTechniciansListQuery({
+    search: search.trim() || undefined,
+  });
+  const [createTechnicianApi] = useCreateTechnicianMutation();
+  const [updateTechnicianApi] = useUpdateTechnicianMutation();
+  const [deleteTechnicianApi] = useDeleteTechnicianMutation();
+
   function syncTechnicians() {
     setTechnicians(clone(getAdminTechnicians()));
   }
 
+  const apiTechnicians = useMemo(() => {
+    if (!apiData?.items) return null;
+    return apiData.items.map(mapProfileDtoToAdminTechnician);
+  }, [apiData]);
+
+  // Use API technicians if loaded, falling back to mock or merging
+  const allDisplayTechnicians = useMemo<AdminTechnician[]>(() => {
+    if (apiTechnicians) {
+      if (apiTechnicians.length === 0 && !search.trim()) {
+        // If API returned 0 items but mock has items, fallback to mock
+        return technicians.length > 0 ? technicians : [];
+      }
+      return apiTechnicians;
+    }
+    return technicians;
+  }, [apiTechnicians, technicians, search]);
+
   const editingTechnician = editingTechnicianId
-    ? getAdminTechnicianById(editingTechnicianId) ?? null
+    ? allDisplayTechnicians.find((t) => t.id === editingTechnicianId) ??
+      getAdminTechnicianById(editingTechnicianId) ??
+      null
     : null;
   const deactivateTarget = deactivateTargetId
-    ? getAdminTechnicianById(deactivateTargetId)
+    ? allDisplayTechnicians.find((t) => t.id === deactivateTargetId) ??
+      getAdminTechnicianById(deactivateTargetId)
     : undefined;
-  const deleteTarget = deleteTargetId ? getAdminTechnicianById(deleteTargetId) : undefined;
+  const deleteTarget = deleteTargetId
+    ? allDisplayTechnicians.find((t) => t.id === deleteTargetId) ??
+      getAdminTechnicianById(deleteTargetId)
+    : undefined;
 
   function openCreate() {
     setEditingTechnicianId(null);
@@ -97,7 +175,7 @@ export function AdminTechniciansClient() {
     setFormOpen(true);
   }
 
-  function save(values: TechnicianValues) {
+  async function save(values: TechnicianValues) {
     if (editingTechnicianId) {
       updateAdminTechnician(editingTechnicianId, {
         displayName: values.fullName,
@@ -107,6 +185,33 @@ export function AdminTechniciansClient() {
         availability: values.availability,
         notes: values.notes || undefined,
       });
+
+      try {
+        const updateBody: Record<string, unknown> = {
+          displayName: values.fullName,
+          email: values.email,
+          phone: values.phone,
+          status: values.status,
+        };
+        if (values.notes?.trim()) {
+          updateBody.adminNotes = values.notes.trim();
+        }
+
+        const res = await updateTechnicianApi({
+          id: editingTechnicianId,
+          body: updateBody,
+        }).unwrap();
+        const successMsg =
+          (res as { message?: string })?.message || "Technician updated successfully.";
+        toast.success(successMsg);
+        refetch();
+      } catch (err: unknown) {
+        const apiErr = err as { data?: { message?: string | string[] } };
+        const msg = Array.isArray(apiErr?.data?.message)
+          ? apiErr.data.message.join(", ")
+          : apiErr?.data?.message;
+        toast.error(msg || "Failed to update technician on server, updated locally.");
+      }
     } else {
       createAdminTechnician({
         userId: `user-${values.fullName.toLowerCase().replace(/\s+/g, "-")}`,
@@ -121,6 +226,33 @@ export function AdminTechniciansClient() {
         verified: true,
         specializations: ["General Service"],
       });
+
+      try {
+        const createPayload: Record<string, unknown> = {
+          displayName: values.fullName,
+          email: values.email,
+          phone: values.phone,
+          status: values.status,
+        };
+        if (values.notes?.trim()) {
+          createPayload.adminNotes = values.notes.trim();
+        }
+        if (values.password?.trim()) {
+          createPayload.password = values.password.trim();
+        }
+
+        const res = await createTechnicianApi(createPayload).unwrap();
+        const successMsg =
+          (res as { message?: string })?.message || "Technician account created successfully.";
+        toast.success(successMsg);
+        refetch();
+      } catch (err: unknown) {
+        const apiErr = err as { data?: { message?: string | string[] } };
+        const msg = Array.isArray(apiErr?.data?.message)
+          ? apiErr.data.message.join(", ")
+          : apiErr?.data?.message;
+        toast.error(msg || "Failed to create technician on server, created locally.");
+      }
     }
 
     syncTechnicians();
@@ -128,10 +260,51 @@ export function AdminTechniciansClient() {
     setEditingTechnicianId(null);
   }
 
+  async function handleToggleStatus(target: AdminTechnician) {
+    const nextStatus = target.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const nextAvailability = target.status === "ACTIVE" ? "OFF_DUTY" : "AVAILABLE";
+
+    updateAdminTechnician(target.id, {
+      status: nextStatus,
+      availability: nextAvailability,
+    });
+
+    try {
+      await updateTechnicianApi({
+        id: target.id,
+        body: { status: nextStatus },
+      }).unwrap();
+      toast.success(
+        `Technician ${nextStatus === "ACTIVE" ? "activated" : "deactivated"}.`,
+      );
+      refetch();
+    } catch {
+      toast.info(`Status updated locally.`);
+    }
+
+    syncTechnicians();
+    setDeactivateTargetId(null);
+  }
+
+  async function handleDelete(targetId: string) {
+    deleteAdminTechnician(targetId);
+
+    try {
+      await deleteTechnicianApi(targetId).unwrap();
+      toast.success("Technician deleted successfully.");
+      refetch();
+    } catch {
+      toast.info("Technician deleted locally.");
+    }
+
+    syncTechnicians();
+    setDeleteTargetId(null);
+  }
+
   const filteredTechnicians = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
 
-    return technicians
+    return allDisplayTechnicians
       .filter((technician) => {
         if (!normalizedSearch) return true;
 
@@ -187,26 +360,26 @@ export function AdminTechniciansClient() {
             return left.displayName.localeCompare(right.displayName);
         }
       });
-  }, [filter, search, sort, technicians]);
+  }, [filter, search, sort, allDisplayTechnicians]);
 
   const stats = useMemo(() => {
-    const availableCount = technicians.filter(
+    const availableCount = allDisplayTechnicians.filter(
       (technician) => getTechnicianAvailabilityMeta(technician).label === "Available",
     ).length;
-    const busyCount = technicians.filter(
+    const busyCount = allDisplayTechnicians.filter(
       (technician) => getTechnicianAvailabilityMeta(technician).label === "Busy",
     ).length;
-    const inactiveCount = technicians.filter(
+    const inactiveCount = allDisplayTechnicians.filter(
       (technician) => technician.status === "INACTIVE",
     ).length;
 
     return [
-      { label: "Total", value: technicians.length },
+      { label: "Total", value: allDisplayTechnicians.length },
       { label: "Available", value: availableCount, tone: "success" as const },
       { label: "Busy", value: busyCount, tone: "soft" as const },
       { label: "Inactive", value: inactiveCount, tone: "warning" as const },
     ];
-  }, [technicians]);
+  }, [allDisplayTechnicians]);
 
   return (
     <AdminPageShell>
@@ -270,21 +443,42 @@ export function AdminTechniciansClient() {
           </Select>
         </div>
 
-        {filteredTechnicians.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
-            <p className="text-sm text-slate-600">No technicians match your filters.</p>
-            <Button
-              className="mt-4"
-              onClick={() => {
-                setSearch("");
-                setFilter("all");
-                setSort("name-asc");
-              }}
-              variant="outline"
-            >
-              Clear Filters
-            </Button>
+        {isLoading && allDisplayTechnicians.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+            <Loader2 className="size-8 animate-spin text-primary" />
+            <span className="mt-3 text-sm font-medium">Loading technicians...</span>
           </div>
+        ) : filteredTechnicians.length === 0 ? (
+          allDisplayTechnicians.length === 0 ? (
+            <EmptyState
+              icon={UserCheck}
+              title="No technicians found"
+              description="Add field technicians to assign service dispatch jobs, evaluate territory coverage, and track work orders."
+              action={{
+                label: "Add Technician",
+                onClick: openCreate,
+              }}
+              tone="dashed"
+              className="py-16"
+            />
+          ) : (
+            <EmptyState
+              icon={Search}
+              title="No technicians match your filters"
+              description="Try adjusting your search query, status filter, or sort selection."
+              action={{
+                label: "Clear Filters",
+                onClick: () => {
+                  setSearch("");
+                  setFilter("all");
+                  setSort("name-asc");
+                },
+                variant: "outline",
+              }}
+              tone="dashed"
+              className="py-12"
+            />
+          )
         ) : (
           <>
             <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">
@@ -471,18 +665,7 @@ export function AdminTechniciansClient() {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    updateAdminTechnician(deactivateTarget.id, {
-                      status:
-                        deactivateTarget.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-                      availability:
-                        deactivateTarget.status === "ACTIVE"
-                          ? "OFF_DUTY"
-                          : "AVAILABLE",
-                    });
-                    syncTechnicians();
-                    setDeactivateTargetId(null);
-                  }}
+                  onClick={() => handleToggleStatus(deactivateTarget)}
                   variant={deactivateTarget.status === "ACTIVE" ? "destructive" : "default"}
                 >
                   {deactivateTarget.status === "ACTIVE"
@@ -522,11 +705,7 @@ export function AdminTechniciansClient() {
                 </Button>
                 {canDeleteTechnician(deleteTarget.id) ? (
                   <Button
-                    onClick={() => {
-                      deleteAdminTechnician(deleteTarget.id);
-                      syncTechnicians();
-                      setDeleteTargetId(null);
-                    }}
+                    onClick={() => handleDelete(deleteTarget.id)}
                     variant="destructive"
                   >
                     Delete Technician

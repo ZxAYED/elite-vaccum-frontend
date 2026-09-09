@@ -22,16 +22,13 @@ import type {
   ServiceRequestAttachment,
   ServiceRequestStatus,
   ServiceScheduleWindow,
+  ServiceUrgency,
 } from "@/types/domain";
 
-import { mockCustomers } from "@/data/mock/customers";
 import { calculateQuotationTotals, mockAdminQuotations } from "@/data/mock/quotations";
 import { mockProductCategories, mockProducts } from "@/data/mock/products";
 import { publicServiceOfferings } from "@/data/mock/public-services";
-import { mockCustomerReviews } from "@/data/mock/reviews";
-import { mockServiceRequests } from "@/data/mock/service-requests";
 import { mockServices } from "@/data/mock/services";
-import { sharedProductOrderSeed } from "@/data/mock/shared-product-order-seed";
 
 type SharedState = {
   customers: Customer[];
@@ -59,6 +56,7 @@ type ServiceRequestInput = {
   problemDescription: string;
   problemLocation: string;
   otherProblemLocation?: string;
+  urgency?: ServiceUrgency;
   manufacturer?: string;
   modelNumber?: string;
   serialNumber?: string;
@@ -82,7 +80,7 @@ type QuotationMutationInput = {
   revisionReason?: string;
 };
 
-const STORAGE_KEY = "elite-shared-business-store-v1";
+const STORAGE_KEY = "elite-shared-business-store-v3";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -124,14 +122,14 @@ function isCustomerActionableQuotationStatus(status: QuoteStatus) {
 
 function createInitialState(): SharedState {
   return {
-    customers: clone(mockCustomers),
+    customers: [],
     categories: clone(mockProductCategories),
     products: clone(mockProducts),
     publicServices: clone(publicServiceOfferings),
     services: clone(mockServices),
-    serviceRequests: clone(mockServiceRequests),
+    serviceRequests: [],
     quotations: clone(mockAdminQuotations),
-    reviews: clone(mockCustomerReviews),
+    reviews: [],
   };
 }
 
@@ -428,7 +426,7 @@ export function createSharedServiceRequest(input: ServiceRequestInput) {
     title,
     description: input.problemDescription,
     status: "submitted",
-    urgency: "normal",
+    urgency: input.urgency ?? "MEDIUM",
     preferredDate: input.requestedDate,
     preferredTime: input.requestedTime,
     propertyLabel: serviceAddress.label,
@@ -702,10 +700,152 @@ export function rejectSharedServiceRequest(
   return getSharedServiceRequestById(requestId);
 }
 
+export function assignSharedServiceRequestTechnician(
+  requestId: string,
+  technicianId: string,
+  technician?: {
+    displayName?: string;
+    phone?: string;
+    rating?: number;
+    completedJobs?: number;
+    specializations?: string[];
+  },
+) {
+  hydrate();
+  state = {
+    ...state,
+    serviceRequests: state.serviceRequests.map((request) => {
+      if (request.id !== requestId) return request;
+
+      const updatedAppointments =
+        request.appointments && request.appointments.length > 0
+          ? request.appointments.map((appt, i) =>
+              i === 0
+                ? {
+                    ...appt,
+                    status: "TECHNICIAN_ASSIGNED",
+                    technician: technician
+                      ? {
+                          id: technicianId,
+                          displayName: technician.displayName || "Field Technician",
+                          phone: technician.phone,
+                          rating: technician.rating,
+                          completedJobs: technician.completedJobs,
+                          specializations: technician.specializations,
+                        }
+                      : appt.technician,
+                  }
+                : appt,
+            )
+          : [
+              {
+                id: `appt-${request.id}`,
+                status: "TECHNICIAN_ASSIGNED",
+                startAt: request.preferredDate
+                  ? `${request.preferredDate}T09:00:00.000Z`
+                  : new Date().toISOString(),
+                technician: technician
+                  ? {
+                      id: technicianId,
+                      displayName: technician.displayName || "Field Technician",
+                      phone: technician.phone,
+                      rating: technician.rating,
+                      completedJobs: technician.completedJobs,
+                      specializations: technician.specializations,
+                    }
+                  : undefined,
+              },
+            ];
+
+      return {
+        ...request,
+        assignedTechnicianId: technicianId,
+        appointments: updatedAppointments,
+      };
+    }),
+  };
+  emit();
+  return getSharedServiceRequestById(requestId);
+}
+
+export function rescheduleSharedServiceRequest(
+  requestId: string,
+  schedule: {
+    date: string;
+    startTime: string;
+    endTime?: string;
+    technicianId?: string;
+    adminNote?: string;
+  },
+) {
+  hydrate();
+  state = {
+    ...state,
+    serviceRequests: state.serviceRequests.map((request) => {
+      if (request.id !== requestId) return request;
+
+      const timeRange = schedule.endTime
+        ? `${schedule.startTime} - ${schedule.endTime}`
+        : schedule.startTime;
+
+      const updatedSchedule = {
+        label: `${schedule.date} (${timeRange})`,
+        date: schedule.date,
+        time: timeRange,
+        timeWindow: timeRange,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+      };
+
+      const updatedAppointments =
+        request.appointments && request.appointments.length > 0
+          ? request.appointments.map((appt, i) =>
+              i === 0
+                ? {
+                    ...appt,
+                    status: "RESCHEDULED",
+                    startAt: `${schedule.date}T09:00:00.000Z`,
+                    technician: schedule.technicianId
+                      ? {
+                          ...(appt.technician || { displayName: "Field Technician" }),
+                          id: schedule.technicianId,
+                        }
+                      : appt.technician,
+                  }
+                : appt,
+            )
+          : [
+              {
+                id: `appt-${request.id}`,
+                status: "RESCHEDULED",
+                startAt: `${schedule.date}T09:00:00.000Z`,
+                technician: schedule.technicianId
+                  ? {
+                      id: schedule.technicianId,
+                      displayName: "Field Technician",
+                    }
+                  : undefined,
+              },
+            ];
+
+      return {
+        ...request,
+        preferredDate: schedule.date,
+        preferredTime: timeRange,
+        currentSchedule: updatedSchedule,
+        assignedTechnicianId: schedule.technicianId || request.assignedTechnicianId,
+        additionalNotes: schedule.adminNote || request.additionalNotes,
+        appointments: updatedAppointments,
+      };
+    }),
+  };
+  emit();
+  return getSharedServiceRequestById(requestId);
+}
+
 export function upsertSharedQuotation(input: QuotationMutationInput) {
   hydrate();
   const request = getSharedServiceRequestById(input.requestId);
-  if (!request) throw new Error(`Unknown service request ${input.requestId}`);
 
   const now = new Date().toISOString();
   const existing =
@@ -782,14 +922,16 @@ export function upsertSharedQuotation(input: QuotationMutationInput) {
     : [nextQuotation, ...state.quotations];
 
   state = { ...state, quotations };
-  state = {
-    ...state,
-    serviceRequests: state.serviceRequests.map((item) =>
-      item.id === request.id
-        ? { ...item, status: normalizeServiceRequestStatus(nextQuotation.status) }
-        : item,
-    ),
-  };
+  if (request) {
+    state = {
+      ...state,
+      serviceRequests: state.serviceRequests.map((item) =>
+        item.id === request.id
+          ? { ...item, status: normalizeServiceRequestStatus(nextQuotation.status) }
+          : item,
+      ),
+    };
+  }
   emit();
   return nextQuotation;
 }
@@ -881,20 +1023,29 @@ export function deleteSharedQuotation(quotationId: string) {
 
 export function createSharedServiceCatalog(values: {
   title: string;
-  slug: string;
+  slug?: string;
   summary: string;
   description?: string;
   group: PublicServiceGroup;
   iconKey: ServiceOffering["iconKey"];
   status: ServiceOffering["status"];
-  sortOrder: number;
+  sortOrder?: number;
+  recommendedSymptoms?: string[];
 }) {
   hydrate();
   const today = new Date().toISOString().slice(0, 10);
-  const serviceId = `svc-${values.slug}`;
+  const slug =
+    values.slug ||
+    values.title
+      .toLowerCase()
+      .trim()
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  const serviceId = `svc-${slug}`;
   const service: Service = {
     id: serviceId,
-    slug: values.slug,
+    slug,
     name: values.title,
     category: values.group,
     description: values.description || values.summary,
@@ -904,6 +1055,8 @@ export function createSharedServiceCatalog(values: {
   };
   const offering: ServiceOffering = {
     ...values,
+    slug,
+    sortOrder: values.sortOrder ?? state.publicServices.length + 1,
     serviceId,
     createdAt: today,
     updatedAt: today,
@@ -922,13 +1075,14 @@ export function updateSharedServiceCatalog(
   editingSlug: string,
   values: {
     title: string;
-    slug: string;
+    slug?: string;
     summary: string;
     description?: string;
     group: PublicServiceGroup;
     iconKey: ServiceOffering["iconKey"];
     status: ServiceOffering["status"];
-    sortOrder: number;
+    sortOrder?: number;
+    recommendedSymptoms?: string[];
   },
 ) {
   hydrate();
@@ -936,18 +1090,20 @@ export function updateSharedServiceCatalog(
   const existing = state.publicServices.find((item) => item.slug === editingSlug);
   if (!existing) return null;
 
+  const targetSlug = values.slug || existing.slug;
+
   state = {
     ...state,
     publicServices: state.publicServices.map((service) =>
       service.slug === editingSlug
-        ? { ...service, ...values, updatedAt: today }
+        ? { ...service, ...values, slug: targetSlug, updatedAt: today }
         : service,
     ),
     services: state.services.map((service) =>
       service.id === existing.serviceId
         ? {
             ...service,
-            slug: values.slug,
+            slug: targetSlug,
             name: values.title,
             category: values.group,
             description: values.description || values.summary,
@@ -957,7 +1113,7 @@ export function updateSharedServiceCatalog(
     ),
   };
   emit();
-  return getSharedServiceCatalogBySlug(values.slug);
+  return getSharedServiceCatalogBySlug(targetSlug);
 }
 
 export function deleteSharedServiceCatalog(slug: string) {
@@ -1076,6 +1232,12 @@ type ProductMutationValues = {
   model?: string;
   imageAlt?: string;
   taxable?: boolean;
+  isFeatured?: boolean;
+  quantity?: number;
+  popularityRank?: number;
+  highlights?: Array<{ text: string; sortOrder?: number }>;
+  specifications?: Array<{ label: string; value: string; sortOrder?: number }>;
+  shippingNotes?: Array<{ text: string; sortOrder?: number }>;
   shippingLabel?: string;
   status: ProductStatus;
   availability?: Product["availability"];
@@ -1100,6 +1262,12 @@ export function createSharedProduct(values: ProductMutationValues) {
     sku: values.sku,
     model: values.model,
     taxable: values.taxable,
+    isFeatured: values.isFeatured,
+    quantity: values.quantity,
+    popularityRank: values.popularityRank,
+    highlights: values.highlights?.map((h) => h.text),
+    specifications: values.specifications?.map((s) => ({ label: s.label, value: s.value })),
+    shippingNotes: values.shippingNotes?.map((n) => n.text),
     shippingLabel: values.shippingLabel,
     images: values.images,
   };
@@ -1117,6 +1285,15 @@ export function updateSharedProduct(productId: string, values: ProductMutationVa
         ? {
             ...product,
             ...values,
+            highlights: values.highlights
+              ? values.highlights.map((h) => h.text)
+              : product.highlights,
+            specifications: values.specifications
+              ? values.specifications.map((s) => ({ label: s.label, value: s.value }))
+              : product.specifications,
+            shippingNotes: values.shippingNotes
+              ? values.shippingNotes.map((n) => n.text)
+              : product.shippingNotes,
             imageAlt: values.imageAlt ?? product.imageAlt,
           }
         : product,
@@ -1131,9 +1308,7 @@ export function deleteSharedProduct(productId: string) {
     state.reviews.some(
       (review) => review.type === "PRODUCT" && review.relatedEntityId === productId,
     );
-  const isReferencedByHistoricalOrder = sharedProductOrderSeed.some((order) =>
-    order.items.some((item) => item.productId === productId),
-  );
+  const isReferencedByHistoricalOrder = false;
   if (isReferencedByReview || isReferencedByHistoricalOrder) {
     return false;
   }

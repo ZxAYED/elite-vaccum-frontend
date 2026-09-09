@@ -50,7 +50,15 @@ import {
   toggleSharedCategoryStatus,
   updateSharedCategory,
 } from "@/data/mock/shared-business-store";
+import {
+  useGetCategoriesQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+} from "@/redux/api/categoriesApi";
+import { toast } from "sonner";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import { formatShortDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import {
   productCategorySchema,
@@ -92,12 +100,8 @@ function slugify(value: string) {
     .replace(/-{2,}/g, "-");
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+function formatDate(value?: string | null) {
+  return formatShortDate(value);
 }
 
 function StatusPill({ status }: { status: ProductCategory["status"] }) {
@@ -131,7 +135,6 @@ function CategoryFormDialog({
   onOpenChange,
   onSave,
 }: CategoryFormDialogProps) {
-  const [slugEdited, setSlugEdited] = useState(Boolean(editingCategory));
   const {
     control,
     formState: { errors },
@@ -139,7 +142,6 @@ function CategoryFormDialog({
     register,
     reset,
     setError,
-    setValue,
   } = useForm<ProductCategoryValues>({
     resolver: zodResolver(productCategorySchema),
     defaultValues: {
@@ -153,7 +155,6 @@ function CategoryFormDialog({
   function resetForm(nextOpen: boolean) {
     onOpenChange(nextOpen);
     if (!nextOpen) {
-      setSlugEdited(false);
       return;
     }
 
@@ -163,7 +164,6 @@ function CategoryFormDialog({
       description: editingCategory?.description ?? "",
       status: editingCategory?.status ?? "ACTIVE",
     });
-    setSlugEdited(Boolean(editingCategory));
   }
 
   function submit(values: ProductCategoryValues) {
@@ -171,11 +171,6 @@ function CategoryFormDialog({
       (category) =>
         category.id !== editingCategory?.id &&
         category.name.toLowerCase() === values.name.toLowerCase(),
-    );
-    const duplicateSlug = categories.some(
-      (category) =>
-        category.id !== editingCategory?.id &&
-        category.slug.toLowerCase() === values.slug.toLowerCase(),
     );
 
     if (duplicateName) {
@@ -186,15 +181,11 @@ function CategoryFormDialog({
       return;
     }
 
-    if (duplicateSlug) {
-      setError("slug", {
-        message: "A category with this slug already exists.",
-        type: "manual",
-      });
-      return;
-    }
+    const resolvedSlug =
+      editingCategory?.slug ||
+      (values.slug?.trim() ? slugify(values.slug) : slugify(values.name));
 
-    onSave(values, editingCategory?.id);
+    onSave({ ...values, slug: resolvedSlug }, editingCategory?.id);
     resetForm(false);
   }
 
@@ -212,44 +203,18 @@ function CategoryFormDialog({
         </DialogHeader>
 
         <form className="mt-6 space-y-5" onSubmit={handleSubmit(submit)}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              error={errors.name?.message}
-              htmlFor="category-name"
-              label="Category Name"
-              required
-            >
-              <Input
-                id="category-name"
-                placeholder="Central Vacuum Units"
-                {...register("name", {
-                  onChange: (event) => {
-                    if (!slugEdited) {
-                      setValue("slug", slugify(event.target.value), {
-                        shouldValidate: true,
-                      });
-                    }
-                  },
-                })}
-              />
-            </FormField>
-
-            <FormField
-              error={errors.slug?.message}
-              htmlFor="category-slug"
-              hint="Lowercase URL slug."
-              label="Slug"
-              required
-            >
-              <Input
-                id="category-slug"
-                placeholder="central-vacuum-units"
-                {...register("slug", {
-                  onChange: () => setSlugEdited(true),
-                })}
-              />
-            </FormField>
-          </div>
+          <FormField
+            error={errors.name?.message}
+            htmlFor="category-name"
+            label="Category Name"
+            required
+          >
+            <Input
+              id="category-name"
+              placeholder="Central Vacuum Units"
+              {...register("name")}
+            />
+          </FormField>
 
           <FormField
             error={errors.description?.message}
@@ -320,15 +285,50 @@ export default function AdminCategoriesPage() {
     category: ProductCategory;
     count: number;
   } | null>(null);
-  const categories = getSharedCategories();
+  const { data: apiCategoriesData, refetch: refetchCategories } = useGetCategoriesQuery({ limit: 100 });
+  const [createCategoryMutation] = useCreateCategoryMutation();
+  const [updateCategoryMutation] = useUpdateCategoryMutation();
+  const [deleteCategoryMutation] = useDeleteCategoryMutation();
+
+  const sharedCategories = getSharedCategories();
+  const categories = useMemo(() => {
+    if (apiCategoriesData?.items && apiCategoriesData.items.length > 0) {
+      return apiCategoriesData.items;
+    }
+    return sharedCategories;
+  }, [apiCategoriesData?.items, sharedCategories]);
+
   const products = getSharedProducts();
 
   const productCounts = useMemo(() => {
-    return products.reduce<Record<string, number>>((counts, product) => {
-      counts[product.categoryId] = (counts[product.categoryId] ?? 0) + 1;
-      return counts;
-    }, {});
-  }, [products]);
+    const counts: Record<string, number> = {};
+
+    // 1. Baseline from local shared products
+    for (const product of products) {
+      if (product.categoryId) {
+        counts[product.categoryId] = (counts[product.categoryId] ?? 0) + 1;
+      }
+    }
+
+    // 2. Prioritize count provided on category by the backend API
+    for (const category of categories) {
+      const apiCount =
+        typeof category.productCount === "number"
+          ? category.productCount
+          : typeof category._count?.products === "number"
+          ? category._count.products
+          : undefined;
+
+      if (typeof apiCount === "number") {
+        counts[category.id] = apiCount;
+        if (category.slug) {
+          counts[category.slug] = apiCount;
+        }
+      }
+    }
+
+    return counts;
+  }, [categories, products]);
 
   const filteredCategories = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -345,8 +345,10 @@ export default function AdminCategoriesPage() {
         return matchesSearch && matchesStatus;
       })
       .sort((a, b) => {
-        const aCount = productCounts[a.id] ?? 0;
-        const bCount = productCounts[b.id] ?? 0;
+        const aCount =
+          productCounts[a.id] ?? a.productCount ?? a._count?.products ?? 0;
+        const bCount =
+          productCounts[b.id] ?? b.productCount ?? b._count?.products ?? 0;
 
         switch (sort) {
           case "oldest":
@@ -371,17 +373,27 @@ export default function AdminCategoriesPage() {
   }, [categories, productCounts, query, sort, statusFilter]);
 
   const totals = useMemo(() => {
-    return categories.reduce(
+    const computedTotals = categories.reduce(
       (stats, category) => {
         stats.total += 1;
         if (category.status === "ACTIVE") stats.active += 1;
         if (category.status === "INACTIVE") stats.inactive += 1;
-        stats.products += productCounts[category.id] ?? 0;
+        stats.products +=
+          productCounts[category.id] ??
+          category.productCount ??
+          category._count?.products ??
+          0;
         return stats;
       },
       { active: 0, inactive: 0, products: 0, total: 0 },
     );
-  }, [categories, productCounts]);
+
+    if (typeof apiCategoriesData?.totalActiveProducts === "number") {
+      computedTotals.products = apiCategoriesData.totalActiveProducts;
+    }
+
+    return computedTotals;
+  }, [categories, productCounts, apiCategoriesData]);
 
   function openCreateDialog() {
     setEditingCategory(null);
@@ -393,21 +405,57 @@ export default function AdminCategoriesPage() {
     setDialogOpen(true);
   }
 
-  function saveCategory(values: ProductCategoryValues, editingId?: string) {
+  async function saveCategory(values: ProductCategoryValues, editingId?: string) {
+    const payload = {
+      name: values.name,
+      slug: values.slug || slugify(values.name),
+      description: values.description,
+      status: values.status,
+    };
+
     if (editingId) {
-      updateSharedCategory(editingId, values);
+      updateSharedCategory(editingId, payload);
+      try {
+        await updateCategoryMutation({ id: editingId, data: payload }).unwrap();
+        toast.success("Category updated successfully");
+        refetchCategories();
+      } catch {
+        // Fallback to local store
+      }
       return;
     }
 
-    createSharedCategory(values);
+    createSharedCategory(payload);
+    try {
+      await createCategoryMutation(payload).unwrap();
+      toast.success("Category created successfully");
+      refetchCategories();
+    } catch {
+      // Fallback to local store
+    }
   }
 
-  function toggleStatus(category: ProductCategory) {
+  async function toggleStatus(category: ProductCategory) {
     toggleSharedCategoryStatus(category.id);
+    const nextStatus = category.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    try {
+      await updateCategoryMutation({
+        id: category.id,
+        data: { status: nextStatus },
+      }).unwrap();
+      toast.success(`Category set to ${nextStatus.toLowerCase()}`);
+      refetchCategories();
+    } catch {
+      // Fallback to local store
+    }
   }
 
   function requestDelete(category: ProductCategory) {
-    const count = productCounts[category.id] ?? 0;
+    const count =
+      productCounts[category.id] ??
+      category.productCount ??
+      category._count?.products ??
+      0;
     if (count > 0) {
       setBlockedDelete({ category, count });
       return;
@@ -416,10 +464,18 @@ export default function AdminCategoriesPage() {
     setDeleteTarget(category);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
-    deleteSharedCategory(deleteTarget.id);
+    const targetId = deleteTarget.id;
+    deleteSharedCategory(targetId);
     setDeleteTarget(null);
+    try {
+      await deleteCategoryMutation(targetId).unwrap();
+      toast.success("Category deleted successfully");
+      refetchCategories();
+    } catch {
+      // Fallback to local store
+    }
   }
 
   return (
@@ -448,7 +504,7 @@ export default function AdminCategoriesPage() {
             { label: "Total Categories", value: totals.total },
             { label: "Active", value: totals.active },
             { label: "Inactive", value: totals.inactive },
-            { label: "Assigned Products", value: totals.products },
+            { label: "Total Products", value: totals.products },
           ].map((stat) => (
             <div
               className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
@@ -537,87 +593,103 @@ export default function AdminCategoriesPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-teal-100">
-                    {filteredCategories.map((category) => (
-                      <tr className="bg-white" key={category.id}>
-                        <td className="px-5 py-5">
-                          <p className="font-semibold text-teal-950">
-                            {category.name}
-                          </p>
-                          <p className="mt-1 max-w-md text-sm text-slate-500">
-                            {category.description || "No description added."}
-                          </p>
-                        </td>
-                        <td className="px-5 py-5">
+                    {filteredCategories.map((category) => {
+                      const count =
+                        productCounts[category.id] ??
+                        category.productCount ??
+                        category._count?.products ??
+                        0;
+
+                      return (
+                        <tr className="bg-white" key={category.id}>
+                          <td className="px-5 py-5">
+                            <p className="font-semibold text-teal-950">
+                              {category.name}
+                            </p>
+                            <p className="mt-1 max-w-md text-sm text-slate-500">
+                              {category.description || "No description added."}
+                            </p>
+                          </td>
+                          <td className="px-5 py-5">
                             <code className="rounded-lg bg-slate-100 px-3 py-1 text-sm text-slate-600">
-                            {category.slug}
-                          </code>
-                        </td>
-                        <td className="px-5 py-5">
-                          <span className="inline-flex items-center gap-2 font-semibold text-teal-950">
-                            <PackageCheck size={17} />
-                            {productCounts[category.id] ?? 0}
-                          </span>
-                        </td>
-                        <td className="px-5 py-5">
-                          <StatusPill status={category.status} />
-                        </td>
-                        <td className="px-5 py-5 text-sm text-slate-600">
-                          {formatDate(category.updatedAt)}
-                        </td>
-                        <td className="px-5 py-5 text-right">
-                          <CategoryActions
-                            category={category}
-                            onDelete={requestDelete}
-                            onEdit={openEditDialog}
-                            onToggleStatus={toggleStatus}
-                          />
-                        </td>
-                      </tr>
-                    ))}
+                              {category.slug}
+                            </code>
+                          </td>
+                          <td className="px-5 py-5">
+                            <span className="inline-flex items-center gap-2 font-semibold text-teal-950">
+                              <PackageCheck size={17} />
+                              {count}
+                            </span>
+                          </td>
+                          <td className="px-5 py-5">
+                            <StatusPill status={category.status} />
+                          </td>
+                          <td className="px-5 py-5 text-sm text-slate-600">
+                            {formatDate(category.updatedAt)}
+                          </td>
+                          <td className="px-5 py-5 text-right">
+                            <CategoryActions
+                              category={category}
+                              onDelete={requestDelete}
+                              onEdit={openEditDialog}
+                              onToggleStatus={toggleStatus}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               <div className="mt-5 grid gap-4 lg:hidden">
-                {filteredCategories.map((category) => (
-                  <article
-                      className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
-                    key={category.id}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <StatusPill status={category.status} />
-                        <h2 className="mt-3 text-xl font-semibold text-teal-950">
-                          {category.name}
-                        </h2>
-                        <p className="mt-1 text-sm text-slate-500">
-                          {category.description || "No description added."}
-                        </p>
-                      </div>
-                      <CategoryActions
-                        category={category}
-                        onDelete={requestDelete}
-                        onEdit={openEditDialog}
-                        onToggleStatus={toggleStatus}
-                      />
-                    </div>
+                {filteredCategories.map((category) => {
+                  const count =
+                    productCounts[category.id] ??
+                    category.productCount ??
+                    category._count?.products ??
+                    0;
 
-                    <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-lg bg-slate-50 p-3">
-                        <p className="text-slate-500">Slug</p>
-                        <p className="mt-1 break-all font-semibold text-teal-950">
-                          {category.slug}
-                        </p>
+                  return (
+                    <article
+                      className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+                      key={category.id}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <StatusPill status={category.status} />
+                          <h2 className="mt-3 text-xl font-semibold text-teal-950">
+                            {category.name}
+                          </h2>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {category.description || "No description added."}
+                          </p>
+                        </div>
+                        <CategoryActions
+                          category={category}
+                          onDelete={requestDelete}
+                          onEdit={openEditDialog}
+                          onToggleStatus={toggleStatus}
+                        />
                       </div>
-                      <div className="rounded-lg bg-slate-50 p-3">
-                        <p className="text-slate-500">Products</p>
-                        <p className="mt-1 font-semibold text-teal-950">
-                          {productCounts[category.id] ?? 0}
-                        </p>
+
+                      <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-slate-500">Slug</p>
+                          <p className="mt-1 break-all font-semibold text-teal-950">
+                            {category.slug}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 p-3">
+                          <p className="text-slate-500">Products</p>
+                          <p className="mt-1 font-semibold text-teal-950">
+                            {count}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             </>
           )}

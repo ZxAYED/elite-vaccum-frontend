@@ -1,9 +1,4 @@
-import { notFound, redirect } from "next/navigation";
-
-import {
-  activePublicServiceOfferings,
-  getPublicServiceBySlug,
-} from "@/data/mock/public-services";
+import { redirect } from "next/navigation";
 
 interface PublicServiceSlugPageProps {
   params: Promise<{
@@ -11,19 +6,17 @@ interface PublicServiceSlugPageProps {
   }>;
 }
 
-export function generateStaticParams() {
-  return activePublicServiceOfferings.map((service) => ({
-    slug: service.slug,
-  }));
-}
-
 export async function generateMetadata({ params }: PublicServiceSlugPageProps) {
   const { slug } = await params;
-  const service = getPublicServiceBySlug(slug);
+  const readable = slug
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
 
   return {
-    title: service
-      ? `Request ${service.title} - Elite Central Vacuum`
+    title: readable
+      ? `Request ${readable} - Elite Central Vacuum`
       : "Request Service - Elite Central Vacuum",
   };
 }
@@ -32,11 +25,5 @@ export default async function PublicServiceSlugPage({
   params,
 }: PublicServiceSlugPageProps) {
   const { slug } = await params;
-  const service = getPublicServiceBySlug(slug);
-
-  if (!service) {
-    notFound();
-  }
-
-  redirect(`/services/request?service=${service.slug}`);
+  redirect(`/services/request?service=${encodeURIComponent(slug)}`);
 }

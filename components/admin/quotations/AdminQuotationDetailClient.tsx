@@ -3,8 +3,6 @@
 import {
   ArrowLeft,
   CalendarDays,
-  Copy,
-  FileImage,
   History,
   LinkIcon,
   ReceiptText,
@@ -22,6 +20,7 @@ import {
 } from "@/components/admin/AdminPageShell";
 import { QuotationBuilder } from "@/components/admin/quotations/QuotationBuilder";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
+import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -464,29 +463,16 @@ export function AdminQuotationDetailClient({
             </div>
           </AdminSurface>
 
-          <AdminSurface>
-            <h2 className="flex items-center gap-2 text-xl font-semibold text-primary">
-              <FileImage size={20} />
-              Evidence
-            </h2>
-            {request?.attachments.length ? (
-              <div className="mt-4 space-y-3">
-                {request.attachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className="flex items-center justify-between gap-3 rounded-xl bg-teal-50/60 p-3 text-sm"
-                  >
-                    <span className="truncate">{attachment.fileName}</span>
-                    <Button variant="ghost" size="icon-sm" aria-label="Copy filename">
-                      <Copy size={15} />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-slate-500">No evidence uploaded.</p>
-            )}
-          </AdminSurface>
+          {request?.attachments && request.attachments.length > 0 ? (
+            <AdminSurface>
+              <MediaGalleryPreview
+                attachments={request.attachments}
+                title="Customer Inspection Media"
+                columnsClass="grid-cols-2 sm:grid-cols-2"
+                compact
+              />
+            </AdminSurface>
+          ) : null}
         </aside>
       </div>
 

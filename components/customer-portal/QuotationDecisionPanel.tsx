@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
 
 import {
   Dialog,
@@ -60,153 +60,269 @@ export function QuotationDecisionPanel({
   serviceOrderHref,
 }: QuotationDecisionPanelProps) {
   useSharedBusinessStoreVersion();
-  const [acceptQuotationMutation] = useAcceptQuotationMutation();
-  const [rejectQuotationMutation] = useRejectQuotationMutation();
+  const [acceptQuotationMutation, { isLoading: isAccepting }] =
+    useAcceptQuotationMutation();
+  const [rejectQuotationMutation, { isLoading: isRejecting }] =
+    useRejectQuotationMutation();
 
   const [quoteStatus, setQuoteStatus] = useState<QuoteStatus>(initialStatus);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [comments, setComments] = useState("");
   const [history, setHistory] = useState(initialRejectionHistory);
   const latestHistoryEntry = history[0];
-  const canDecide = quoteStatus === "sent" || quoteStatus === "viewed";
+  const normStatus = (quoteStatus || "").toLowerCase().replace(/_/g, "-");
+  const canDecide =
+    normStatus === "sent" ||
+    normStatus === "viewed" ||
+    normStatus === "quoted" ||
+    normStatus === "under-review" ||
+    normStatus === "draft";
 
   async function rejectQuotation() {
     if (!reason) return;
-    const quotation = rejectSharedQuotation(quotationId, reason, comments);
-    setHistory(quotation?.rejectionHistory ?? history);
-    setQuoteStatus(quotation?.status ?? "rejected");
-    setRejectOpen(false);
-
+    const toastId = toast.loading("Declining quotation, please wait...");
     try {
-      await rejectQuotationMutation({
+      const res = await rejectQuotationMutation({
         id: quotationId,
         reason: comments ? `${reason}: ${comments}` : reason,
       }).unwrap();
-      toast.success("Quotation rejected", {
-        description: "Your decision has been sent to our team.",
-      });
-    } catch {
-      // Local fallback handled
+      try {
+        const quotation = rejectSharedQuotation(quotationId, reason, comments);
+        if (quotation) {
+          setHistory(quotation.rejectionHistory ?? history);
+          setQuoteStatus(quotation.status);
+        } else {
+          setQuoteStatus("rejected");
+        }
+      } catch (localErr) {
+        console.warn("Local mock reject sync skipped:", localErr);
+        setQuoteStatus("rejected");
+      }
+      setRejectOpen(false);
+      toast.success(
+        (res as unknown as { message?: string })?.message || "Quotation rejected.",
+        { id: toastId, description: "Your decision has been sent to our team." },
+      );
+    } catch (err: unknown) {
+      const errObj = err as { data?: { message?: string }; message?: string };
+      const msg = errObj?.data?.message || errObj?.message || "Failed to reject quotation.";
+      toast.error(msg, { id: toastId, duration: 8000 });
     }
   }
 
   async function acceptQuotation() {
-    const request = getSharedServiceRequestById(requestId);
-    if (!request) return;
-    const acceptedQuotation = acceptSharedQuotation(quotationId);
-    if (!acceptedQuotation) return;
-    const order = createOrSyncSharedServiceOrderFromRequest(request);
-    if (!order) return;
-    setQuoteStatus(acceptedQuotation.status);
-
+    const toastId = toast.loading("Processing acceptance, please wait...");
     try {
       const res = await acceptQuotationMutation({
         id: quotationId,
       }).unwrap();
+
+      // Flexible extraction across response formats
+      const resAny = (res && typeof res === "object") ? (res as unknown as Record<string, unknown>) : {};
+      const dataAny = (resAny.data && typeof resAny.data === "object") ? (resAny.data as Record<string, unknown>) : {};
+
+      const checkoutUrl =
+        res?.checkoutUrl ||
+        resAny.checkoutUrl ||
+        resAny.checkout_url ||
+        resAny.checkoutURL ||
+        resAny.url ||
+        resAny.sessionUrl ||
+        resAny.session_url ||
+        resAny.stripeUrl ||
+        resAny.stripe_url ||
+        dataAny.checkoutUrl ||
+        dataAny.checkout_url ||
+        dataAny.checkoutURL ||
+        dataAny.url ||
+        dataAny.sessionUrl ||
+        dataAny.stripeUrl;
+
+      // If backend initiated Stripe checkout, redirect customer immediately
+      if (checkoutUrl && typeof checkoutUrl === "string") {
+        setIsRedirecting(true);
+        toast.loading("Redirecting to secure payment checkout...", { id: toastId });
+        window.location.href = checkoutUrl;
+        return;
+      }
+
+      try {
+        const acceptedQuotation = acceptSharedQuotation(quotationId);
+        const request = getSharedServiceRequestById(requestId);
+        if (request) {
+          createOrSyncSharedServiceOrderFromRequest(request);
+        }
+        setQuoteStatus(acceptedQuotation?.status ?? "accepted");
+      } catch (localSyncErr) {
+        console.warn("Local mock store sync skipped on accept:", localSyncErr);
+        setQuoteStatus("accepted");
+      }
+
       toast.success(res.message || "Quotation accepted!", {
+        id: toastId,
         description: "A service order has been generated for your appointment.",
       });
-    } catch {
-      // Local fallback handled
+    } catch (err: unknown) {
+      const errObj = err as { data?: { message?: string }; message?: string };
+      const msg = errObj?.data?.message || errObj?.message || "Failed to accept quotation.";
+      toast.error(msg, { id: toastId, duration: 8000 });
     }
   }
 
-  return (
-    <div className="rounded-[1.25rem] bg-teal-50 p-5">
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-teal-700">
-        Quotation Decision
-      </p>
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        Accepting keeps the current schedule connected to this request. Admin
-        reschedules are displayed in the request timeline.
-      </p>
-
-      {quoteStatus === "accepted" ? (
-        <div className="mt-5 rounded-[1rem] bg-white p-4 text-sm text-primary">
-          <div className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 size={18} />
-            Quotation Accepted
+  if (normStatus === "awaiting-payment" || normStatus === "awaiting_payment") {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800">
+            <Clock size={18} />
           </div>
-          <p className="mt-2 text-slate-600">
-            Current schedule: {currentScheduleLabel}
-          </p>
-          {serviceOrderHref ? (
-            <Link
-              className="mt-3 inline-flex font-semibold text-primary underline-offset-4 hover:underline"
-              href={serviceOrderHref}
-            >
-              View Service Order
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
-
-      {quoteStatus === "rejected" ? (
-        <div className="mt-5 rounded-[1rem] bg-white p-4 text-sm text-red-700">
-          <div className="flex items-center gap-2 font-semibold">
-            <XCircle size={18} />
-            Quotation Rejected
-          </div>
-          {latestHistoryEntry ? (
-            <p className="mt-2 text-slate-600">
-              Latest reason: {latestHistoryEntry.reason}
+          <div>
+            <h4 className="text-sm sm:text-base font-semibold text-amber-950">
+              Awaiting Payment Confirmation
+            </h4>
+            <p className="mt-0.5 text-xs sm:text-sm font-medium text-slate-600">
+              Your quotation is locked while payment is processing. Once checkout completes, dispatch will be confirmed.
             </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (normStatus === "accepted") {
+    return (
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 sm:p-5 shadow-xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+              <CheckCircle2 size={18} />
+            </div>
+            <div>
+              <h4 className="text-sm sm:text-base font-semibold text-emerald-950">
+                Quotation Accepted
+              </h4>
+              <p className="mt-0.5 text-xs sm:text-sm font-medium text-slate-600">
+                Confirmed schedule: <span className="font-semibold text-primary">{currentScheduleLabel}</span>
+              </p>
+            </div>
+          </div>
+          {serviceOrderHref ? (
+            <Button asChild size="sm" className="rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-medium text-xs sm:text-sm shrink-0">
+              <Link href={serviceOrderHref}>
+                View Service Order &rarr;
+              </Link>
+            </Button>
           ) : null}
         </div>
-      ) : null}
+      </div>
+    );
+  }
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <Button
-          type="button"
-          disabled={!canDecide}
-          onClick={acceptQuotation}
-        >
-          Accept Quotation
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={!canDecide}
-          onClick={() => setRejectOpen(true)}
-        >
-          Reject Quotation
-        </Button>
+  if (normStatus === "rejected") {
+    return (
+      <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 sm:p-5 shadow-xs space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-700">
+            <XCircle size={18} />
+          </div>
+          <div>
+            <h4 className="text-sm sm:text-base font-semibold text-rose-950">
+              Quotation Declined
+            </h4>
+            {latestHistoryEntry ? (
+              <p className="mt-0.5 text-xs sm:text-sm font-medium text-slate-600">
+                Reason: <span className="font-semibold text-primary">{latestHistoryEntry.reason}</span>
+                {latestHistoryEntry.comments ? ` — ${latestHistoryEntry.comments}` : ""}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs sm:text-sm font-medium text-slate-600">
+                This quotation was declined. Contact our team if you would like a revised estimate.
+              </p>
+            )}
+          </div>
+        </div>
+
+        {history.length > 1 ? (
+          <div className="pt-2 border-t border-rose-100 space-y-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              Previous Rejection History
+            </p>
+            {history.slice(1).map((entry) => (
+              <div
+                key={entry.id}
+                className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600"
+              >
+                <span className="font-semibold text-primary">{entry.reason}</span>
+                {entry.comments ? ` - ${entry.comments}` : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!canDecide) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-xl border border-teal-200/80 bg-teal-50/40 p-4 sm:p-5 shadow-xs">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-sm sm:text-base font-bold text-primary">
+            Quotation Approval
+          </h3>
+          <p className="mt-0.5 text-xs sm:text-sm text-slate-600 font-medium">
+            Review the breakdown above to confirm your service dispatch slot.
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isAccepting || isRedirecting || isRejecting}
+            onClick={() => setRejectOpen(true)}
+            className="rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50 font-medium text-xs sm:text-sm h-9 px-3.5"
+          >
+            Decline
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            disabled={isAccepting || isRedirecting || isRejecting}
+            onClick={acceptQuotation}
+            className="rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-medium text-xs sm:text-sm h-9 px-4 shadow-xs"
+          >
+            {isAccepting || isRedirecting ? (
+              <>
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+                {isRedirecting ? "Redirecting to Checkout..." : "Processing..."}
+              </>
+            ) : (
+              "Accept & Confirm"
+            )}
+          </Button>
+        </div>
       </div>
 
-      {history.length ? (
-        <div className="mt-5 space-y-2">
-          <p className="text-sm font-semibold text-slate-900">
-            Quotation rejection history
-          </p>
-          {history.map((entry) => (
-            <div
-              key={entry.id}
-              className="rounded-xl bg-white px-4 py-3 text-sm text-slate-600"
-            >
-              <span className="font-semibold text-slate-900">
-                {entry.reason}
-              </span>
-              {entry.comments ? ` - ${entry.comments}` : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-lg">
           <DialogHeader>
-            <DialogTitle>Reject quotation</DialogTitle>
+            <DialogTitle className="text-primary">Decline Quotation</DialogTitle>
             <DialogDescription>
-              Select a reason so the team understands what should happen next.
+              Select a reason so our technical team can prepare an updated estimate or assist you.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-5 space-y-4">
+          <div className="mt-3 space-y-3">
             <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-md">
                 <SelectValue placeholder="Choose a reason..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-md">
                 {rejectionReasons.map((item) => (
                   <SelectItem key={item} value={item}>
                     {item}
@@ -218,18 +334,28 @@ export function QuotationDecisionPanel({
               value={comments}
               onChange={(event) => setComments(event.target.value)}
               placeholder="Optional comments..."
+              className="rounded-md"
             />
           </div>
-          <DialogFooter>
+          <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
             <Button
               type="button"
               variant="outline"
+              size="sm"
+              className="rounded-md"
               onClick={() => setRejectOpen(false)}
             >
               Cancel
             </Button>
-            <Button type="button" disabled={!reason} onClick={rejectQuotation}>
-              Confirm Rejection
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="rounded-md"
+              disabled={!reason}
+              onClick={rejectQuotation}
+            >
+              Confirm Decline
             </Button>
           </DialogFooter>
         </DialogContent>

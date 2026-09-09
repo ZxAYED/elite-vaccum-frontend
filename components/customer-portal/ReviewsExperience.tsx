@@ -1,10 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquareQuote, Star } from "lucide-react";
-import { useState } from "react";
+import { MessageSquareQuote, Package, Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { useAppSelector } from "@/redux/hooks";
+import { useGetMyReviewsQuery, useSubmitReviewMutation } from "@/redux/api/reviewsApi";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
+import {
+  PortalCard,
+  PortalCardFooter,
+  PortalCardTitle,
+  PortalCardTop,
+  PortalDetailAction,
+  PortalFact,
+  PortalList,
+} from "@/components/customer-portal/PortalUI";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
@@ -47,14 +60,25 @@ export function ReviewsExperience({
   initialOrderId,
 }: ReviewsExperienceProps) {
   useSharedBusinessStoreVersion();
+  const authUser = useAppSelector((state) => state.auth.user);
   const [selectedOrderId, setSelectedOrderId] = useState(initialOrderId ?? "");
   const [composeType, setComposeType] = useState<ComposeType>(initialComposeType);
   const [draft, setDraft] = useState<DraftState>(emptyDraft);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
-  const customerReviews = getSharedReviews().filter(
-    (review) => review.customerId === mockCurrentUser.customerId,
-  );
+  const { data: apiMyReviews } = useGetMyReviewsQuery();
+  const [submitReviewApi, { isLoading: isSubmittingReview }] = useSubmitReviewMutation();
+
+  const customerReviews = useMemo(() => {
+    if (apiMyReviews && apiMyReviews.length > 0) {
+      return apiMyReviews;
+    }
+    return getSharedReviews().filter(
+      (review) =>
+        review.customerId ===
+        (authUser?.id ?? mockCurrentUser.customerId ?? mockCurrentCustomer.id),
+    );
+  }, [apiMyReviews, authUser?.id]);
 
   const eligibleProductOrders = dashboardProductOrders.filter(
     (order) => order.status === "delivered" && !hasSharedReviewForOrder(order.id),
@@ -79,7 +103,7 @@ export function ReviewsExperience({
     setSubmitMessage(null);
   }
 
-  function submitReview() {
+  async function submitReview() {
     if (!composeType) return;
     if (!draft.title.trim() || draft.body.trim().length < 20) return;
 
@@ -87,10 +111,24 @@ export function ReviewsExperience({
       const firstItem = selectedProductOrder?.items[0];
       if (!firstItem) return;
 
+      try {
+        await submitReviewApi({
+          type: "PRODUCT",
+          productId: firstItem.productId,
+          productOrderId: selectedProductOrder.id,
+          rating: draft.rating,
+          title: draft.title.trim(),
+          body: draft.body.trim(),
+        }).unwrap();
+        toast.success("Review submitted for moderation!");
+      } catch {
+        // Fallback to local store
+      }
+
       createSharedReview({
         type: "PRODUCT",
-        customerId: mockCurrentUser.customerId ?? mockCurrentCustomer.id,
-        customerName: mockCurrentCustomer.displayName,
+        customerId: authUser?.id ?? mockCurrentUser.customerId ?? mockCurrentCustomer.id,
+        customerName: authUser?.fullName || authUser?.email || mockCurrentCustomer.displayName,
         relatedOrderId: selectedProductOrder.id,
         relatedEntityId: firstItem.productId,
         relatedName: firstItem.name,
@@ -101,10 +139,23 @@ export function ReviewsExperience({
     } else {
       if (!selectedServiceOrder) return;
 
+      try {
+        await submitReviewApi({
+          type: "SERVICE",
+          serviceOrderId: selectedServiceOrder.id,
+          rating: draft.rating,
+          title: draft.title.trim(),
+          body: draft.body.trim(),
+        }).unwrap();
+        toast.success("Service review submitted for moderation!");
+      } catch {
+        // Fallback to local store
+      }
+
       createSharedReview({
         type: "SERVICE",
-        customerId: mockCurrentUser.customerId ?? mockCurrentCustomer.id,
-        customerName: mockCurrentCustomer.displayName,
+        customerId: authUser?.id ?? mockCurrentUser.customerId ?? mockCurrentCustomer.id,
+        customerName: authUser?.fullName || authUser?.email || mockCurrentCustomer.displayName,
         relatedOrderId: selectedServiceOrder.id,
         relatedEntityId: selectedServiceOrder.serviceRequestId,
         relatedName: selectedServiceOrder.serviceName,
@@ -121,10 +172,10 @@ export function ReviewsExperience({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm" className="rounded-md font-medium">
             <Link href="/user/orders">Open orders</Link>
           </Button>
         }
@@ -133,22 +184,23 @@ export function ReviewsExperience({
         title="Reviews"
       />
 
-      {(eligibleProductOrders.length || eligibleServiceOrders.length) && (
-        <section className="mb-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      {(eligibleProductOrders.length || eligibleServiceOrders.length) ? (
+        <section className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between border-b border-slate-100 pb-3">
             <div>
-              <h2 className="text-xl font-semibold text-primary">Write a review</h2>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                Reviews are available only once a product order is delivered or a service
-                order is completed. Each order can be reviewed once.
+              <h2 className="text-base font-bold text-slate-900">Write a review</h2>
+              <p className="mt-0.5 text-xs text-slate-500 font-normal">
+                Reviews are available once a product order is delivered or a service visit is completed.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {eligibleProductOrders.map((order) => (
                 <Button
                   key={order.id}
                   type="button"
+                  size="sm"
                   variant="outline"
+                  className="rounded-md text-xs font-medium"
                   onClick={() => startReview("product", order.id)}
                 >
                   Review {order.items[0]?.name ?? order.id}
@@ -158,7 +210,9 @@ export function ReviewsExperience({
                 <Button
                   key={order.id}
                   type="button"
+                  size="sm"
                   variant="outline"
+                  className="rounded-md text-xs font-medium"
                   onClick={() => startReview("service", order.id)}
                 >
                   Review {order.serviceName}
@@ -169,26 +223,23 @@ export function ReviewsExperience({
 
           {(composeType === "product" && selectedProductOrder) ||
           (composeType === "service" && selectedServiceOrder) ? (
-            <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="rounded-md border border-slate-200 bg-slate-50/70 p-4 sm:p-5 space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <TypeBadge type={composeType === "product" ? "PRODUCT" : "SERVICE"} />
-                <p className="text-sm text-gray-600">
+                <p className="text-xs text-slate-600 font-medium">
                   Reviewing{" "}
-                  <span className="font-semibold text-primary">
+                  <strong className="text-slate-900">
                     {composeType === "product"
                       ? selectedProductOrder?.items[0]?.name
                       : selectedServiceOrder?.serviceName}
-                  </span>{" "}
-                  for order{" "}
-                  {composeType === "product"
-                    ? selectedProductOrder?.id
-                    : selectedServiceOrder?.id}
+                  </strong>{" "}
+                  (Order: {composeType === "product" ? selectedProductOrder?.id : selectedServiceOrder?.id})
                 </p>
               </div>
 
-              <div className="mt-5">
-                <p className="text-sm font-semibold text-primary">Rating</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+              <div>
+                <p className="text-xs font-semibold text-slate-700">Rating</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {[1, 2, 3, 4, 5].map((value) => (
                     <button
                       key={value}
@@ -200,28 +251,28 @@ export function ReviewsExperience({
                           rating: value as DraftState["rating"],
                         }))
                       }
-                      className={`inline-flex size-11 items-center justify-center rounded-2xl border text-sm font-semibold transition ${
-                        draft.rating === value
-                          ? "border-teal-700 bg-teal-700 text-white"
-                          : "border-gray-200 bg-white text-gray-700"
+                      className={`inline-flex size-9 items-center justify-center rounded-md border text-xs font-semibold transition ${
+                        draft.rating >= value
+                          ? "border-amber-400 bg-amber-50 text-amber-600"
+                          : "border-slate-200 bg-white text-slate-400 hover:bg-slate-50"
                       }`}
                     >
                       <Star
-                        size={16}
-                        className={draft.rating >= value ? "fill-current" : ""}
+                        size={14}
+                        className={draft.rating >= value ? "fill-amber-400" : ""}
                       />
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-5">
+              <div className="grid gap-3">
                 <div>
                   <label
                     htmlFor="review-title"
-                    className="mb-2 block text-sm font-semibold text-primary"
+                    className="mb-1 block text-xs font-semibold text-slate-700"
                   >
-                    Review title
+                    Review headline
                   </label>
                   <Input
                     id="review-title"
@@ -230,12 +281,13 @@ export function ReviewsExperience({
                       setDraft((current) => ({ ...current, title: event.target.value }))
                     }
                     placeholder="Summarize your experience"
+                    className="h-9 rounded-md text-xs"
                   />
                 </div>
                 <div>
                   <label
                     htmlFor="review-body"
-                    className="mb-2 block text-sm font-semibold text-primary"
+                    className="mb-1 block text-xs font-semibold text-slate-700"
                   >
                     Review details
                   </label>
@@ -246,22 +298,27 @@ export function ReviewsExperience({
                       setDraft((current) => ({ ...current, body: event.target.value }))
                     }
                     placeholder="Share what went well, what could improve, and whether you would recommend it."
+                    className="min-h-20 rounded-md text-xs"
                   />
-                  <p className="mt-2 text-xs text-gray-500">
+                  <p className="mt-1 text-[11px] text-slate-400">
                     Minimum 20 characters.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Button
                     type="button"
+                    size="sm"
+                    className="rounded-md font-medium"
                     onClick={submitReview}
-                    disabled={!draft.title.trim() || draft.body.trim().length < 20}
+                    disabled={isSubmittingReview || !draft.title.trim() || draft.body.trim().length < 20}
                   >
-                    Submit Review
+                    {isSubmittingReview ? "Submitting..." : "Submit Review"}
                   </Button>
                   <Button
                     type="button"
                     variant="outline"
+                    size="sm"
+                    className="rounded-md font-medium"
                     onClick={() => {
                       setComposeType(null);
                       setSelectedOrderId("");
@@ -276,33 +333,30 @@ export function ReviewsExperience({
           ) : null}
 
           {submitMessage ? (
-            <div className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-medium text-emerald-800">
               {submitMessage}
             </div>
           ) : null}
         </section>
-      )}
+      ) : null}
 
       {!customerReviews.length ? (
-        <section className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm">
-          <MessageSquareQuote className="mx-auto text-teal-700" size={28} />
-          <h2 className="mt-4 text-xl font-semibold text-primary">No reviews yet</h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Once you review a delivered product order or completed service visit, it
-            will appear here.
+        <section className="rounded-lg border border-dashed border-teal-200 bg-teal-50/30 p-10 text-center shadow-xs">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
+            <MessageSquareQuote size={22} />
+          </div>
+          <h2 className="mt-3 text-base font-semibold text-slate-900">No reviews submitted yet</h2>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-slate-600 font-normal">
+            Once you review a delivered product order or completed service visit, your verified feedback will appear here.
           </p>
         </section>
       ) : (
-        <div className="space-y-5">
+        <PortalList>
           {customerReviews.map((review) => (
-            <article
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-              key={review.id}
-            >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <TypeBadge type={review.type} />
+            <PortalCard key={review.id}>
+              <PortalCardTop
+                badges={
+                  <>
                     <StatusBadge
                       label={
                         review.status === "PENDING"
@@ -313,45 +367,60 @@ export function ReviewsExperience({
                       }
                       status={review.status.toLowerCase()}
                     />
-                  </div>
-                  <h2 className="mt-4 text-xl font-semibold text-primary">
-                    {review.title}
-                  </h2>
-                  <p className="mt-2 text-sm text-gray-600">
-                    Related to {review.relatedName} · {review.relatedOrderId}
-                  </p>
+                    <TypeBadge type={review.type} />
+                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                      <Star className="fill-amber-400 text-amber-500" size={12} />
+                      {review.rating} / 5
+                    </span>
+                  </>
+                }
+                meta={
+                  <>
+                    Submitted:{" "}
+                    <span className="font-medium text-slate-700">
+                      {formatLongDate(review.submittedAt)}
+                    </span>
+                  </>
+                }
+              />
 
-                  <div className="mt-4 rounded-2xl bg-gray-50 px-4 py-4 text-sm leading-6 text-gray-700">
-                    {review.body}
-                  </div>
+              <PortalCardTitle subtitle={review.relatedName}>
+                {review.title}
+              </PortalCardTitle>
 
-                  <p className="mt-4 text-sm text-gray-500">
-                    Submitted on {formatLongDate(review.submittedAt)}
-                  </p>
-                </div>
+              <p className="-mt-1 mb-4 rounded-md border border-slate-200 bg-slate-50/60 p-3 text-xs leading-relaxed text-slate-700">
+                {review.body}
+              </p>
 
-                <div className="w-full max-w-sm rounded-2xl bg-teal-50 p-5">
-                  <div className="inline-flex items-center gap-1 rounded-full bg-white px-3 py-2 text-amber-600">
-                    <Star className="fill-current" size={16} />
-                    {review.rating}/5
-                  </div>
-
-                  <Button asChild className="mt-5 w-full">
-                    <Link
-                      href={
-                        review.type === "SERVICE"
-                          ? `/user/orders/${review.relatedOrderId}`
-                          : `/user/orders/${review.relatedOrderId}`
-                      }
-                    >
-                      View related order
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-            </article>
+              <PortalCardFooter
+                actions={
+                  <PortalDetailAction
+                    href={`/user/orders/${review.relatedOrderId}`}
+                    label="View Related Order"
+                  />
+                }
+                facts={
+                  <>
+                    <PortalFact
+                      emphasis
+                      icon={Star}
+                      label="Your Rating"
+                      tone="warning"
+                      value={`${review.rating} / 5`}
+                    />
+                    <PortalFact
+                      icon={Package}
+                      label="Reviewed Item"
+                      placeholder="Not linked"
+                      truncate
+                      value={review.relatedName}
+                    />
+                  </>
+                }
+              />
+            </PortalCard>
           ))}
-        </div>
+        </PortalList>
       )}
     </div>
   );

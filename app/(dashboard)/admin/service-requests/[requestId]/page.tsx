@@ -4,11 +4,14 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
-  FileImage,
-  FileVideo,
+  Loader2,
   type LucideIcon,
   MapPin,
+  MessageSquare,
   PackageSearch,
+  Phone,
+  Plus,
+  UserCheck,
   UserRound,
   XCircle,
 } from "lucide-react";
@@ -18,6 +21,11 @@ import type { ReactNode } from "react";
 import { use, useMemo, useState } from "react";
 
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
+import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
+import { ServiceRequestQuotations } from "@/components/admin/quotations/ServiceRequestQuotations";
+import { QuotationModal } from "@/components/admin/quotations/QuotationModal";
+import { AssignTechnicianModal } from "@/components/admin/shared/AssignTechnicianModal";
+import { RescheduleServiceRequestModal } from "@/components/admin/service-requests/RescheduleServiceRequestModal";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -37,9 +45,9 @@ import {
 import { Textarea } from "@/components/ui/Textarea";
 import {
   acceptSharedServiceRequest,
+  assignSharedServiceRequestTechnician,
   getSharedCustomerById,
   getSharedPublicServices,
-  getSharedQuotationForRequest,
   getSharedServiceRequestById,
   rejectSharedServiceRequest,
 } from "@/data/mock/shared-business-store";
@@ -48,18 +56,25 @@ import { formatLongDate, formatShortDateTime } from "@/lib/formatters";
 import { formatStatusLabel } from "@/lib/status-labels";
 import { cn } from "@/lib/utils";
 import {
+  useGetServiceRequestByIdQuery,
   useUpdateServiceRequestStatusMutation,
   useRejectServiceRequestMutation,
 } from "@/redux/api/serviceRequestsApi";
+import { useAssignTechnicianToAppointmentMutation } from "@/redux/api/servicesApi";
+import { useAssignTechnicianToServiceOrderMutation } from "@/redux/api/serviceOrdersApi";
+import type { TechnicianProfileDto } from "@/redux/api/technicianApi";
 import { toast } from "sonner";
 import type {
   RejectionHistoryEntry,
   ServiceRequest,
-  ServiceRequestAttachment,
-  ServiceRequestStatus,
 } from "@/types/domain";
 
-type DecisionStatus = "under-review" | "accepted" | "rejected";
+type DecisionStatus =
+  | "submitted"
+  | "under-review"
+  | "accepted"
+  | "rejected"
+  | "cancelled";
 
 const rejectionReasons = [
   "Outside service area",
@@ -70,7 +85,7 @@ const rejectionReasons = [
   "Other",
 ];
 
-const acceptedLikeStatuses: ServiceRequestStatus[] = [
+const acceptedLikeStatuses: string[] = [
   "accepted",
   "quoted",
   "scheduled",
@@ -78,10 +93,14 @@ const acceptedLikeStatuses: ServiceRequestStatus[] = [
   "completed",
 ];
 
-function getInitialDecisionStatus(status: ServiceRequestStatus): DecisionStatus {
-  if (acceptedLikeStatuses.includes(status)) return "accepted";
-  if (status === "rejected") return "rejected";
-  return "under-review";
+function getInitialDecisionStatus(rawStatus?: string): DecisionStatus {
+  if (!rawStatus) return "submitted";
+  const normalized = rawStatus.toLowerCase().replace(/_/g, "-");
+  if (acceptedLikeStatuses.includes(normalized)) return "accepted";
+  if (normalized === "rejected") return "rejected";
+  if (normalized === "cancelled") return "cancelled";
+  if (normalized === "under-review") return "under-review";
+  return "submitted";
 }
 
 function getCustomer(request: ServiceRequest) {
@@ -97,9 +116,27 @@ function getServiceName(request: ServiceRequest) {
 }
 
 function getRequestedSchedule(request: ServiceRequest) {
-  return request.requestedSchedule ?? {
-    date: request.preferredDate,
-    time: request.preferredTime,
+  const reqAny = request as unknown as Record<string, unknown>;
+  const sched = (request.requestedSchedule || reqAny.requestedSchedule || {}) as Record<string, unknown>;
+
+  const date =
+    (typeof sched.preferredDate === "string" && sched.preferredDate) ||
+    (typeof sched.date === "string" && sched.date) ||
+    (typeof request.preferredDate === "string" && request.preferredDate) ||
+    (typeof reqAny.preferredDate === "string" && reqAny.preferredDate) ||
+    "";
+
+  const time =
+    (typeof sched.timeWindow === "string" && sched.timeWindow) ||
+    (typeof sched.time === "string" && sched.time) ||
+    (typeof request.preferredTime === "string" && request.preferredTime) ||
+    (typeof reqAny.timeWindow === "string" && reqAny.timeWindow) ||
+    (typeof reqAny.preferredTime === "string" && reqAny.preferredTime) ||
+    "";
+
+  return {
+    date,
+    time: time || "Not provided",
   };
 }
 
@@ -118,7 +155,19 @@ export default function AdminServiceRequestDetailPage({
 }: RequestDetailPageProps) {
   useSharedBusinessStoreVersion();
   const { requestId } = use(params);
-  const request = getSharedServiceRequestById(requestId);
+  const { data: apiRequest, isLoading } = useGetServiceRequestByIdQuery(requestId, {
+    skip: !requestId,
+  });
+  const mockRequest = getSharedServiceRequestById(requestId);
+  const request = apiRequest || mockRequest;
+
+  if (isLoading && !request) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="size-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
 
   if (!request) {
     notFound();
@@ -131,14 +180,103 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
   useSharedBusinessStoreVersion();
   const customer = getCustomer(request);
   const schedule = getRequestedSchedule(request);
-  const quotation = getSharedQuotationForRequest(request.id);
-  const [decisionStatus, setDecisionStatus] = useState<DecisionStatus>(
-    getInitialDecisionStatus(request.status),
-  );
+  const [overrideStatus, setOverrideStatus] = useState<DecisionStatus | null>(null);
+  const decisionStatus = overrideStatus ?? getInitialDecisionStatus(request.status);
+
   const [acceptOpen, setAcceptOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [previewAttachment, setPreviewAttachment] =
-    useState<ServiceRequestAttachment | null>(null);
+  const [createQuotationOpen, setCreateQuotationOpen] = useState(false);
+  const [assignTechOpen, setAssignTechOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [isAssigningTech, setIsAssigningTech] = useState(false);
+  const [assignedTechnician, setAssignedTechnician] = useState<{
+    id?: string;
+    displayName?: string;
+    phone?: string;
+    rating?: number;
+    completedJobs?: number;
+    specializations?: string[];
+  } | null>(() => {
+    if (request.appointments && request.appointments.length > 0 && request.appointments[0].technician) {
+      return request.appointments[0].technician;
+    }
+    if (request.assignedTechnicianId) {
+      return { id: request.assignedTechnicianId, displayName: "Field Technician" };
+    }
+    return null;
+  });
+
+  const [assignTechnicianToAppointment] = useAssignTechnicianToAppointmentMutation();
+  const [assignTechnicianToServiceOrder] = useAssignTechnicianToServiceOrderMutation();
+
+  const handleAssignTechnician = async (
+    techId: string,
+    notes?: string,
+    tech?: TechnicianProfileDto,
+  ) => {
+    setIsAssigningTech(true);
+    try {
+      if (request.appointments && request.appointments.length > 0 && request.appointments[0].id) {
+        await assignTechnicianToAppointment({
+          appointmentId: request.appointments[0].id,
+          technicianId: techId,
+          notes: notes || undefined,
+        }).unwrap();
+      } else if (request.serviceOrder?.id) {
+        await assignTechnicianToServiceOrder({
+          id: request.serviceOrder.id,
+          technicianId: techId,
+        }).unwrap();
+      }
+
+      assignSharedServiceRequestTechnician(request.id, techId, tech ? {
+        displayName: tech.displayName,
+        phone: tech.phone,
+        rating: typeof tech.rating === "number" ? tech.rating : tech.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech.completedJobs,
+        specializations: tech.specializations,
+      } : undefined);
+
+      setAssignedTechnician({
+        id: techId,
+        displayName: tech?.displayName || "Field Technician",
+        phone: tech?.phone,
+        rating: typeof tech?.rating === "number" ? tech.rating : tech?.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech?.completedJobs,
+        specializations: tech?.specializations,
+      });
+
+      toast.success("Technician assigned successfully", {
+        description: `${tech?.displayName || "Technician"} was assigned to ${request.title || request.id}`,
+      });
+      setAssignTechOpen(false);
+    } catch {
+      assignSharedServiceRequestTechnician(request.id, techId, tech ? {
+        displayName: tech.displayName,
+        phone: tech.phone,
+        rating: typeof tech.rating === "number" ? tech.rating : tech.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech.completedJobs,
+        specializations: tech.specializations,
+      } : undefined);
+
+      setAssignedTechnician({
+        id: techId,
+        displayName: tech?.displayName || "Field Technician",
+        phone: tech?.phone,
+        rating: typeof tech?.rating === "number" ? tech.rating : tech?.rating ? parseFloat(String(tech.rating)) : undefined,
+        completedJobs: tech?.completedJobs,
+        specializations: tech?.specializations,
+      });
+
+      toast.success("Technician assigned successfully", {
+        description: `${tech?.displayName || "Technician"} was assigned to ${request.title || request.id}`,
+      });
+      setAssignTechOpen(false);
+    } finally {
+      setIsAssigningTech(false);
+    }
+  };
+
   const [rejectReason, setRejectReason] = useState("");
   const [rejectNote, setRejectNote] = useState("");
   const [rejectError, setRejectError] = useState("");
@@ -153,15 +291,25 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
         detail: formatShortDateTime(request.submittedAt),
         tone: "bg-slate-100 text-slate-700",
       },
-      {
-        label: "Under Review",
-        detail:
-          request.status === "submitted"
-            ? "Opened in admin review"
-            : "Review in progress",
-        tone: "bg-blue-100 text-blue-800",
-      },
     ];
+
+    if (decisionStatus === "cancelled") {
+      base.push({
+        label: "Cancelled",
+        detail: "Request was cancelled",
+        tone: "bg-rose-100 text-rose-700",
+      });
+      return base;
+    }
+
+    base.push({
+      label: "Under Review",
+      detail:
+        request.status === "submitted"
+          ? "Opened in admin review"
+          : "Review in progress",
+      tone: "bg-blue-100 text-blue-800",
+    });
 
     if (decisionStatus === "accepted") {
       base.push({
@@ -189,13 +337,13 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
 
   async function acceptRequest() {
     acceptSharedServiceRequest(request.id);
-    setDecisionStatus("accepted");
+    setOverrideStatus("accepted");
     setAcceptOpen(false);
 
     try {
       await updateStatusMutation({
         id: request.id,
-        status: "accepted",
+        status: "ACCEPTED",
       }).unwrap();
       toast.success("Service request accepted", {
         description: "You can now prepare a quotation for the customer.",
@@ -217,7 +365,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
       rejectNote || undefined,
     );
     setLocalRejections(nextRequest?.rejectionHistory ?? []);
-    setDecisionStatus("rejected");
+    setOverrideStatus("rejected");
     setRejectError("");
     setRejectOpen(false);
 
@@ -258,39 +406,43 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   Submitted {formatShortDateTime(request.submittedAt)}
                 </span>
               </div>
-              <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-teal-950">
+              <h1 className="mt-3 text-3xl font-medium tracking-[-0.03em] text-primary">
                 {request.id}
               </h1>
-              <p className="mt-2 text-lg text-slate-600">
+              <p className="mt-2 text-base font-medium text-slate-700">
                 {getServiceName(request)}
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              {decisionStatus !== "rejected" ? (
-                <Button variant="outline" onClick={() => setRejectOpen(true)}>
-                  <XCircle size={17} />
-                  Reject Request
-                </Button>
-              ) : null}
-              {decisionStatus !== "accepted" ? (
-                <Button onClick={() => setAcceptOpen(true)}>
-                  <CheckCircle2 size={17} />
-                  Accept Request
-                </Button>
-              ) : quotation ? (
-                <Button asChild>
-                  <Link href={`/admin/quotations/${quotation.id}`}>
-                    View Quotation
-                  </Link>
-                </Button>
-              ) : (
-                <Button asChild>
-                  <Link href={`/admin/quotations/new?requestId=${request.id}`}>
-                    Create Quotation
-                  </Link>
-                </Button>
-              )}
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                variant="outline"
+                className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
+                onClick={() => setRescheduleOpen(true)}
+              >
+                <CalendarDays size={16} />
+                Reschedule
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
+                onClick={() => setAssignTechOpen(true)}
+              >
+                <UserCheck size={16} />
+                {assignedTechnician ? "Reassign Tech" : "Assign Tech"}
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2 border-teal-200 text-teal-800 hover:bg-teal-50"
+                onClick={() => {
+                  toast.info("Customer messaging / chat will be implemented soon.", {
+                    description: `Messaging with ${customer?.displayName ?? "customer"} will be supported directly in this portal.`,
+                  });
+                }}
+              >
+                <MessageSquare size={16} />
+                Message Customer
+              </Button>
             </div>
           </div>
         </div>
@@ -308,14 +460,26 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   ["Cellphone", customer?.phone ?? "Not supplied"],
                 ]}
                 action={
-                  customer ? (
-                    <Link
-                      className="text-sm font-semibold text-teal-800 hover:text-teal-950"
-                      href={`/admin/customers/${customer.id}`}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toast.info("Customer messaging will be available soon.")
+                      }
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-teal-800 hover:text-teal-950 cursor-pointer"
                     >
-                      Open customer profile
-                    </Link>
-                  ) : null
+                      <MessageSquare size={13} />
+                      Message
+                    </button>
+                    {customer ? (
+                      <Link
+                        className="text-xs font-semibold text-teal-800 hover:text-teal-950"
+                        href={`/admin/customers/${customer.id}`}
+                      >
+                        Profile
+                      </Link>
+                    ) : null}
+                  </div>
                 }
               />
 
@@ -326,7 +490,14 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                   ["Address", request.serviceAddress.line1],
                   [
                     "City / State / ZIP",
-                    `${request.serviceAddress.city}, ${request.serviceAddress.state} ${request.serviceAddress.postalCode}`,
+                    [
+                      request.serviceAddress?.city,
+                      request.serviceAddress?.state,
+                      request.serviceAddress?.postalCode ||
+                        (request.serviceAddress as unknown as Record<string, unknown>)?.zipCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "Not provided",
                   ],
                   ["Inside Location", emptyValue(request.problemLocation)],
                   ["Property", request.propertyLabel],
@@ -339,10 +510,23 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
                 icon={CalendarDays}
                 title="Requested Schedule"
                 rows={[
-                  ["Customer-selected date", formatLongDate(schedule.date)],
-                  ["Customer-selected time", schedule.time],
+                  [
+                    "Customer-selected date",
+                    schedule.date ? formatLongDate(schedule.date) : "Not provided",
+                  ],
+                  ["Customer-selected time", schedule.time || "Not provided"],
                   ["Current schedule", request.currentSchedule?.label ?? "Matches requested schedule"],
                 ]}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setRescheduleOpen(true)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-teal-800 hover:text-teal-950 cursor-pointer"
+                  >
+                    <CalendarDays size={13} />
+                    Reschedule
+                  </button>
+                }
               />
 
               <InfoPanel
@@ -382,67 +566,142 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
             </section>
 
             <section className="rounded-xl border border-teal-100 bg-white p-5 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]">
-              <h2 className="text-xl font-semibold text-teal-950">
-                Customer Photos & Videos
-              </h2>
-              {request.attachments.length === 0 ? (
-                <div className="mt-5 rounded-[1.25rem] border border-dashed border-teal-200 bg-teal-50/40 p-8 text-center text-sm text-slate-600">
-                  No customer media was submitted with this request.
-                </div>
-              ) : (
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {request.attachments.map((attachment) => (
-                    <button
-                      className="rounded-[1.25rem] border border-teal-100 bg-slate-50 p-4 text-left transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--focus-ring)]"
-                      key={attachment.id}
-                      onClick={() => setPreviewAttachment(attachment)}
-                      type="button"
-                    >
-                    <div className="flex h-32 items-center justify-center rounded-xl bg-white text-teal-800">
-                        {attachment.kind === "video" ? (
-                          <FileVideo size={34} />
-                        ) : (
-                          <FileImage size={34} />
-                        )}
-                      </div>
-                      <p className="mt-4 truncate font-semibold text-teal-950">
-                        {attachment.fileName}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {attachment.kind} · {attachment.fileType}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <MediaGalleryPreview
+                attachments={request.attachments}
+                title="Customer Photos & Videos"
+                emptyMessage="No customer media submitted"
+                emptyDescription="No photos or video recordings were submitted with this request."
+              />
             </section>
+
+            <ServiceRequestQuotations
+              serviceRequest={request}
+              isAccepted={decisionStatus === "accepted"}
+              isCancelled={decisionStatus === "cancelled"}
+            />
           </div>
 
           <aside className="space-y-6">
             <section className="rounded-xl bg-primary p-5 text-white shadow-[0_18px_56px_-42px_rgba(28,79,80,0.58)]">
               <h2 className="text-xl font-semibold">Admin Decision</h2>
               <p className="mt-3 text-sm leading-6 text-white/75">
-                Accepting a request only prepares it for quotation. It does not
-                create a service order.
+                {decisionStatus === "accepted"
+                  ? "This service request has been accepted. You can now prepare a quotation for the customer."
+                  : decisionStatus === "rejected"
+                    ? "This service request was rejected. Rejection details are logged in the history below."
+                    : decisionStatus === "cancelled"
+                      ? "This service request was cancelled. Decision actions and quotations are closed for this request."
+                      : "Accepting a request only prepares it for quotation. It does not create a service order."}
               </p>
               <div className="mt-6 space-y-3">
-                <Button
-                  className="w-full bg-white text-primary hover:bg-teal-50"
-                  disabled={decisionStatus === "accepted"}
-                  onClick={() => setAcceptOpen(true)}
-                >
-                  Accept Request
-                </Button>
-                <Button
-                  className="w-full border-white/30 text-white hover:bg-white/10"
-                  disabled={decisionStatus === "rejected"}
-                  onClick={() => setRejectOpen(true)}
-                  variant="outline"
-                >
-                  Reject Request
-                </Button>
+                {decisionStatus === "accepted" ? (
+                  <Button
+                    className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
+                    onClick={() => setCreateQuotationOpen(true)}
+                  >
+                    <Plus size={16} />
+                    Create Quotation
+                  </Button>
+                ) : decisionStatus === "rejected" ? (
+                  <div className="rounded-lg border border-white/20 bg-white/10 p-3 text-center text-sm font-medium text-white/90">
+                    Request Rejected
+                  </div>
+                ) : decisionStatus === "cancelled" ? (
+                  <div className="rounded-lg border border-rose-200/30 bg-rose-500/20 p-3 text-center text-sm font-medium text-rose-100">
+                    Request Cancelled
+                  </div>
+                ) : (
+                  <>
+                    <Button
+                      className="w-full bg-white text-primary hover:bg-teal-50 font-medium"
+                      onClick={() => setAcceptOpen(true)}
+                    >
+                      <CheckCircle2 size={16} />
+                      Accept Request
+                    </Button>
+                    <Button
+                      className="w-full border border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white font-medium shadow-none"
+                      onClick={() => setRejectOpen(true)}
+                    >
+                      <XCircle size={16} />
+                      Reject Request
+                    </Button>
+                  </>
+                )}
               </div>
             </section>
+
+            {assignedTechnician ? (
+              <section className="rounded-xl border border-teal-100 bg-white p-5 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-teal-950 flex items-center gap-2">
+                    <UserRound size={18} className="text-teal-700" />
+                    Assigned Technician
+                  </h2>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Assigned
+                  </span>
+                </div>
+                <div className="mt-4 rounded-xl bg-slate-50 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-slate-900">{assignedTechnician.displayName}</p>
+                    {assignedTechnician.rating && (
+                      <span className="text-xs font-semibold text-amber-600">
+                        ⭐ {assignedTechnician.rating}
+                      </span>
+                    )}
+                  </div>
+                  {assignedTechnician.phone && (
+                    <p className="text-xs text-slate-600 flex items-center gap-1.5">
+                      <Phone size={12} className="text-slate-400" />
+                      {assignedTechnician.phone}
+                    </p>
+                  )}
+                  {assignedTechnician.completedJobs !== undefined && (
+                    <p className="text-xs text-slate-500">
+                      {assignedTechnician.completedJobs} completed jobs
+                    </p>
+                  )}
+                  {assignedTechnician.specializations && assignedTechnician.specializations.length > 0 && (
+                    <div className="pt-1 flex flex-wrap gap-1">
+                      {assignedTechnician.specializations.map((spec) => (
+                        <span key={spec} className="rounded bg-teal-50 text-teal-800 border border-teal-100 px-1.5 py-0.5 text-[10px] font-medium">
+                          {spec.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button
+                  onClick={() => setAssignTechOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="w-full mt-3 text-xs border-teal-200 text-teal-800 hover:bg-teal-50 font-medium"
+                >
+                  <UserCheck size={14} className="mr-1.5" />
+                  Change / Reassign Technician
+                </Button>
+              </section>
+            ) : (
+              <section className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 p-5 text-center shadow-sm">
+                <div className="mx-auto size-10 rounded-full bg-white border border-teal-200 flex items-center justify-center text-teal-700 mb-2 shadow-xs">
+                  <UserRound size={18} />
+                </div>
+                <h3 className="text-sm font-bold text-teal-950">No Technician Assigned</h3>
+                <p className="mt-1 text-xs text-slate-600">
+                  Assign an available technician to handle on-site diagnostics and service execution.
+                </p>
+                <Button
+                  onClick={() => setAssignTechOpen(true)}
+                  size="sm"
+                  className="mt-3.5 w-full bg-primary text-white hover:bg-teal-700 font-medium"
+                >
+                  <UserCheck size={15} className="mr-1.5" />
+                  Assign Technician
+                </Button>
+              </section>
+            )}
 
             <section className="rounded-xl border border-teal-100 bg-white p-5 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]">
               <h2 className="text-xl font-semibold text-teal-950">
@@ -574,34 +833,37 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={Boolean(previewAttachment)}
-        onOpenChange={() => setPreviewAttachment(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{previewAttachment?.fileName}</DialogTitle>
-            <DialogDescription>
-              Customer-submitted evidence preview metadata.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-6 rounded-xl bg-slate-50 p-8 text-center">
-            {previewAttachment?.kind === "video" ? (
-              <FileVideo className="mx-auto text-teal-800" size={52} />
-            ) : (
-              <FileImage className="mx-auto text-teal-800" size={52} />
-            )}
-            <p className="mt-4 font-semibold text-teal-950">
-              {previewAttachment?.fileType}
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              {previewAttachment
-                ? `${Math.round(previewAttachment.sizeBytes / 1024)} KB`
-                : ""}
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Create Quotation Modal */}
+      <QuotationModal
+        open={createQuotationOpen}
+        onOpenChange={setCreateQuotationOpen}
+        serviceRequest={request}
+        mode="create"
+      />
+
+      {/* Assign Technician Modal */}
+      <AssignTechnicianModal
+        open={assignTechOpen}
+        onOpenChange={setAssignTechOpen}
+        title="Assign Field Technician"
+        subtitle={`Select an available technician for service request #${request.id}`}
+        currentTechnicianId={assignedTechnician?.id}
+        contextInfo={{
+          serviceName: getServiceName(request),
+          customerName: customer?.displayName || "Customer",
+          date: schedule.date,
+          timeWindow: schedule.time,
+          location: `${request.serviceAddress.line1}, ${request.serviceAddress.city}`,
+        }}
+        isAssigning={isAssigningTech}
+        onAssign={handleAssignTechnician}
+      />
+
+      <RescheduleServiceRequestModal
+        open={rescheduleOpen}
+        onOpenChange={setRescheduleOpen}
+        serviceRequest={request}
+      />
     </main>
   );
 }

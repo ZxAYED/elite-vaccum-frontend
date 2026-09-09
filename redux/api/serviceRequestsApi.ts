@@ -15,6 +15,14 @@ export interface RejectServiceRequestDto {
   comments?: string;
 }
 
+export interface RescheduleServiceRequestDto {
+  date: string;
+  startTime: string;
+  endTime?: string;
+  technicianId?: string;
+  adminNote?: string;
+}
+
 export interface CreateServiceRequestDto {
   serviceSlug: string;
   fullName: string;
@@ -25,6 +33,8 @@ export interface CreateServiceRequestDto {
   state: string;
   zipCode: string;
   problemLocation?: string;
+  otherProblemLocation?: string;
+  urgency?: "LOW" | "MEDIUM" | "HIGH" | "EMERGENCY";
   preferredDate?: string;
   timeWindow?: string;
   problemDescription?: string;
@@ -158,12 +168,17 @@ export const serviceRequestsApi = baseApi.injectEndpoints({
     }),
     updateServiceRequestStatus: builder.mutation<
       ServiceRequest,
-      { id: string; status: ServiceRequestStatus; adminNote?: string }
+      { id: string; status: ServiceRequestStatus | string; adminNote?: string }
     >({
       query: ({ id, ...body }) => ({
         url: `/service-requests/${id}/status`,
         method: "PATCH",
-        body,
+        body: {
+          ...body,
+          status: body.status
+            ? body.status.toUpperCase().replace(/-/g, "_")
+            : body.status,
+        },
       }),
       transformResponse: (
         response: ApiResponse<ServiceRequest> | ServiceRequest
@@ -224,6 +239,75 @@ export const serviceRequestsApi = baseApi.injectEndpoints({
         { type: "ServiceRequest", id: "ME" },
       ],
     }),
+    deleteServiceRequestAttachment: builder.mutation<
+      ServiceRequest,
+      { id: string; attachmentId: string }
+    >({
+      query: ({ id, attachmentId }) => ({
+        url: `/service-requests/${id}/attachments/${attachmentId}`,
+        method: "DELETE",
+      }),
+      transformResponse: (
+        response: ApiResponse<ServiceRequest> | ServiceRequest
+      ) => {
+        return unwrapData(response);
+      },
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "ServiceRequest", id },
+        { type: "ServiceRequest", id: "LIST" },
+        { type: "ServiceRequest", id: "ME" },
+      ],
+    }),
+    cancelServiceRequest: builder.mutation<
+      { success: boolean; message: string },
+      { id: string; reason?: string }
+    >({
+      query: ({ id, reason }) => ({
+        url: `/service-requests/${id}/cancel`,
+        method: "POST",
+        body: reason ? { reason } : undefined,
+      }),
+      transformResponse: (
+        response:
+          | ApiResponse<{ success: boolean; message: string }>
+          | { success: boolean; message: string }
+      ) => {
+        const data = unwrapData(response);
+        return {
+          success: (data as { success?: boolean })?.success ?? true,
+          message:
+            (data as { message?: string })?.message ||
+            "Service request cancelled successfully.",
+        };
+      },
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "ServiceRequest", id },
+        { type: "ServiceRequest", id: "LIST" },
+        { type: "ServiceRequest", id: "ME" },
+        { type: "Schedule" },
+      ],
+    }),
+    rescheduleServiceRequest: builder.mutation<
+      ServiceRequest,
+      { id: string; body: RescheduleServiceRequestDto }
+    >({
+      query: ({ id, body }) => ({
+        url: `/service-requests/${id}/schedule`,
+        method: "PATCH",
+        body,
+      }),
+      transformResponse: (
+        response: ApiResponse<ServiceRequest> | ServiceRequest
+      ) => {
+        return unwrapData(response);
+      },
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "ServiceRequest", id },
+        { type: "ServiceRequest", id: "LIST" },
+        { type: "ServiceRequest", id: "ME" },
+        { type: "Schedule" },
+      ],
+    }),
   }),
 });
 
@@ -234,5 +318,8 @@ export const {
   useGetServiceRequestByIdQuery,
   useUpdateServiceRequestStatusMutation,
   useRejectServiceRequestMutation,
+  useCancelServiceRequestMutation,
+  useRescheduleServiceRequestMutation,
   useAppendServiceRequestAttachmentsMutation,
+  useDeleteServiceRequestAttachmentMutation,
 } = serviceRequestsApi;

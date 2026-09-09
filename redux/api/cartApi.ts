@@ -46,10 +46,34 @@ export interface CartValidationResponse {
   invalidItems: Array<{ productId: string; reason: string }>;
 }
 
+function unwrapCartResponse(raw: unknown): ActiveCartDto {
+  if (!raw || typeof raw !== "object") {
+    return {
+      id: "cart-default",
+      items: [],
+      summary: {
+        itemCount: 0,
+        totalUnits: 0,
+        subtotalUsd: "0.00",
+        estimatedShippingUsd: "0.00",
+        freeShippingThreshold: "150.00",
+        qualifiesForFreeShipping: false,
+        amountNeededForFreeShipping: "150.00",
+        estimatedTaxUsd: "0.00",
+        estimatedTotalUsd: "0.00",
+      },
+    };
+  }
+  const payload = raw as Record<string, unknown>;
+  const data = (payload.data && typeof payload.data === "object" ? payload.data : payload) as ActiveCartDto;
+  return data;
+}
+
 export const cartApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getActiveCart: builder.query<ActiveCartDto, void>({
       query: () => "/store/cart",
+      transformResponse: unwrapCartResponse,
       providesTags: ["Cart"],
     }),
     getCartCount: builder.query<{ success: boolean; count: number }, void>({

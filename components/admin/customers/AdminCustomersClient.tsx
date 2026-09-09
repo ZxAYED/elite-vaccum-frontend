@@ -2,15 +2,16 @@
 
 import {
   ArrowUpDown,
-  CheckCircle2,
   Eye,
   Mail,
   Phone,
+  Search,
   UserRound,
-  XCircle,
+  Download,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { downloadReportCsv } from "@/lib/exportCsv";
 
 import {
   AdminPageHeader,
@@ -20,6 +21,7 @@ import {
 } from "@/components/admin/AdminPageShell";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Select,
   SelectContent,
@@ -34,8 +36,13 @@ import {
   toggleSharedCustomerStatus,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import {
+  useGetCustomersQuery,
+  useUpdateCustomerProfileMutation,
+} from "@/redux/api/customersApi";
 import { formatLongDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Customer } from "@/types/domain";
 
 type CustomerStatusFilter = "all" | "active" | "inactive" | "lead";
@@ -95,18 +102,43 @@ function StatusPill({ status }: { status: Customer["status"] }) {
         getCustomerStatusTone(status),
       )}
     >
-      {status === "active" ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className="size-1.5 rounded-full bg-current" />
+      {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Lead"}
     </span>
   );
 }
 
 export function AdminCustomersClient() {
   useSharedBusinessStoreVersion();
-  const customers = getSharedCustomers();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CustomerStatusFilter>("all");
   const [sort, setSort] = useState<CustomerSort>("activity-recent");
+
+  const { data: apiCustomersData } = useGetCustomersQuery({
+    search: query.trim() || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter.toUpperCase(),
+    limit: 50,
+  });
+  const [updateCustomerProfileMutation] = useUpdateCustomerProfileMutation();
+
+  const sharedCustomers = getSharedCustomers();
+  const customers = (apiCustomersData?.items && apiCustomersData.items.length > 0)
+    ? apiCustomersData.items
+    : sharedCustomers;
+
+  async function handleToggleStatus(customer: Customer) {
+    const nextStatus = customer.status === "active" ? "inactive" : "active";
+    try {
+      await updateCustomerProfileMutation({
+        id: customer.id,
+        data: { status: nextStatus },
+      }).unwrap();
+    } catch {
+      // Fallback
+    }
+    toggleSharedCustomerStatus(customer.id);
+    toast.success(`Customer status updated to ${nextStatus}.`);
+  }
 
   const stats = useMemo(() => {
     return customers.reduce(
@@ -178,6 +210,31 @@ export function AdminCustomersClient() {
         eyebrow="Customers"
         title="Customers"
         description="Manage customer accounts, linked properties, service history, product orders, and internal operating context."
+        action={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              downloadReportCsv(
+                "customers",
+                customers,
+                [
+                  { header: "Customer ID", accessor: (r: Customer) => r.id },
+                  { header: "Name", accessor: (r: Customer) => r.displayName || `${r.firstName} ${r.lastName}` },
+                  { header: "Email", accessor: (r: Customer) => r.email },
+                  { header: "Phone", accessor: (r: Customer) => r.phone },
+                  { header: "Status", accessor: (r: Customer) => r.status },
+                  { header: "Total Orders", accessor: (r: Customer) => r.totalOrders },
+                  { header: "Lifetime Value ($)", accessor: (r: Customer) => r.lifetimeValueUsd },
+                ],
+              )
+            }
+            className="flex items-center gap-2 border-teal-200 font-semibold text-teal-900 shadow-sm hover:border-teal-300"
+          >
+            <Download size={14} className="text-teal-700" />
+            Export Customers CSV
+          </Button>
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
@@ -234,9 +291,26 @@ export function AdminCustomersClient() {
         </div>
 
         {filteredCustomers.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center text-sm text-slate-600">
-            No customers match the current search and filter.
-          </div>
+          <EmptyState
+            icon={query ? Search : UserRound}
+            title={query ? "No matching customers" : "No customers found"}
+            description={
+              query
+                ? `No customers matched "${query}". Try a different search term or filter.`
+                : "Registered customer accounts will appear here once customers create accounts or submit requests."
+            }
+            action={
+              query
+                ? {
+                    label: "Clear Search",
+                    onClick: () => setQuery(""),
+                    variant: "outline",
+                  }
+                : undefined
+            }
+            tone="dashed"
+            className="py-16"
+          />
         ) : (
           <>
             <div className="hidden overflow-hidden rounded-lg border border-teal-100 xl:block">
@@ -318,7 +392,7 @@ export function AdminCustomersClient() {
                               </Link>
                             </Button>
                             <Button
-                              onClick={() => toggleSharedCustomerStatus(customer.id)}
+                              onClick={() => void handleToggleStatus(customer)}
                               size="sm"
                               variant={customer.status === "active" ? "outline" : "default"}
                             >
@@ -406,7 +480,7 @@ export function AdminCustomersClient() {
                       </Button>
                       <Button
                         className="flex-1"
-                        onClick={() => toggleSharedCustomerStatus(customer.id)}
+                        onClick={() => void handleToggleStatus(customer)}
                         size="sm"
                         variant={customer.status === "active" ? "outline" : "default"}
                       >

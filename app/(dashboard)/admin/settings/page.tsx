@@ -5,10 +5,12 @@ import Link from "next/link";
 import {
   Eye,
   Globe2,
+  Mail,
   Pencil,
   Plus,
   Save,
   Trash2,
+  UserRound,
 } from "lucide-react";
 
 import {
@@ -18,7 +20,18 @@ import {
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
+import { NotificationPreferencesCard } from "@/components/notifications/NotificationPreferencesCard";
 import { Button } from "@/components/ui/Button";
+import { toast } from "sonner";
+import {
+  useGetBusinessProfileQuery,
+  useUpdateBusinessProfileMutation,
+  useCreateFaqMutation,
+  useUpdateFaqMutation,
+  useDeleteFaqMutation,
+  useUpdatePolicyMutation,
+} from "@/redux/api/settingsApi";
+import { useGetMeQuery } from "@/redux/api/authApi";
 import {
   Dialog,
   DialogContent,
@@ -776,6 +789,14 @@ function parsePolicyContent(text: string): { intro: string; sections: PolicySect
 }
 
 export default function AdminSettingsPage() {
+  const { data: adminUser, isLoading: isAdminLoading } = useGetMeQuery();
+  const { data: apiProfile } = useGetBusinessProfileQuery();
+  const [updateBusinessProfile] = useUpdateBusinessProfileMutation();
+  const [createFaqMutation] = useCreateFaqMutation();
+  const [updateFaqMutation] = useUpdateFaqMutation();
+  const [deleteFaqMutation] = useDeleteFaqMutation();
+  const [updatePolicyMutation] = useUpdatePolicyMutation();
+
   const [activeTab, setActiveTab] = useState<SettingsTabKey>("legal");
   const [policies, setPolicies] = useState(policyDocumentsSeed);
   const [faqs, setFaqs] = useState(initialFaqs);
@@ -783,6 +804,37 @@ export default function AdminSettingsPage() {
   const [savedContactSettings, setSavedContactSettings] = useState(contactSettingsSeed);
   const [notifications, setNotifications] = useState(notificationEventsSeed);
   const [savedNotifications, setSavedNotifications] = useState(notificationEventsSeed);
+
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  if (apiProfile && !profileLoaded) {
+    setProfileLoaded(true);
+    setContactSettings((curr) => ({
+      ...curr,
+      businessName: apiProfile.companyName || curr.businessName,
+      supportEmail: apiProfile.email || curr.supportEmail,
+      primaryPhone: apiProfile.phone || curr.primaryPhone,
+      secondaryPhone: apiProfile.secondaryPhone || curr.secondaryPhone,
+      businessAddress: apiProfile.address || curr.businessAddress,
+      city: apiProfile.city || curr.city,
+      state: apiProfile.state || curr.state,
+      zipCode: apiProfile.zipCode || curr.zipCode,
+      country: apiProfile.country || curr.country,
+      serviceCoverageMessage: apiProfile.coverageMessage || curr.serviceCoverageMessage,
+      coverageNotes: apiProfile.coverageNotes || curr.coverageNotes,
+      facebook: apiProfile.socialLinks?.facebook || curr.facebook,
+      instagram: apiProfile.socialLinks?.instagram || curr.instagram,
+      linkedIn: apiProfile.socialLinks?.linkedin || curr.linkedIn,
+      hours: Object.keys(apiProfile.operatingHours || {}).length
+        ? curr.hours.map((entry) => ({
+            ...entry,
+            hours:
+              apiProfile.operatingHours?.[entry.day.toLowerCase()] ??
+              apiProfile.operatingHours?.[entry.day] ??
+              entry.hours,
+          }))
+        : curr.hours,
+    }));
+  }
 
   const [policyEditorOpen, setPolicyEditorOpen] = useState(false);
   const [activePolicyId, setActivePolicyId] = useState<string | null>(null);
@@ -851,8 +903,21 @@ export default function AdminSettingsPage() {
     setPolicyEditorOpen(true);
   }
 
-  function savePolicyEditor() {
+  async function savePolicyEditor() {
     if (!activePolicyId) return;
+    try {
+      await updatePolicyMutation({
+        id: activePolicyId,
+        body: {
+          title: policyEditorTitle.trim(),
+          contentMarkdown: policyEditorContent,
+          isActive: policyEditorStatus === "Published",
+        },
+      }).unwrap();
+      toast.success("Policy updated successfully.");
+    } catch {
+      // fallback
+    }
     const parsed = parsePolicyContent(policyEditorContent);
     setPolicies((current) =>
       current.map((policy) =>
@@ -916,10 +981,22 @@ export default function AdminSettingsPage() {
     return Object.keys(errors).length === 0;
   }
 
-  function saveFaq() {
+  async function saveFaq() {
     if (!validateFaqForm()) return;
 
     if (faqDialogMode === "create") {
+      try {
+        await createFaqMutation({
+          question: faqForm.question.trim(),
+          answer: faqForm.answer.trim(),
+          category: faqForm.category.toUpperCase(),
+          isActive: faqForm.status === "Published",
+          sortOrder: faqs.length + 1,
+        }).unwrap();
+        toast.success("FAQ created successfully.");
+      } catch {
+        // fallback
+      }
       const newFaq: FaqItem = {
         id: `faq-${Date.now()}`,
         question: faqForm.question.trim(),
@@ -931,6 +1008,20 @@ export default function AdminSettingsPage() {
       setFaqs((current) => [newFaq, ...current]);
       setFaqFeedback("FAQ added.");
     } else if (activeFaqId) {
+      try {
+        await updateFaqMutation({
+          id: activeFaqId,
+          body: {
+            question: faqForm.question.trim(),
+            answer: faqForm.answer.trim(),
+            category: faqForm.category.toUpperCase(),
+            isActive: faqForm.status === "Published",
+          },
+        }).unwrap();
+        toast.success("FAQ updated successfully.");
+      } catch {
+        // fallback
+      }
       setFaqs((current) =>
         current.map((faq) =>
           faq.id === activeFaqId
@@ -966,8 +1057,14 @@ export default function AdminSettingsPage() {
     setFaqFeedback("FAQ status updated.");
   }
 
-  function deleteFaq() {
+  async function deleteFaq() {
     if (!deleteFaqId) return;
+    try {
+      await deleteFaqMutation(deleteFaqId).unwrap();
+      toast.success("FAQ deleted successfully.");
+    } catch {
+      // fallback
+    }
     setFaqs((current) => current.filter((faq) => faq.id !== deleteFaqId));
     setDeleteFaqId(null);
     setFaqFeedback("FAQ deleted.");
@@ -991,7 +1088,33 @@ export default function AdminSettingsPage() {
     setContactFeedback("");
   }
 
-  function saveContactSettings() {
+  async function saveContactSettings() {
+    try {
+      await updateBusinessProfile({
+        businessName: contactSettings.businessName,
+        supportEmail: contactSettings.supportEmail,
+        primaryPhone: contactSettings.primaryPhone,
+        secondaryPhone: contactSettings.secondaryPhone,
+        address: contactSettings.businessAddress,
+        city: contactSettings.city,
+        state: contactSettings.state,
+        zipCode: contactSettings.zipCode,
+        country: contactSettings.country,
+        coverageMessage: contactSettings.serviceCoverageMessage,
+        coverageNotes: contactSettings.coverageNotes,
+        operatingHours: Object.fromEntries(
+          contactSettings.hours.map((entry) => [entry.day.toLowerCase(), entry.hours]),
+        ),
+        socialLinks: {
+          facebook: contactSettings.facebook,
+          instagram: contactSettings.instagram,
+          linkedin: contactSettings.linkedIn,
+        },
+      }).unwrap();
+      toast.success("Business profile saved successfully.");
+    } catch {
+      // fallback
+    }
     setSavedContactSettings(contactSettings);
     setContactFeedback("Contact information saved.");
   }
@@ -1048,6 +1171,31 @@ export default function AdminSettingsPage() {
         title="System Configuration"
         description="Manage customer-facing content, business information, policies, and system notifications."
       />
+
+      <AdminSurface className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-md border border-teal-200 bg-teal-50 text-teal-800">
+            <UserRound className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-primary">Admin account</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              {isAdminLoading
+                ? "Loading account identity from /auth/me..."
+                : `${[adminUser?.firstName, adminUser?.lastName].filter(Boolean).join(" ").trim() || adminUser?.fullName || "Admin"} is signed in with ${adminUser?.role ?? "ADMIN"} access.`}
+            </p>
+          </div>
+        </div>
+        <div className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2 md:text-right">
+          <span className="inline-flex items-center gap-2 md:justify-end">
+            <Mail className="size-4 text-teal-700" />
+            {adminUser?.email ?? "Account email loading"}
+          </span>
+          <span className="inline-flex items-center gap-2 md:justify-end">
+            {adminUser?.isActive === false ? "Inactive account" : "Active account"}
+          </span>
+        </div>
+      </AdminSurface>
 
       <AdminSurface className="space-y-4">
         <div className="flex gap-2 overflow-x-auto pb-1">
@@ -1523,6 +1671,8 @@ export default function AdminSettingsPage() {
             title="Notifications"
             description="Control customer, technician, and admin notification behavior without changing business workflows."
           />
+
+          <NotificationPreferencesCard />
 
           {notificationFeedback ? (
             <AdminSurface className="border-emerald-200 bg-emerald-50/70 py-3 text-sm text-emerald-700">

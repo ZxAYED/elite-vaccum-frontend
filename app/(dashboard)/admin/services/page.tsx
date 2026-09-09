@@ -4,12 +4,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Activity,
   Archive,
+  Building2,
   CheckCircle2,
   Compass,
   Edit3,
   Eye,
   EyeOff,
-  HomeIcon,
+  Home as HomeIcon,
+  Loader2,
   MoreHorizontal,
   Plus,
   ShieldCheck,
@@ -21,12 +23,14 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ElementType } from "react";
-import { useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { useEffect, useMemo, useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +69,12 @@ import {
   serviceCatalogSchema,
   type ServiceCatalogValues,
 } from "@/lib/validation";
+import {
+  useCreateServiceMutation,
+  useDeleteServiceMutation,
+  useGetAllServicesListQuery,
+  useUpdateServiceMutation,
+} from "@/redux/api/servicesApi";
 import type {
   PublicServiceGroup,
   PublicServiceIconKey,
@@ -93,49 +103,86 @@ const sortOptions: Array<{ label: string; value: ServiceSort }> = [
   { label: "Display Order", value: "display-order" },
 ];
 
-const groupOptions: PublicServiceGroup[] = [
-  "Service & Maintenance",
-  "Installation",
+const groupOptions: Array<{ label: string; value: PublicServiceGroup }> = [
+  { label: "Service & Maintenance", value: "Service & Maintenance" },
+  { label: "Installation", value: "Installation" },
 ];
 
-const iconOptions: Array<{ label: string; value: PublicServiceIconKey }> = [
-  { label: "Wrench", value: "wrench" },
-  { label: "Activity", value: "activity" },
-  { label: "Shield", value: "shield" },
-  { label: "Sliders", value: "sliders" },
-  { label: "Home Plus", value: "home-plus" },
-  { label: "Upload", value: "upload" },
-  { label: "Compass", value: "compass" },
-  { label: "Sparkles", value: "sparkles" },
+const SYMPTOM_OPTIONS = [
+  { key: "UNIT_NOT_TURNING_ON", label: "Unit not turning on" },
+  { key: "UNIT_DOES_NOT_SHUT_OFF", label: "Unit does not shut off" },
+  { key: "CLOGGED", label: "Clogged line" },
+  { key: "LOW_SUCTION", label: "Low suction" },
+  { key: "WALL_OR_POWER_HOSE_PROBLEM", label: "Wall / hose problem" },
+  { key: "BROKEN_INLET", label: "Broken inlet valve" },
+  { key: "NOISE", label: "Excessive motor noise" },
+  { key: "OTHER", label: "Other symptom" },
 ];
 
-const iconByKey: Record<PublicServiceIconKey, ElementType> = {
+const iconOptions: Array<{ label: string; value: string }> = [
+  { label: "Wrench (Repair / Maintenance)", value: "wrench" },
+  { label: "Building 2 (Commercial Systems)", value: "Building2" },
+  { label: "Home (Residential)", value: "home-plus" },
+  { label: "Activity (Motor / Diagnostics)", value: "activity" },
+  { label: "Shield (Inspection / Warranty)", value: "shield" },
+  { label: "Sliders (Tune-up / Filter)", value: "sliders" },
+  { label: "Sparkles (Deep Clean / Sanitization)", value: "sparkles" },
+  { label: "Compass (Engineering / Blueprinting)", value: "compass" },
+  { label: "Upload (Piping / Exhaust)", value: "upload" },
+];
+
+const iconByKey: Record<string, ElementType> = {
   "home-plus": HomeIcon,
+  Home: HomeIcon,
   wrench: Wrench,
+  Wrench: Wrench,
   activity: Activity,
+  Activity: Activity,
   shield: ShieldCheck,
+  ShieldCheck: ShieldCheck,
   sparkles: Sparkles,
+  Sparkles: Sparkles,
   sliders: SlidersHorizontal,
+  Sliders: SlidersHorizontal,
   upload: Upload,
   compass: Compass,
+  Building2: Building2,
 };
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
+function formatGroup(group?: string) {
+  if (group === "SERVICE_AND_MAINTENANCE" || group === "Service & Maintenance") {
+    return "Service & Maintenance";
+  }
+  if (group === "INSTALLATION" || group === "Installation") {
+    return "Installation";
+  }
+  return group || "Service & Maintenance";
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+function toApiGroup(group: string) {
+  if (group === "Service & Maintenance" || group === "SERVICE_AND_MAINTENANCE") {
+    return "SERVICE_AND_MAINTENANCE";
+  }
+  if (group === "Installation" || group === "INSTALLATION") {
+    return "INSTALLATION";
+  }
+  return group;
+}
+
+
+function formatDate(value?: string) {
+  if (!value) return "Recently";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "Recently";
+    return new Intl.DateTimeFormat("en", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(d);
+  } catch {
+    return "Recently";
+  }
 }
 
 function StatusPill({ status }: { status: ServiceOffering["status"] }) {
@@ -173,9 +220,10 @@ function PublicVisibilityPill({ status }: { status: ServiceOffering["status"] })
 interface ServiceFormDialogProps {
   editingService: ServiceOffering | null;
   onOpenChange: (open: boolean) => void;
-  onSave: (values: ServiceCatalogValues, editingSlug?: string) => void;
+  onSave: (values: ServiceCatalogValues, editingService?: ServiceOffering | null) => Promise<void> | void;
   open: boolean;
   services: ServiceOffering[];
+  isSubmitting?: boolean;
 }
 
 function ServiceFormDialog({
@@ -184,8 +232,8 @@ function ServiceFormDialog({
   onSave,
   open,
   services,
+  isSubmitting = false,
 }: ServiceFormDialogProps) {
-  const [slugEdited, setSlugEdited] = useState(Boolean(editingService));
   const {
     control,
     formState: { errors },
@@ -197,31 +245,30 @@ function ServiceFormDialog({
     resolver: zodResolver(serviceCatalogSchema),
     defaultValues: {
       title: editingService?.title ?? "",
-      slug: editingService?.slug ?? "",
       summary: editingService?.summary ?? "",
       description: editingService?.description ?? "",
-      group: editingService?.group ?? "Service & Maintenance",
+      group: formatGroup(editingService?.group),
       iconKey: editingService?.iconKey ?? "wrench",
       status: editingService?.status ?? "ACTIVE",
-      sortOrder: editingService?.sortOrder ?? services.length + 1,
+      recommendedSymptoms: editingService?.recommendedSymptoms ?? [],
     },
   });
 
+  const selectedSymptoms = useWatch({
+    control,
+    name: "recommendedSymptoms",
+  }) || [];
+
   function closeDialog() {
-    setSlugEdited(false);
     onOpenChange(false);
   }
 
-  function submit(values: ServiceCatalogValues) {
+  async function submit(values: ServiceCatalogValues) {
     const duplicateName = services.some(
       (service) =>
         service.slug !== editingService?.slug &&
+        service.id !== editingService?.id &&
         service.title.toLowerCase() === values.title.toLowerCase(),
-    );
-    const duplicateSlug = services.some(
-      (service) =>
-        service.slug !== editingService?.slug &&
-        service.slug.toLowerCase() === values.slug.toLowerCase(),
     );
 
     if (duplicateName) {
@@ -232,94 +279,36 @@ function ServiceFormDialog({
       return;
     }
 
-    if (duplicateSlug) {
-      setError("slug", {
-        message: "A service with this slug already exists.",
-        type: "manual",
-      });
-      return;
-    }
-
-    onSave(values, editingService?.slug);
+    await onSave(values, editingService);
     closeDialog();
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[min(94vw,44rem)]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-[min(94vw,44rem)]">
         <DialogHeader>
           <DialogTitle>
             {editingService ? "Edit Service" : "Add Service"}
           </DialogTitle>
           <DialogDescription>
-            Services are the catalog entries customers can request from the
-            public services page.
+            {editingService
+              ? "Update central vacuum service scope, details, and intake recommendations."
+              : "Create a dynamic service offering for customer scheduling and intake."}
           </DialogDescription>
         </DialogHeader>
 
-        <form className="mt-6 space-y-5" onSubmit={handleSubmit(submit)}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              error={errors.title?.message}
-              htmlFor="service-title"
-              label="Service Name"
-              required
-            >
-              <Input
-                id="service-title"
-                placeholder="Vacuum Repair"
-                {...register("title", {
-                  onChange: (event) => {
-                    if (!slugEdited) {
-                      setValue("slug", slugify(event.target.value), {
-                        shouldValidate: true,
-                      });
-                    }
-                  },
-                })}
-              />
-            </FormField>
-
-            <FormField
-              error={errors.slug?.message}
-              htmlFor="service-slug"
-              hint="Changing this slug affects the public service request URL."
-              label="Slug"
-              required
-            >
-              <Input
-                id="service-slug"
-                placeholder="vacuum-repair"
-                {...register("slug", {
-                  onChange: () => setSlugEdited(true),
-                })}
-              />
-            </FormField>
-          </div>
-
+        <form className="mt-5 space-y-5" onSubmit={handleSubmit(submit)}>
           <FormField
-            error={errors.summary?.message}
-            htmlFor="service-summary"
-            label="Short Description"
+            error={errors.title?.message}
+            htmlFor="service-title"
+            label="Service Title"
+            hint="Display name shown across customer portal and service catalog."
             required
           >
             <Input
-              id="service-summary"
-              placeholder="Diagnostics and repair for suction loss, motor noise, and inlet issues."
-              {...register("summary")}
-            />
-          </FormField>
-
-          <FormField
-            error={errors.description?.message}
-            htmlFor="service-description"
-            label="Detailed Description"
-          >
-            <Textarea
-              className="min-h-28"
-              id="service-description"
-              placeholder="Describe what this service covers for admins and future public UI."
-              {...register("description")}
+              id="service-title"
+              placeholder="e.g. Turnkey Central Vacuum Installation"
+              {...register("title")}
             />
           </FormField>
 
@@ -340,8 +329,8 @@ function ServiceFormDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {groupOptions.map((group) => (
-                        <SelectItem key={group} value={group}>
-                          {group}
+                        <SelectItem key={group.value} value={group.value}>
+                          {group.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -353,7 +342,7 @@ function ServiceFormDialog({
             <FormField
               error={errors.iconKey?.message}
               htmlFor="service-icon"
-              label="Service Icon"
+              label="Visual Icon"
               required
             >
               <Controller
@@ -377,52 +366,114 @@ function ServiceFormDialog({
             </FormField>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              error={errors.status?.message}
-              htmlFor="service-status"
-              label="Status"
-              required
-            >
-              <Controller
-                control={control}
-                name="status"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger id="service-status">
-                      <SelectValue placeholder="Choose status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </FormField>
+          <FormField
+            error={errors.summary?.message}
+            htmlFor="service-summary"
+            label="Summary"
+            hint="Displayed in catalog cards and customer overviews."
+            required
+          >
+            <Input
+              id="service-summary"
+              placeholder="Complete rough-in and piping installation for new home constructions and renovations."
+              {...register("summary")}
+            />
+          </FormField>
 
-            <FormField
-              error={errors.sortOrder?.message}
-              htmlFor="service-sort-order"
-              label="Display Order"
-              required
-            >
-              <Input
-                id="service-sort-order"
-                inputMode="numeric"
-                min={1}
-                type="number"
-                {...register("sortOrder", { valueAsNumber: true })}
-              />
-            </FormField>
+          <FormField
+            error={errors.description?.message}
+            htmlFor="service-description"
+            label="Detailed Scope & Description"
+            hint="Comprehensive diagnostic details, field steps, and coverage."
+          >
+            <Textarea
+              className="min-h-24"
+              id="service-description"
+              placeholder="Comprehensive diagnostic details, field steps, and coverage for complete central vacuum setup including PVC lines and low-voltage wall inlets."
+              {...register("description")}
+            />
+          </FormField>
+
+          {/* Recommended Intake Symptoms */}
+          <div className="space-y-2 rounded-xl border border-teal-100 bg-teal-50/30 p-4">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-teal-900">
+                Recommended Intake Symptoms
+              </label>
+              <span className="text-xs text-slate-500">
+                {selectedSymptoms.length} selected
+              </span>
+            </div>
+            <p className="text-xs text-slate-600">
+              When customers select these symptoms during request intake, this service will be suggested.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-2">
+              {SYMPTOM_OPTIONS.map((sym) => {
+                const isSelected = selectedSymptoms.includes(sym.key);
+                return (
+                  <button
+                    type="button"
+                    key={sym.key}
+                    onClick={() => {
+                      const current = selectedSymptoms || [];
+                      const next = isSelected
+                        ? current.filter((k) => k !== sym.key)
+                        : [...current, sym.key];
+                      setValue("recommendedSymptoms", next, { shouldDirty: true });
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition cursor-pointer",
+                      isSelected
+                        ? "bg-teal-700 text-white shadow-sm hover:bg-teal-800"
+                        : "bg-white text-slate-700 border border-slate-200 hover:border-teal-300 hover:text-teal-900",
+                    )}
+                  >
+                    {isSelected ? <CheckCircle2 size={13} /> : <Plus size={13} />}
+                    {sym.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeDialog}>
+          <FormField
+            error={errors.status?.message}
+            htmlFor="service-status"
+            label="Catalog Status"
+            required
+          >
+            <Controller
+              control={control}
+              name="status"
+              render={({ field }) => (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <SelectTrigger id="service-status">
+                    <SelectValue placeholder="Choose status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active (Live in Public Catalog)</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive (Admin / Draft Only)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </FormField>
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="outline" onClick={closeDialog} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">
-              {editingService ? "Save Changes" : "Create Service"}
+            <Button type="submit" disabled={isSubmitting} className="min-w-[130px]">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Saving...
+                </>
+              ) : editingService ? (
+                "Save Changes"
+              ) : (
+                "Create Service"
+              )}
             </Button>
           </DialogFooter>
         </form>
@@ -434,20 +485,54 @@ function ServiceFormDialog({
 export default function AdminServicesPage() {
   useSharedBusinessStoreVersion();
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
   const [statusFilter, setStatusFilter] = useState<ServiceFilter>("all");
   const [sort, setSort] = useState<ServiceSort>("display-order");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingService, setEditingService] = useState<ServiceOffering | null>(
-    null,
-  );
+  const [editingService, setEditingService] = useState<ServiceOffering | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ServiceOffering | null>(null);
-  const [blockedDelete, setBlockedDelete] = useState<{
-    count: number;
-    service: ServiceOffering;
-  } | null>(null);
 
-  const services = getSharedPublicServices();
+  // Debounce search query to prevent redundant backend API requests
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  // Dynamic backend filtering query params
+  const filterParams = useMemo(
+    () => ({
+      search: debouncedQuery.trim() || undefined,
+      status: statusFilter !== "all" ? statusFilter : undefined,
+      sort,
+    }),
+    [debouncedQuery, statusFilter, sort],
+  );
+
+  // RTK Query hook with dynamic backend filtering
+  const {
+    data: apiServices,
+    isLoading: isLoadingApiServices,
+    isFetching: isFetchingApiServices,
+  } = useGetAllServicesListQuery(filterParams);
+
+  // Full catalog query for true KPI overview totals
+  const { data: allCatalogServices } = useGetAllServicesListQuery(undefined);
+
+  const [createServiceApi, { isLoading: isCreating }] = useCreateServiceMutation();
+  const [updateServiceApi, { isLoading: isUpdating }] = useUpdateServiceMutation();
+  const [deleteServiceApi, { isLoading: isDeleting }] = useDeleteServiceMutation();
+
+  const mockServices = getSharedPublicServices();
   const serviceRequests = getSharedServiceRequests();
+
+  const catalogForTotals: ServiceOffering[] = useMemo(() => {
+    if (allCatalogServices && allCatalogServices.length > 0) {
+      return allCatalogServices;
+    }
+    return mockServices;
+  }, [allCatalogServices, mockServices]);
 
   const requestCounts = useMemo(() => {
     return serviceRequests.reduce<Record<string, number>>(
@@ -459,10 +544,14 @@ export default function AdminServicesPage() {
     );
   }, [serviceRequests]);
 
-  const filteredServices = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+  // Dynamic backend-returned services, with fallback if API is not populated or offline
+  const filteredServices: ServiceOffering[] = useMemo(() => {
+    if (apiServices) {
+      return apiServices;
+    }
 
-    return services
+    const normalizedQuery = debouncedQuery.trim().toLowerCase();
+    return mockServices
       .filter((service) => {
         const matchesSearch =
           normalizedQuery.length === 0 ||
@@ -477,7 +566,7 @@ export default function AdminServicesPage() {
         switch (sort) {
           case "oldest":
             return (
-              new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+              new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
             );
           case "name-asc":
             return a.title.localeCompare(b.title);
@@ -488,24 +577,25 @@ export default function AdminServicesPage() {
           case "newest":
           default:
             return (
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
             );
         }
       });
-  }, [query, services, sort, statusFilter]);
+  }, [apiServices, debouncedQuery, mockServices, sort, statusFilter]);
 
   const totals = useMemo(() => {
-    return services.reduce(
+    return catalogForTotals.reduce(
       (stats, service) => {
         stats.total += 1;
         if (service.status === "ACTIVE") stats.active += 1;
         if (service.status === "INACTIVE") stats.inactive += 1;
-        if ((requestCounts[service.serviceId] ?? 0) > 0) stats.referenced += 1;
+        const count = service.requestCount ?? requestCounts[service.serviceId] ?? 0;
+        if (count > 0) stats.referenced += 1;
         return stats;
       },
       { active: 0, inactive: 0, referenced: 0, total: 0 },
     );
-  }, [requestCounts, services]);
+  }, [catalogForTotals, requestCounts]);
 
   function openCreateDialog() {
     setEditingService(null);
@@ -517,36 +607,129 @@ export default function AdminServicesPage() {
     setDialogOpen(true);
   }
 
-  function saveService(values: ServiceCatalogValues, editingSlug?: string) {
-    if (editingSlug) {
-      updateSharedServiceCatalog(editingSlug, values);
+  async function saveService(values: ServiceCatalogValues, existing?: ServiceOffering | null) {
+    const payload = {
+      title: values.title.trim(),
+      group: toApiGroup(values.group),
+      summary: values.summary.trim(),
+      description: values.description?.trim() || undefined,
+      iconKey: values.iconKey,
+      recommendedSymptoms: values.recommendedSymptoms || [],
+      status: values.status,
+    };
+
+    const localValues = {
+      title: values.title.trim(),
+      summary: values.summary.trim(),
+      description: values.description?.trim(),
+      group: (values.group === "Installation" || values.group === "INSTALLATION"
+        ? "Installation"
+        : "Service & Maintenance") as PublicServiceGroup,
+      iconKey: values.iconKey as PublicServiceIconKey,
+      status: values.status,
+      recommendedSymptoms: values.recommendedSymptoms || [],
+    };
+
+    if (existing) {
+      const identifier = existing.id || existing.serviceId || existing.slug;
+      const id = toast.loading(`Updating service "${values.title}", please wait...`);
+
+      try {
+        const res = await updateServiceApi({
+          id: identifier,
+          body: payload,
+        }).unwrap();
+        toast.success(
+          (res as { message?: string })?.message ||
+            `Service "${values.title}" updated successfully.`,
+          { id },
+        );
+      } catch {
+        // Fallback to local store
+        updateSharedServiceCatalog(existing.slug, localValues);
+        toast.success(`Service "${values.title}" updated in local catalog.`, { id });
+      } finally {
+        setDialogOpen(false);
+        setEditingService(null);
+      }
       return;
     }
-    createSharedServiceCatalog(values);
+
+    const id = toast.loading(`Creating service "${values.title}", please wait...`);
+
+    try {
+      const res = await createServiceApi(payload).unwrap();
+      toast.success(
+        (res as { message?: string })?.message ||
+          `Service "${values.title}" created successfully.`,
+        { id },
+      );
+    } catch {
+      // Fallback to local store
+      createSharedServiceCatalog(localValues);
+      toast.success(`Service "${values.title}" created in local catalog.`, { id });
+    } finally {
+      setDialogOpen(false);
+      setEditingService(null);
+    }
   }
 
-  function toggleStatus(service: ServiceOffering) {
-    toggleSharedServiceCatalogStatus(service.slug);
+  async function toggleStatus(service: ServiceOffering) {
+    const newStatus = service.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const identifier = service.id || service.serviceId || service.slug;
+    const id = toast.loading(`Updating "${service.title}" status to ${newStatus}, please wait...`);
+
+    try {
+      const res = await updateServiceApi({
+        id: identifier,
+        body: { status: newStatus },
+      }).unwrap();
+      toast.success(
+        (res as { message?: string })?.message ||
+          `Service "${service.title}" set to ${newStatus}.`,
+        { id },
+      );
+    } catch {
+      toggleSharedServiceCatalogStatus(service.slug);
+      toast.success(`Service "${service.title}" toggled to ${newStatus} (local).`, { id });
+    }
   }
 
   function requestDelete(service: ServiceOffering) {
-    const count = requestCounts[service.serviceId] ?? 0;
-    if (count > 0) {
-      setBlockedDelete({ service, count });
-      return;
-    }
-
     setDeleteTarget(service);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
-    deleteSharedServiceCatalog(deleteTarget.slug);
-    setDeleteTarget(null);
+    const identifier = deleteTarget.id || deleteTarget.serviceId || deleteTarget.slug;
+    const id = toast.loading(`Deleting service "${deleteTarget.title}", please wait...`);
+
+    try {
+      const res = await deleteServiceApi(identifier).unwrap();
+      if (res?.action === "deactivated") {
+        toast.info(
+          res.message ||
+            `Service has existing request history and was automatically deactivated to INACTIVE to preserve records.`,
+          { id },
+        );
+      } else {
+        toast.success(res?.message || `Service "${deleteTarget.title}" deleted.`, {
+          id,
+        });
+      }
+    } catch {
+      deleteSharedServiceCatalog(deleteTarget.slug);
+      toast.success(`Service "${deleteTarget.title}" deleted from local catalog.`, {
+        id,
+      });
+    } finally {
+      setDeleteTarget(null);
+    }
   }
 
   function clearFilters() {
     setQuery("");
+    setDebouncedQuery("");
     setStatusFilter("all");
     setSort("display-order");
   }
@@ -557,13 +740,13 @@ export default function AdminServicesPage() {
         <div className="flex flex-col gap-3 rounded-lg border border-teal-100 bg-white p-4 shadow-[0_18px_48px_-42px_rgba(28,79,80,0.32)] lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.32em] text-teal-700">
-              Service Operations
+              Central Vacuum Services
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-teal-950">
-              Services
+              Services Catalog
             </h1>
             <p className="mt-2 max-w-2xl text-base leading-7 text-slate-600">
-              Manage the services customers can request.
+              Manage dynamic vacuum service offerings, intake recommendations, public catalog visibility, and lifecycle status.
             </p>
           </div>
           <Button className="h-11 px-5" onClick={openCreateDialog}>
@@ -576,8 +759,8 @@ export default function AdminServicesPage() {
           {[
             { label: "Total Services", value: totals.total },
             { label: "Public Active", value: totals.active },
-            { label: "Inactive", value: totals.inactive },
-            { label: "With Requests", value: totals.referenced },
+            { label: "Inactive / Draft", value: totals.inactive },
+            { label: "With Active Requests", value: totals.referenced },
           ].map((stat) => (
             <div
               className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
@@ -593,18 +776,25 @@ export default function AdminServicesPage() {
 
         <div className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_18px_56px_-44px_rgba(28,79,80,0.34)]">
           <div className="grid gap-3 lg:grid-cols-[1fr_24rem_18rem]">
-            <AdminSearchInput
-              value={query}
-              onChange={setQuery}
-              placeholder="Search by service name or slug..."
-              ariaLabel="Search services"
-            />
+            <div className="relative">
+              <AdminSearchInput
+                value={query}
+                onChange={setQuery}
+                placeholder="Search by service name or slug..."
+                ariaLabel="Search services"
+              />
+              {isFetchingApiServices ? (
+                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="size-4 animate-spin text-teal-600" />
+                </div>
+              ) : null}
+            </div>
 
             <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-50 p-1">
               {statusFilterOptions.map((option) => (
                 <button
                   className={cn(
-                    "h-10 rounded-lg text-sm font-semibold transition",
+                    "h-10 rounded-lg text-sm font-semibold transition cursor-pointer",
                     statusFilter === option.value
                       ? "bg-primary text-white shadow-[0_14px_30px_-22px_rgba(28,79,80,0.9)]"
                       : "text-slate-600 hover:bg-white hover:text-teal-800",
@@ -635,32 +825,34 @@ export default function AdminServicesPage() {
             </Select>
           </div>
 
-          {services.length === 0 ? (
-            <div className="mt-5 rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
-              <Archive className="mx-auto text-teal-700" size={34} />
-              <h2 className="mt-4 text-xl font-semibold text-teal-950">
-                No services yet
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Create services customers can request.
-              </p>
-              <Button className="mt-5" onClick={openCreateDialog}>
-                Add Service
-              </Button>
+          {isLoadingApiServices && catalogForTotals.length === 0 ? (
+            <div className="mt-5 flex items-center justify-center py-16">
+              <Loader2 className="size-8 animate-spin text-teal-700" />
             </div>
+          ) : catalogForTotals.length === 0 ? (
+            <EmptyState
+              icon={Archive}
+              title="No services in catalog yet"
+              description="Create services customers can request and browse in the public catalog."
+              action={{
+                label: "Add Service",
+                onClick: openCreateDialog,
+              }}
+              tone="dashed"
+              className="mt-5 py-12"
+            />
           ) : filteredServices.length === 0 ? (
-            <div className="mt-5 rounded-lg border border-dashed border-teal-200 bg-teal-50/40 px-6 py-10 text-center">
-              <Archive className="mx-auto text-teal-700" size={34} />
-              <h2 className="mt-4 text-xl font-semibold text-teal-950">
-                No services match your filters.
-              </h2>
-              <p className="mt-2 text-sm text-slate-600">
-                Try a different search term or status.
-              </p>
-              <Button className="mt-5" variant="outline" onClick={clearFilters}>
-                Clear Filters
-              </Button>
-            </div>
+            <EmptyState
+              icon={Archive}
+              title="No services match your filters"
+              description="Try adjusting your search query, status filter, or reset your filters."
+              action={{
+                label: "Clear Filters",
+                onClick: clearFilters,
+              }}
+              tone="dashed"
+              className="mt-5 py-12"
+            />
           ) : (
             <>
               <div className="mt-5 hidden overflow-hidden rounded-lg border border-teal-100 lg:block">
@@ -669,6 +861,7 @@ export default function AdminServicesPage() {
                     <tr>
                       <th className="px-5 py-4">Service</th>
                       <th className="px-5 py-4">Slug</th>
+                      <th className="px-5 py-4">Requests</th>
                       <th className="px-5 py-4">Status</th>
                       <th className="px-5 py-4">Public Visibility</th>
                       <th className="px-5 py-4">Updated</th>
@@ -677,10 +870,11 @@ export default function AdminServicesPage() {
                   </thead>
                   <tbody className="divide-y divide-teal-100">
                     {filteredServices.map((service) => {
-                      const Icon = iconByKey[service.iconKey];
+                      const Icon = iconByKey[service.iconKey] || Wrench;
+                      const reqCount = service.requestCount ?? requestCounts[service.serviceId] ?? 0;
 
                       return (
-                        <tr className="bg-white" key={service.slug}>
+                        <tr className="bg-white hover:bg-teal-50/20 transition" key={service.slug}>
                           <td className="px-5 py-5">
                             <div className="flex items-start gap-4">
                               <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
@@ -690,19 +884,36 @@ export default function AdminServicesPage() {
                                 <p className="font-semibold text-teal-950">
                                   {service.title}
                                 </p>
-                                <p className="mt-1 max-w-md text-sm text-slate-500">
+                                <p className="mt-1 max-w-md text-sm text-slate-500 line-clamp-2">
                                   {service.summary}
                                 </p>
-                                <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
-                                  {service.group}
-                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">
+                                    {formatGroup(service.group)}
+                                  </span>
+                                  {service.recommendedSymptoms && service.recommendedSymptoms.length > 0 && (
+                                    <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                      {service.recommendedSymptoms.length} intake symptom{service.recommendedSymptoms.length === 1 ? "" : "s"}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>
                           <td className="px-5 py-5">
-                            <code className="rounded-lg bg-slate-100 px-3 py-1 text-sm text-slate-600">
+                            <code className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs text-slate-600 font-mono">
                               {service.slug}
                             </code>
+                          </td>
+                          <td className="px-5 py-5">
+                            <span className={cn(
+                              "inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold",
+                              reqCount > 0
+                                ? "bg-teal-50 text-teal-900 border border-teal-200"
+                                : "bg-slate-50 text-slate-500 border border-slate-200",
+                            )}>
+                              {reqCount} request{reqCount === 1 ? "" : "s"}
+                            </span>
                           </td>
                           <td className="px-5 py-5">
                             <StatusPill status={service.status} />
@@ -730,7 +941,8 @@ export default function AdminServicesPage() {
 
               <div className="mt-5 grid gap-4 lg:hidden">
                 {filteredServices.map((service) => {
-                  const Icon = iconByKey[service.iconKey];
+                  const Icon = iconByKey[service.iconKey] || Wrench;
+                  const reqCount = service.requestCount ?? requestCounts[service.serviceId] ?? 0;
 
                   return (
                     <article
@@ -743,8 +955,13 @@ export default function AdminServicesPage() {
                             <Icon size={19} />
                           </span>
                           <div>
-                            <StatusPill status={service.status} />
-                            <h2 className="mt-3 text-xl font-semibold text-teal-950">
+                            <div className="flex items-center gap-2">
+                              <StatusPill status={service.status} />
+                              <span className="rounded bg-teal-50 px-2 py-0.5 text-xs font-semibold text-teal-800">
+                                {reqCount} req{reqCount === 1 ? "" : "s"}
+                              </span>
+                            </div>
+                            <h2 className="mt-2 text-xl font-semibold text-teal-950">
                               {service.title}
                             </h2>
                             <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -790,46 +1007,57 @@ export default function AdminServicesPage() {
           onOpenChange={setDialogOpen}
           onSave={saveService}
           open={dialogOpen}
-          services={services}
+          services={catalogForTotals}
+          isSubmitting={isCreating || isUpdating}
         />
       ) : null}
 
+      {/* Delete / Deactivate Confirmation Dialog */}
       <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Service?</DialogTitle>
-            <DialogDescription>
-              This permanently removes{" "}
-              <span className="font-semibold text-slate-800">
-                {deleteTarget?.title}
-              </span>
-              . Public request links for this service will no longer resolve.
+            <DialogDescription asChild>
+              <div className="space-y-3 pt-2 text-sm text-slate-600">
+                <p>
+                  Are you sure you want to remove{" "}
+                  <span className="font-semibold text-slate-900">
+                    {deleteTarget?.title}
+                  </span>
+                  ?
+                </p>
+                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900">
+                  <p className="font-semibold">Automatic Integrity Rule:</p>
+                  <p className="mt-1">
+                    If this service has historical requests or customer bookings, it will be automatically and safely deactivated to <strong>INACTIVE</strong> so past requests and quotations remain intact. If unused, it will be permanently deleted.
+                  </p>
+                </div>
+              </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
-              Delete Service
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className="min-w-[130px]"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Delete Service"
+              )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={Boolean(blockedDelete)} onOpenChange={() => setBlockedDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cannot Delete Service</DialogTitle>
-            <DialogDescription>
-              {blockedDelete?.service.title} is referenced by{" "}
-              {blockedDelete?.count} existing service request
-              {blockedDelete?.count === 1 ? "" : "s"}. Deactivate the service
-              instead to keep historical records intact.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setBlockedDelete(null)}>Understood</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -864,7 +1092,7 @@ function ServiceActions({
       <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => onEdit(service)}>
           <Edit3 size={16} />
-          Edit
+          Edit Service
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onToggleStatus(service)}>
           {service.status === "ACTIVE" ? (
@@ -880,7 +1108,7 @@ function ServiceActions({
           onSelect={() => onDelete(service)}
         >
           <Trash2 size={16} />
-          Delete
+          Delete Service
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

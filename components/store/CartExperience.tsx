@@ -2,43 +2,16 @@
 
 import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { useMemo, useState } from "react";
-
 import { FadeIn, Pressable, StaggerGroup, StaggerItem } from "@/components/motion/Animated";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { Button } from "@/components/ui/Button";
-import type { CartProduct } from "@/data/mock/customer-portal";
-import { calculateCartTotals } from "@/lib/store";
+import { useCartSync } from "@/hooks/useCartSync";
 
 import { CartItemRow } from "./CartItemRow";
 import { OrderTotals } from "./OrderTotals";
 
-interface CartExperienceProps {
-  initialItems: CartProduct[];
-}
-
-export function CartExperience({ initialItems }: CartExperienceProps) {
-  const [items, setItems] = useState(initialItems);
-
-  const totals = useMemo(() => calculateCartTotals(items), [items]);
-
-  const updateQuantity = (productId: string, nextQuantity: number) => {
-    setItems((currentItems) =>
-      currentItems
-        .map((item) =>
-          item.productId === productId
-            ? { ...item, quantity: Math.max(1, nextQuantity) }
-            : item,
-        )
-        .filter((item) => item.quantity > 0),
-    );
-  };
-
-  const removeItem = (productId: string) => {
-    setItems((currentItems) =>
-      currentItems.filter((item) => item.productId !== productId),
-    );
-  };
+export function CartExperience() {
+  const { items, totals, updateProductQuantity, removeProduct } = useCartSync();
 
   return (
     <AuthGuard>
@@ -63,16 +36,16 @@ export function CartExperience({ initialItems }: CartExperienceProps) {
             <StaggerItem key={item.productId}>
               <CartItemRow
                 item={item}
-                onDecrease={() => updateQuantity(item.productId, item.quantity - 1)}
-                onIncrease={() => updateQuantity(item.productId, item.quantity + 1)}
-                onRemove={() => removeItem(item.productId)}
+                onDecrease={() => updateProductQuantity(item.productId, item.quantity - 1)}
+                onIncrease={() => updateProductQuantity(item.productId, item.quantity + 1)}
+                onRemove={() => removeProduct(item.productId)}
               />
             </StaggerItem>
           ))}
 
           {items.length === 0 ? (
             <StaggerItem>
-              <div className="rounded-[1.5rem] bg-white px-6 py-10 text-center shadow-[0_24px_48px_-38px_rgba(28,79,80,0.38)]">
+              <div className="rounded-[1.5rem]  px-6 py-10 text-center">
                 <p className="text-lg font-semibold text-slate-900">Your cart is empty</p>
                 <p className="mt-2 text-sm text-slate-500">
                   Add compatible accessories or support tools from the store.

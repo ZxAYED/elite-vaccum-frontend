@@ -2,25 +2,27 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
-  CalendarDays,
-  Check,
-  ClipboardList,
+  BadgeCheck,
+  Banknote,
   CreditCard,
-  FileImage,
   FileText,
+  History,
+  Loader2,
+  Mail,
   MapPin,
   Package,
+  Phone,
+  RotateCcw,
   Settings2,
-  ShieldCheck,
   Truck,
   UserRound,
-  Video,
-  Wrench,
   XCircle,
 } from "lucide-react";
-import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   AdminPageHeader,
@@ -28,7 +30,7 @@ import {
   AdminSurface,
 } from "@/components/admin/AdminPageShell";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
-import { TypeBadge } from "@/components/customer-portal/TypeBadge";
+import { OrderInvoiceCard } from "@/components/invoices/OrderInvoiceCard";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -47,736 +49,735 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { readApiMessage } from "@/lib/api-error";
+import { toStatusSlug } from "@/lib/customer-orders";
+import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 import {
-  getAdminOrderById,
-  getAdminOrderCustomer,
-  getAdminOrderInvoice,
-  getAdminOrderPayment,
-  getTechnicianAvailabilityOptions,
-} from "@/data/mock/admin-orders";
-import { formatCurrencyUsd, formatLongDate, formatShortDate } from "@/lib/formatters";
-import { cn } from "@/lib/utils";
-import type {
-  AdminProductOrder,
-  AdminServiceOrder,
-  OrderTimelineStep,
-  ProductOrderStatus,
-  ServiceOrderStatus,
-} from "@/types/domain";
+  ADMIN_CANCELLABLE_STATUSES,
+  REFUNDABLE_ORDER_STATUSES,
+  useApproveReturnRefundMutation,
+  useCancelOrderMutation,
+  useGetOrderByIdQuery,
+  useGetReturnStatusQuery,
+  useUpdateOrderStatusMutation,
+  type StoreOrderDto,
+  type StoreOrderStatus,
+} from "@/redux/api/ordersApi";
 
-const productStatuses: ProductOrderStatus[] = [
-  "pending",
-  "paid",
-  "processing",
-  "shipped",
-  "delivered",
-  "cancelled",
-  "refunded",
+/**
+ * Admin detail for a PRODUCT order. Service jobs are not orders — they live as
+ * service requests / service orders under `/admin/service-requests`, so this
+ * screen has no service branch.
+ */
+
+/** Statuses an admin can set. FAILED and REFUNDED are set by the system. */
+const ASSIGNABLE_STATUSES: StoreOrderStatus[] = [
+  "PENDING",
+  "PAID",
+  "PROCESSING",
+  "SHIPPED",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+  "COMPLETED",
 ];
-
-const serviceStatuses: ServiceOrderStatus[] = [
-  "scheduled",
-  "rescheduled",
-  "technician-assigned",
-  "on-the-way",
-  "arrived",
-  "in-progress",
-  "report-submitted",
-  "completed",
-  "cancelled",
-];
-
-function buildProductTimeline(status: ProductOrderStatus): OrderTimelineStep[] {
-  const flow: ProductOrderStatus[] = [
-    "pending",
-    "paid",
-    "processing",
-    "shipped",
-    "delivered",
-  ];
-  const activeIndex = flow.indexOf(status);
-
-  return [
-    {
-      key: "pending",
-      label: "Pending",
-      detail: "Order placed",
-      complete: activeIndex >= 0,
-      active: status === "pending",
-    },
-    {
-      key: "paid",
-      label: "Paid",
-      detail: "Payment captured",
-      complete: activeIndex >= 1,
-      active: status === "paid",
-    },
-    {
-      key: "processing",
-      label: "Processing",
-      detail: "Warehouse handling",
-      complete: activeIndex >= 2,
-      active: status === "processing",
-    },
-    {
-      key: "shipped",
-      label: "Shipped",
-      detail: "UPS in transit",
-      complete: activeIndex >= 3,
-      active: status === "shipped",
-    },
-    {
-      key: "delivered",
-      label: "Delivered",
-      detail: "Customer received package",
-      complete: activeIndex >= 4,
-      active: status === "delivered",
-    },
-  ];
-}
-
-function buildServiceTimeline(
-  status: ServiceOrderStatus,
-  currentScheduleLabel: string,
-  technicianLabel?: string,
-): OrderTimelineStep[] {
-  const flow: ServiceOrderStatus[] = [
-    "scheduled",
-    "technician-assigned",
-    "on-the-way",
-    "arrived",
-    "in-progress",
-    "report-submitted",
-    "completed",
-  ];
-  const activeIndex = flow.indexOf(status);
-
-  return [
-    {
-      key: "scheduled",
-      label: "Scheduled",
-      detail: currentScheduleLabel,
-      complete: activeIndex >= 0,
-      active: status === "scheduled" || status === "rescheduled",
-      dateLabel: currentScheduleLabel,
-    },
-    {
-      key: "technician-assigned",
-      label: "Technician Assigned",
-      detail: technicianLabel
-        ? `${technicianLabel} assigned`
-        : "Awaiting technician assignment",
-      complete: activeIndex >= 1,
-      active: status === "technician-assigned",
-    },
-    {
-      key: "on-the-way",
-      label: "On the Way",
-      detail: "Technician traveling to the property",
-      complete: activeIndex >= 2,
-      active: status === "on-the-way",
-    },
-    {
-      key: "arrived",
-      label: "Arrived",
-      detail: "Technician checked in onsite",
-      complete: activeIndex >= 3,
-      active: status === "arrived",
-    },
-    {
-      key: "in-progress",
-      label: "In Progress",
-      detail: "Service work underway",
-      complete: activeIndex >= 4,
-      active: status === "in-progress",
-    },
-    {
-      key: "report-submitted",
-      label: "Report Submitted",
-      detail: "Technician uploaded completion notes",
-      complete: activeIndex >= 5,
-      active: status === "report-submitted",
-    },
-    {
-      key: "completed",
-      label: "Completed",
-      detail: "Order closed and ready for history",
-      complete: activeIndex >= 6,
-      active: status === "completed",
-    },
-  ];
-}
-
-function Timeline({ steps }: { steps: OrderTimelineStep[] }) {
-  return (
-    <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-7">
-      {steps.map((step) => (
-        <div className="text-center" key={step.key}>
-          <div
-            className={cn(
-              "mx-auto flex size-11 items-center justify-center rounded-full border-4",
-              step.complete
-                ? "border-teal-100 bg-primary text-white"
-                : "border-slate-100 bg-slate-50 text-slate-400",
-            )}
-          >
-            <Check size={16} />
-          </div>
-          <p className="mt-3 text-sm font-semibold text-slate-900">{step.label}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">{step.detail}</p>
-          {step.dateLabel ? (
-            <p className="mt-1 text-[11px] text-slate-400">{step.dateLabel}</p>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DetailList({
-  rows,
-}: {
-  rows: Array<{ label: string; value: string }>;
-}) {
-  return (
-    <dl className="grid gap-4 sm:grid-cols-2">
-      {rows.map((row) => (
-        <div key={row.label}>
-          <dt className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-            {row.label}
-          </dt>
-          <dd className="mt-2 text-sm leading-6 text-slate-700">{row.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-interface CancelState {
-  reason: string;
-  note: string;
-  error: string;
-}
 
 export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
-  const sourceOrder = getAdminOrderById(orderId)!;
+  const {
+    data: order,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetOrderByIdQuery(orderId);
 
-  const customer = getAdminOrderCustomer(sourceOrder);
-  const invoice = getAdminOrderInvoice(sourceOrder);
-  const payment = getAdminOrderPayment(sourceOrder);
-  const technicianOptions = getTechnicianAvailabilityOptions();
-  const [productOrder, setProductOrder] = useState<AdminProductOrder | null>(
-    sourceOrder.type === "PRODUCT" ? sourceOrder : null,
-  );
-  const [serviceOrder, setServiceOrder] = useState<AdminServiceOrder | null>(
-    sourceOrder.type === "SERVICE" ? sourceOrder : null,
-  );
-  const [trackingOpen, setTrackingOpen] = useState(false);
-  const [technicianOpen, setTechnicianOpen] = useState(false);
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
-  const [selectedTechnicianId, setSelectedTechnicianId] = useState(
-    sourceOrder.type === "SERVICE" ? sourceOrder.technicianId ?? "" : "",
-  );
-  const [cancelState, setCancelState] = useState<CancelState>({
-    reason: "",
-    note: "",
-    error: "",
+  const { data: returnStatus } = useGetReturnStatusQuery(orderId, {
+    skip: !order,
   });
-  const [trackingDraft, setTrackingDraft] = useState(
-    sourceOrder.type === "PRODUCT"
-      ? {
-          carrier: sourceOrder.tracking?.carrier ?? "",
-          trackingNumber: sourceOrder.tracking?.trackingNumber ?? "",
-          estimatedDelivery: sourceOrder.tracking?.estimatedDelivery ?? "",
-        }
-      : {
-          carrier: "",
-          trackingNumber: "",
-          estimatedDelivery: "",
-        },
-  );
 
-  const order = (productOrder ?? serviceOrder)!;
-  const technicianLabel =
-    order.type === "SERVICE"
-      ? technicianOptions.find(
-          (option) => option.technicianId === order.technicianId,
-        )?.displayName
-      : undefined;
-  const timeline =
-    order.type === "PRODUCT"
-      ? buildProductTimeline(order.status)
-      : buildServiceTimeline(
-          order.status,
-          order.currentSchedule.label ?? order.currentSchedule.date,
-          technicianLabel,
-        );
+  const [updateOrderStatus, { isLoading: isUpdatingStatus }] =
+    useUpdateOrderStatusMutation();
+  const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
+  const [approveRefund, { isLoading: isRefunding }] =
+    useApproveReturnRefundMutation();
 
-  function scrollToBilling() {
-    document.getElementById("billing")?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }
+  const [statusDraft, setStatusDraft] = useState<StoreOrderStatus | null>(null);
+  const [statusNote, setStatusNote] = useState("");
+  const [trackingDraft, setTrackingDraft] = useState<{
+    carrier: string;
+    trackingNumber: string;
+  } | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundNote, setRefundNote] = useState("");
 
-  function updateProductStatus(status: ProductOrderStatus) {
-    setProductOrder((current) =>
-      current
-        ? {
-            ...current,
-            status,
-            tracking: current.tracking
-              ? {
-                  ...current.tracking,
-                  shippingStatus:
-                    status === "refunded" || status === "cancelled"
-                      ? current.tracking.shippingStatus
-                      : status,
-                }
-              : current.tracking,
-          }
-        : current,
+  if (isLoading) {
+    return (
+      <AdminPageShell>
+        <div className="flex items-center justify-center rounded-xl border border-teal-100 bg-white py-24 text-slate-500">
+          <Loader2 className="mr-2 size-5 animate-spin text-teal-700" />
+          Loading order...
+        </div>
+      </AdminPageShell>
     );
   }
 
-  function updateServiceStatus(status: ServiceOrderStatus) {
-    setServiceOrder((current) =>
-      current
-        ? {
-            ...current,
-            status,
-          }
-        : current,
+  if (isError || !order) {
+    return (
+      <AdminPageShell>
+        <AdminSurface className="py-16 text-center">
+          <AlertTriangle className="mx-auto size-8 text-slate-400" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-950">
+            Order not found
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">
+            No order matched &ldquo;{orderId}&rdquo;.
+          </p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Button onClick={() => void refetch()} variant="outline">
+              Try again
+            </Button>
+            <Button asChild>
+              <Link href="/admin/orders">Back to Orders</Link>
+            </Button>
+          </div>
+        </AdminSurface>
+      </AdminPageShell>
     );
   }
 
-  function submitCancellation() {
-    if (!cancelState.reason) {
-      setCancelState((current) => ({
-        ...current,
-        error: "Select a cancellation reason.",
-      }));
-      return;
-    }
+  const orderRef = order.businessId || order.id;
+  const canCancel = ADMIN_CANCELLABLE_STATUSES.includes(order.status);
+  const canRefund =
+    REFUNDABLE_ORDER_STATUSES.includes(order.status) &&
+    !order.refundSummary?.isRefunded;
+  const refund = order.refundSummary;
+  // A refund with no Stripe id never moved money — it has to be paid by hand.
+  const manualRefund = refund?.refunds.some((entry) => !entry.stripeRefundId);
+  const selectedStatus = statusDraft ?? order.status;
+  const carrier = trackingDraft?.carrier ?? order.shippingProvider ?? "";
+  const trackingNumber =
+    trackingDraft?.trackingNumber ?? order.trackingNumber ?? "";
 
-    const cancellation = {
-      cancelledAt: new Date().toISOString(),
-      reason: cancelState.reason,
-      note: cancelState.note || undefined,
-    };
-
-    if (productOrder) {
-      setProductOrder({
-        ...productOrder,
-        status: "cancelled",
-        cancellation,
+  /** Only the fields that actually changed are sent, per the API contract. */
+  const handleSaveStatus = async () => {
+    if (!statusDraft && !statusNote.trim()) return;
+    try {
+      await updateOrderStatus({
+        id: order.id,
+        ...(statusDraft && statusDraft !== order.status
+          ? { status: statusDraft }
+          : {}),
+        ...(statusNote.trim() ? { notes: statusNote.trim() } : {}),
+      }).unwrap();
+      toast.success("Order status updated.");
+      setStatusDraft(null);
+      setStatusNote("");
+    } catch (err) {
+      toast.error("Could not update status", {
+        description: readApiMessage(err, "The status change was rejected."),
       });
     }
+  }
 
-    if (serviceOrder) {
-      setServiceOrder({
-        ...serviceOrder,
-        status: "cancelled",
-        cancellation,
+  const handleSaveTracking = async () => {
+    try {
+      await updateOrderStatus({
+        id: order.id,
+        shippingProvider: carrier.trim(),
+        trackingNumber: trackingNumber.trim(),
+      }).unwrap();
+      toast.success("Shipping details saved.");
+      setTrackingDraft(null);
+    } catch (err) {
+      toast.error("Could not save shipping details", {
+        description: readApiMessage(err, "The update was rejected."),
       });
     }
+  }
 
-    setCancelOpen(false);
+  const handleCancel = async () => {
+    try {
+      await cancelOrder(order.id).unwrap();
+      toast.success(`Order ${orderRef} cancelled. Inventory restored.`);
+      setCancelOpen(false);
+    } catch (err) {
+      toast.error("Could not cancel this order", {
+        description: readApiMessage(
+          err,
+          "This order can no longer be cancelled.",
+        ),
+      });
+    }
+  }
+
+  /**
+   * Approving a return issues a full Stripe refund where one is possible,
+   * restores inventory and sets the order REFUNDED. `requiresManualPayout`
+   * means no money moved — never report that as a completed refund.
+   */
+  const handleRefund = async () => {
+    try {
+      const result = await approveRefund({
+        orderId: order.id,
+        adminNote: refundNote,
+      }).unwrap();
+
+      setRefundOpen(false);
+      setRefundNote("");
+
+      if (result.refund.requiresManualPayout) {
+        toast.warning("Refund requires a manual payout", {
+          description: result.message,
+          duration: 12000,
+        });
+      } else {
+        toast.success("Refund issued", { description: result.message });
+      }
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status === 409) {
+        // A refund is already running server-side; this is not a hard failure.
+        toast.info("A refund is already being processed", {
+          description: "Give it a moment, then reload the order.",
+        });
+        setRefundOpen(false);
+        return;
+      }
+      toast.error("Refund failed", {
+        description: readApiMessage(err, "The refund was rejected."),
+      });
+    }
   }
 
   return (
     <AdminPageShell>
       <AdminPageHeader
-        eyebrow={order.type === "PRODUCT" ? "Product Order" : "Service Order"}
-        title={order.id}
-        description={
-          order.type === "PRODUCT"
-            ? `Placed ${formatLongDate(order.createdAt)}`
-            : `Created from accepted quotation ${order.quotationId}`
-        }
+        eyebrow="Product Order"
+        title={`Order ${orderRef}`}
+        description={`Placed ${formatLongDate(order.placedAt)} · ${order.items.length} line item${order.items.length === 1 ? "" : "s"} · ${formatCurrencyUsd(Number(order.totalUsd))}`}
         action={
-          <div className="flex flex-wrap gap-3">
-            <Button asChild variant="outline">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
               <Link href="/admin/orders">
-                <ArrowLeft size={16} />
-                Back to Orders
+                <ArrowLeft size={14} />
+                All Orders
               </Link>
             </Button>
-            {order.type === "PRODUCT" ? (
-              <>
-                <Button onClick={() => setTrackingOpen(true)} variant="outline">
-                  <Truck size={16} />
-                  Edit Tracking
-                </Button>
-                <Button onClick={() => updateProductStatus("delivered")}>
-                  Mark Delivered
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button onClick={() => setTechnicianOpen(true)} variant="outline">
-                  <Wrench size={16} />
-                  {serviceOrder?.technicianId
-                    ? "Change Technician"
-                    : "Assign Technician"}
-                </Button>
-                <Button onClick={() => setScheduleOpen(true)}>
-                  <CalendarDays size={16} />
-                  Manage Schedule
-                </Button>
-              </>
-            )}
+            {canRefund ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-amber-300 text-amber-800 hover:bg-amber-50"
+                onClick={() => setRefundOpen(true)}
+              >
+                <RotateCcw size={14} />
+                Approve Refund
+              </Button>
+            ) : null}
+            {canCancel ? (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setCancelOpen(true)}
+              >
+                <XCircle size={14} />
+                Cancel Order
+              </Button>
+            ) : null}
           </div>
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
-        <TypeBadge type={order.type} />
-        <StatusBadge status={order.status} />
-        {order.type === "PRODUCT" && order.paymentStatus ? (
-          <StatusBadge status={order.paymentStatus} />
+      {refund?.isRefunded ? (
+        <div
+          className={
+            manualRefund
+              ? "flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900"
+              : "flex items-start gap-3 rounded-xl border border-slate-300 bg-slate-50 p-4 text-slate-800"
+          }
+        >
+          {manualRefund ? (
+            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
+          ) : (
+            <BadgeCheck className="mt-0.5 size-5 shrink-0 text-slate-500" />
+          )}
+          <div className="text-sm">
+            <p className="font-bold">
+              {manualRefund
+                ? "Manual payout required"
+                : `Refunded ${formatCurrencyUsd(Number(refund.totalRefundedUsd))}`}
+            </p>
+            <p className="mt-0.5 text-xs">
+              {manualRefund
+                ? `No card refund was possible for this order. ${formatCurrencyUsd(Number(refund.totalRefundedUsd))} must be returned to the customer offline.`
+                : `${refund.refundCount} refund${refund.refundCount === 1 ? "" : "s"} recorded against this order.`}
+            </p>
+            {refund.refunds.map((entry) => (
+              <p className="mt-1 font-mono text-[11px]" key={entry.id}>
+                {formatCurrencyUsd(Number(entry.amountUsd))} · {entry.status}
+                {entry.stripeRefundId ? ` · ${entry.stripeRefundId}` : ""}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusBadge status={toStatusSlug(order.status)} />
+        {order.paymentStatus ? (
+          <StatusBadge status={toStatusSlug(order.paymentStatus)} />
         ) : null}
-        <span className="text-lg font-semibold text-slate-950">
-          {formatCurrencyUsd(order.total.totalUsd)}
+        <span className="inline-flex items-center gap-1.5 rounded-md border border-teal-100 bg-teal-50/70 px-2 py-0.5 text-xs font-semibold text-teal-900">
+          {order.paymentMethod === "COD" ? (
+            <>
+              <Banknote size={13} /> Cash on delivery
+            </>
+          ) : (
+            <>
+              <CreditCard size={13} /> Paid online
+            </>
+          )}
         </span>
       </div>
 
-      <AdminSurface>
-        <Timeline steps={timeline} />
-      </AdminSurface>
-
-      {order.type === "PRODUCT" ? (
-        <ProductOrderDetail
-          customerName={customer?.displayName ?? "Unknown customer"}
-          onCancel={() => setCancelOpen(true)}
-          onOpenBilling={scrollToBilling}
-          onStatusChange={updateProductStatus}
-          order={order}
-        />
-      ) : (
-        <ServiceOrderDetail
-          customerEmail={customer?.email ?? "No email provided"}
-          customerName={customer?.displayName ?? "Unknown customer"}
-          customerPhone={customer?.phone ?? "No phone provided"}
-          onCancel={() => setCancelOpen(true)}
-          onOpenBilling={scrollToBilling}
-          onOpenSchedule={() => setScheduleOpen(true)}
-          onOpenTechnician={() => setTechnicianOpen(true)}
-          onStatusChange={updateServiceStatus}
-          order={order}
-        />
-      )}
-
-      <AdminSurface id="billing">
-        <div className="flex items-center gap-3">
-          <CreditCard className="text-teal-700" size={20} />
-          <div>
-            <h2 className="text-xl font-semibold text-slate-950">Billing Links</h2>
-            <p className="text-sm text-slate-500">
-              Invoice and payment references tied to this order.
-            </p>
-          </div>
-        </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Customer
-            </p>
-            <p className="mt-2 text-sm font-medium text-slate-900">
-              {customer?.displayName ?? "Unknown customer"}
-            </p>
-            <Link
-              className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-teal-800"
-              href={`/admin/customers/${order.customerId}`}
-            >
-              View Customer
-            </Link>
-          </div>
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Invoice
-            </p>
-            <p className="mt-2 text-sm font-medium text-slate-900">
-              {invoice?.id ?? order.invoiceId ?? "Pending invoice"}
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              {invoice
-                ? formatCurrencyUsd(invoice.totals.totalUsd)
-                : "No invoice issued yet"}
-            </p>
-          </div>
-          <div className="rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Payment
-            </p>
-            <p className="mt-2 text-sm font-medium text-slate-900">
-              {payment?.id ?? order.paymentId ?? "Pending payment"}
-            </p>
-            <p className="mt-1">
-              <StatusBadge
-                status={payment?.status ?? order.paymentStatus ?? "pending"}
-              />
-            </p>
-          </div>
-        </div>
-      </AdminSurface>
-
-      <Dialog open={trackingOpen} onOpenChange={setTrackingOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Shipping / Tracking</DialogTitle>
-            <DialogDescription>
-              Update carrier, UPS tracking, and estimated delivery for this product
-              order.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">Carrier</label>
-              <Input
-                onChange={(event) =>
-                  setTrackingDraft((current) => ({
-                    ...current,
-                    carrier: event.target.value,
-                  }))
-                }
-                value={trackingDraft.carrier}
-              />
+      <div className="grid gap-4 xl:grid-cols-[1.25fr_0.9fr]">
+        <div className="space-y-4">
+          <AdminSurface>
+            <div className="flex items-center gap-3">
+              <Package className="text-teal-700" size={20} />
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  Order Items
+                </h2>
+                <p className="text-sm text-slate-500">
+                  {order.items.length} line item
+                  {order.items.length === 1 ? "" : "s"} in this order.
+                </p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">
-                Tracking Number
-              </label>
-              <Input
-                onChange={(event) =>
-                  setTrackingDraft((current) => ({
-                    ...current,
-                    trackingNumber: event.target.value,
-                  }))
-                }
-                value={trackingDraft.trackingNumber}
-              />
+            <div className="mt-5 space-y-4">
+              {order.items.map((item) => (
+                <div
+                  className="flex flex-col gap-4 rounded-xl border border-teal-100 p-4 sm:flex-row sm:items-center sm:justify-between"
+                  key={item.id}
+                >
+                  <div className="flex gap-4">
+                    <div className="relative flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-teal-50">
+                      {item.imageUrl ? (
+                        <Image
+                          alt={item.productName}
+                          className="object-contain p-3"
+                          fill
+                          src={item.imageUrl}
+                        />
+                      ) : (
+                        <Package size={26} className="text-teal-700/40" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-lg font-semibold text-slate-950">
+                        {item.productName}
+                      </p>
+                      {item.productSku ? (
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          SKU {item.productSku}
+                        </p>
+                      ) : null}
+                      <p className="mt-2 text-sm text-slate-600">
+                        Qty {item.quantity} • Unit{" "}
+                        {formatCurrencyUsd(Number(item.unitPriceUsd))}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xl font-semibold text-slate-950">
+                    {formatCurrencyUsd(Number(item.totalUsd))}
+                  </p>
+                </div>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">
-                Estimated Delivery
-              </label>
-              <Input
-                onChange={(event) =>
-                  setTrackingDraft((current) => ({
-                    ...current,
-                    estimatedDelivery: event.target.value,
-                  }))
-                }
-                type="date"
-                value={trackingDraft.estimatedDelivery}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setTrackingOpen(false)} variant="outline">
-              Close
-            </Button>
-            <Button
-              onClick={() => {
-                setProductOrder((current) =>
-                  current
-                    ? {
-                        ...current,
-                        tracking: {
-                          ...current.tracking,
-                          carrier: trackingDraft.carrier,
-                          trackingNumber: trackingDraft.trackingNumber,
-                          estimatedDelivery: trackingDraft.estimatedDelivery,
-                          shippingStatus:
-                            current.tracking?.shippingStatus ?? current.status,
-                        },
-                      }
-                    : current,
-                );
-                setTrackingOpen(false);
-              }}
-            >
-              Save Tracking
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AdminSurface>
 
-      <Dialog open={technicianOpen} onOpenChange={setTechnicianOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Technician</DialogTitle>
-            <DialogDescription>
-              Choose from typed mock technician availability. Assignment updates the
-              service order without changing the original requested schedule.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <Select onValueChange={setSelectedTechnicianId} value={selectedTechnicianId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select technician" />
-              </SelectTrigger>
-              <SelectContent>
-                {technicianOptions.map((option) => (
-                  <SelectItem
-                    disabled={!option.active && option.technicianId !== serviceOrder?.technicianId}
-                    key={option.technicianId}
-                    value={option.technicianId}
+          <AdminSurface id="shipping">
+            <div className="flex items-center gap-3">
+              <Truck className="text-teal-700" size={20} />
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  Shipping &amp; Tracking
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Carrier and tracking number sent to the customer.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl bg-slate-50 p-4">
+                <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                  <MapPin size={12} />
+                  Delivery Address
+                </p>
+                {order.shippingAddress?.line1 ? (
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    {order.shippingAddress.recipientName ? (
+                      <>
+                        <strong>{order.shippingAddress.recipientName}</strong>
+                        <br />
+                      </>
+                    ) : null}
+                    {order.shippingAddress.line1}
+                    {order.shippingAddress.line2 ? (
+                      <>
+                        <br />
+                        {order.shippingAddress.line2}
+                      </>
+                    ) : null}
+                    <br />
+                    {[
+                      order.shippingAddress.city,
+                      order.shippingAddress.state,
+                      order.shippingAddress.postalCode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                    {order.shippingAddress.country ? (
+                      <>
+                        <br />
+                        {order.shippingAddress.country}
+                      </>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-500">Not recorded</p>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+                <div>
+                  <label
+                    className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400"
+                    htmlFor="carrier"
                   >
-                    {option.displayName} • {option.availabilityLabel} • {option.jobsToday} jobs
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-              {selectedTechnicianId
-                ? technicianOptions.find(
-                    (option) => option.technicianId === selectedTechnicianId,
-                  )?.availabilityLabel
-                : "No technician selected."}
+                    Carrier
+                  </label>
+                  <Input
+                    className="mt-1.5"
+                    id="carrier"
+                    placeholder="e.g. FedEx Freight"
+                    value={carrier}
+                    onChange={(event) =>
+                      setTrackingDraft({
+                        carrier: event.target.value,
+                        trackingNumber,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label
+                    className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400"
+                    htmlFor="tracking-number"
+                  >
+                    Tracking Number
+                  </label>
+                  <Input
+                    className="mt-1.5"
+                    id="tracking-number"
+                    placeholder="e.g. FX-8899223311"
+                    value={trackingNumber}
+                    onChange={(event) =>
+                      setTrackingDraft({
+                        carrier,
+                        trackingNumber: event.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={!trackingDraft || isUpdatingStatus}
+                  onClick={handleSaveTracking}
+                  size="sm"
+                >
+                  {isUpdatingStatus ? "Saving..." : "Save Shipping Details"}
+                </Button>
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            {serviceOrder?.technicianId ? (
-              <Button
-                onClick={() => {
-                  setServiceOrder((current) =>
-                    current
-                      ? {
-                          ...current,
-                          technicianId: undefined,
-                          status: "scheduled",
-                        }
-                      : current,
-                  );
-                  setSelectedTechnicianId("");
-                  setTechnicianOpen(false);
-                }}
-                variant="outline"
-              >
-                Remove Assignment
-              </Button>
-            ) : null}
-            <Button onClick={() => setTechnicianOpen(false)} variant="outline">
-              Close
-            </Button>
-            <Button
-              disabled={!selectedTechnicianId}
-              onClick={() => {
-                setServiceOrder((current) =>
-                  current
-                    ? {
-                        ...current,
-                        technicianId: selectedTechnicianId,
-                        status: "technician-assigned",
-                      }
-                    : current,
-                );
-                setTechnicianOpen(false);
-              }}
-            >
-              Save Assignment
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AdminSurface>
 
-      <Dialog open={scheduleOpen} onOpenChange={setScheduleOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Manage Schedule</DialogTitle>
-            <DialogDescription>
-              Full admin scheduling calendar is deferred to the next phase. This
-              pass preserves and displays both the requested schedule and the
-              current working schedule.
-            </DialogDescription>
-          </DialogHeader>
-          {serviceOrder ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Requested Schedule
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {serviceOrder.requestedSchedule.label}
-                </p>
+          {order.statusHistory.length > 0 ? (
+            <AdminSurface>
+              <div className="flex items-center gap-3">
+                <History className="text-teal-700" size={20} />
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    Status History
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    Every recorded change, oldest first.
+                  </p>
+                </div>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                  Current Schedule
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {serviceOrder.currentSchedule.label}
+              <ol className="mt-5 space-y-3">
+                {order.statusHistory.map((entry) => (
+                  <li
+                    className="rounded-xl border border-teal-100 p-3.5"
+                    key={entry.id || entry.changedAt}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={toStatusSlug(entry.status)} />
+                      <span className="text-xs text-slate-500">
+                        {formatLongDate(entry.changedAt)}
+                      </span>
+                      {entry.actorLabel ? (
+                        <span className="text-xs font-medium text-slate-600">
+                          · {entry.actorLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                    {entry.note ? (
+                      <p className="mt-1.5 text-sm text-slate-700">
+                        {entry.note}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </AdminSurface>
+          ) : null}
+
+          {returnStatus?.returnHistory.length ? (
+            <AdminSurface>
+              <div className="flex items-center gap-3">
+                <RotateCcw className="text-teal-700" size={20} />
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950">
+                    Return Requests
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    Filed by the customer. Partial returns are not supported —
+                    approving refunds the whole order.
+                  </p>
+                </div>
+              </div>
+              <ol className="mt-5 space-y-3">
+                {returnStatus.returnHistory.map((entry) => (
+                  <li
+                    className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5"
+                    key={entry.id || entry.changedAt}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge status={toStatusSlug(entry.status)} />
+                      <span className="text-xs text-slate-500">
+                        {formatLongDate(entry.changedAt)}
+                      </span>
+                      {entry.actorLabel ? (
+                        <span className="text-xs font-medium text-slate-600">
+                          · {entry.actorLabel}
+                        </span>
+                      ) : null}
+                    </div>
+                    {entry.note ? (
+                      <p className="mt-1.5 text-sm text-slate-800">
+                        {entry.note}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ol>
+            </AdminSurface>
+          ) : null}
+        </div>
+
+        <div className="space-y-4">
+          <AdminSurface id="status">
+            <div className="flex items-center gap-3">
+              <Settings2 className="text-teal-700" size={20} />
+              <div>
+                <h2 className="text-xl font-semibold text-slate-950">
+                  Order Status
+                </h2>
+                <p className="text-sm text-slate-500">
+                  FAILED and REFUNDED are set by the system, not here.
                 </p>
               </div>
             </div>
-          ) : null}
-          <DialogFooter>
-            <Button onClick={() => setScheduleOpen(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="mt-5 space-y-3">
+              <Select
+                onValueChange={(value) =>
+                  setStatusDraft(value as StoreOrderStatus)
+                }
+                value={selectedStatus}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ASSIGNABLE_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Textarea
+                onChange={(event) => setStatusNote(event.target.value)}
+                placeholder="Optional note recorded in the order history..."
+                value={statusNote}
+              />
+              <Button
+                className="w-full"
+                disabled={
+                  isUpdatingStatus ||
+                  (statusDraft === null && !statusNote.trim()) ||
+                  (statusDraft === order.status && !statusNote.trim())
+                }
+                onClick={handleSaveStatus}
+              >
+                {isUpdatingStatus ? "Saving..." : "Save Status"}
+              </Button>
+            </div>
+          </AdminSurface>
+
+          <AdminSurface>
+            <div className="flex items-center gap-3">
+              <UserRound className="text-teal-700" size={20} />
+              <h2 className="text-xl font-semibold text-slate-950">Customer</h2>
+            </div>
+            <div className="mt-4 space-y-2 text-sm">
+              <p className="font-semibold text-slate-950">
+                {order.customer?.displayName || "Customer"}
+              </p>
+              {order.customer?.email ? (
+                <p className="flex items-center gap-2 text-slate-600">
+                  <Mail size={14} className="text-slate-400" />
+                  {order.customer.email}
+                </p>
+              ) : null}
+              {order.customer?.phone ? (
+                <p className="flex items-center gap-2 text-slate-600">
+                  <Phone size={14} className="text-slate-400" />
+                  {order.customer.phone}
+                </p>
+              ) : null}
+              {order.customerId ? (
+                <Button asChild className="mt-2 w-full" size="sm" variant="outline">
+                  <Link href={`/admin/customers/${order.customerId}`}>
+                    View Customer
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
+            {order.customerNotes ? (
+              <div className="mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
+                <span className="font-semibold text-slate-900">
+                  Customer notes:
+                </span>{" "}
+                {order.customerNotes}
+              </div>
+            ) : null}
+          </AdminSurface>
+
+          <AdminSurface>
+            <h2 className="text-xl font-semibold text-slate-950">
+              Order Summary
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Server-calculated: flat $18.00 shipping, 8% tax.
+            </p>
+            <div className="mt-5 space-y-3 text-sm text-slate-600">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>{formatCurrencyUsd(Number(order.subtotalUsd))}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>{formatCurrencyUsd(Number(order.shippingFeeUsd))}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax</span>
+                <span>{formatCurrencyUsd(Number(order.taxUsd))}</span>
+              </div>
+              {Number(order.discountUsd) > 0 ? (
+                <div className="flex justify-between">
+                  <span>Discount</span>
+                  <span>-{formatCurrencyUsd(Number(order.discountUsd))}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between border-t border-teal-100 pt-3 text-lg font-semibold text-slate-950">
+                <span>Total</span>
+                <span>{formatCurrencyUsd(Number(order.totalUsd))}</span>
+              </div>
+            </div>
+          </AdminSurface>
+
+          <OrderInvoiceCard
+            canRegenerate
+            invoice={order.invoice ?? order.invoices[0]}
+            orderId={order.id}
+            orderStatus={order.status}
+            paymentMethod={order.paymentMethod}
+          />
+          {/* Only shown when an order somehow carries more than one invoice. */}
+          {order.invoices.length > 1 ? <InvoicesPanel order={order} /> : null}
+        </div>
+      </div>
 
       <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancel Order</DialogTitle>
             <DialogDescription>
-              Cancelled orders remain in history with a reason and optional note.
+              Cancel {orderRef}? Stock is restored and any unpaid invoice is
+              voided. No Stripe refund is issued — for a paid order use{" "}
+              <strong>Approve Refund</strong> instead.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">
-                Reason <span className="text-rose-600">*</span>
-              </label>
-              <Select
-                onValueChange={(value) =>
-                  setCancelState((current) => ({
-                    ...current,
-                    reason: value,
-                    error: "",
-                  }))
-                }
-                value={cancelState.reason}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Customer requested cancellation">
-                    Customer requested cancellation
-                  </SelectItem>
-                  <SelectItem value="Operational issue">Operational issue</SelectItem>
-                  <SelectItem value="Payment issue">Payment issue</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              {cancelState.error ? (
-                <p className="text-sm text-rose-700">{cancelState.error}</p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-900">Note</label>
-              <Textarea
-                onChange={(event) =>
-                  setCancelState((current) => ({
-                    ...current,
-                    note: event.target.value,
-                  }))
-                }
-                value={cancelState.note}
-              />
-            </div>
-          </div>
           <DialogFooter>
             <Button onClick={() => setCancelOpen(false)} variant="outline">
               Keep Order
             </Button>
-            <Button onClick={submitCancellation} variant="destructive">
-              Confirm Cancellation
+            <Button
+              disabled={isCancelling}
+              onClick={handleCancel}
+              variant="destructive"
+            >
+              {isCancelling ? "Cancelling..." : "Confirm Cancellation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={refundOpen} onOpenChange={setRefundOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Return &amp; Refund</DialogTitle>
+            <DialogDescription>
+              Refunds the full {formatCurrencyUsd(Number(order.totalUsd))} for{" "}
+              {orderRef}, restores inventory and sets the order to REFUNDED.
+              Partial amounts are not supported. If the order was paid by cash
+              on delivery, no card refund is possible and you will need to pay
+              the customer offline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label
+              className="text-sm font-medium text-slate-900"
+              htmlFor="refund-note"
+            >
+              Admin note (optional)
+            </label>
+            <Textarea
+              id="refund-note"
+              onChange={(event) => setRefundNote(event.target.value)}
+              placeholder="e.g. Approved after image verification. Items received at warehouse."
+              value={refundNote}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setRefundOpen(false)} variant="outline">
+              Cancel
+            </Button>
+            <Button disabled={isRefunding} onClick={handleRefund}>
+              {isRefunding ? "Processing..." : "Issue Refund"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -785,581 +786,95 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
   );
 }
 
-function ProductOrderDetail({
-  customerName,
-  onCancel,
-  onOpenBilling,
-  onStatusChange,
-  order,
-}: {
-  customerName: string;
-  onCancel: () => void;
-  onOpenBilling: () => void;
-  onStatusChange: (status: ProductOrderStatus) => void;
-  order: AdminProductOrder;
-}) {
+/**
+ * Invoices, their payments and their refunds. An invoice stays PAID after a
+ * refund — that record is the proof payment happened; the reversal is the
+ * refund row. It must never be shown as unpaid.
+ */
+function InvoicesPanel({ order }: { order: StoreOrderDto }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.25fr_0.9fr]">
-      <div className="space-y-4">
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <Package className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Order Items</h2>
-              <p className="text-sm text-slate-500">
-                Customer {customerName} ordered {order.items.length} line item
-                {order.items.length === 1 ? "" : "s"}.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 space-y-4">
-            {order.items.map((item) => (
-              <div
-                className="flex flex-col gap-4 rounded-xl border border-teal-100 p-4 sm:flex-row sm:items-center sm:justify-between"
-                key={item.id}
-              >
-                <div className="flex gap-4">
-                  <div className="relative size-24 overflow-hidden rounded-xl bg-teal-50">
-                    <Image
-                      alt={item.name}
-                      className="object-contain p-3"
-                      fill
-                      src={item.imageSrc}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold text-slate-950">{item.name}</p>
-                    <p className="mt-1 text-sm text-slate-500">{item.summary}</p>
-                    <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      SKU {item.sku}
-                    </p>
-                    <p className="mt-2 text-sm text-slate-600">
-                      Qty {item.quantity} • Unit {formatCurrencyUsd(item.unitPriceUsd)}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xl font-semibold text-slate-950">
-                  {formatCurrencyUsd(item.quantity * item.unitPriceUsd)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </AdminSurface>
-
-        <AdminSurface id="shipping">
-          <div className="flex items-center gap-3">
-            <Truck className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Shipping</h2>
-              <p className="text-sm text-slate-500">
-                Carrier, UPS tracking, shipping status, and ETA.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Address
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                {order.shippingAddress.line1}
-                <br />
-                {order.shippingAddress.city}, {order.shippingAddress.state}{" "}
-                {order.shippingAddress.postalCode}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Tracking
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-900">
-                {order.tracking?.carrier ?? "UPS"}
-              </p>
-              <p className="mt-1 text-sm text-slate-600">
-                {order.tracking?.trackingNumber ?? "Pending"}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Estimated Delivery
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-900">
-                {order.tracking?.estimatedDelivery
-                  ? formatLongDate(order.tracking.estimatedDelivery)
-                  : "Pending"}
-              </p>
-            </div>
-          </div>
-        </AdminSurface>
+    <AdminSurface id="billing">
+      <div className="flex items-center gap-3">
+        <FileText className="text-teal-700" size={20} />
+        <div>
+          <h2 className="text-xl font-semibold text-slate-950">
+            Invoices &amp; Payments
+          </h2>
+          <p className="text-sm text-slate-500">
+            Issued automatically when the order was placed.
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        <AdminSurface id="status">
-          <div className="flex items-center gap-3">
-            <Settings2 className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Order Status</h2>
-              <p className="text-sm text-slate-500">
-                Update product processing, shipment, delivery, and refund states.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 space-y-4">
-            <Select onValueChange={onStatusChange} value={order.status}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {productStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status.replaceAll("-", " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <StatusBadge status={order.status} />
-              {order.cancellation ? (
-                <p className="mt-3 text-sm text-slate-600">
-                  Cancelled {formatShortDate(order.cancellation.cancelledAt)} •{" "}
-                  {order.cancellation.reason}
-                </p>
-              ) : null}
-            </div>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <h2 className="text-xl font-semibold text-slate-950">Order Summary</h2>
-          <div className="mt-5 space-y-3 text-sm text-slate-600">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>{formatCurrencyUsd(order.total.subtotalUsd)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Shipping</span>
-              <span>
-                {order.total.shippingUsd
-                  ? formatCurrencyUsd(order.total.shippingUsd)
-                  : "FREE"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Tax</span>
-              <span>{formatCurrencyUsd(order.total.taxUsd)}</span>
-            </div>
-            {order.total.discountUsd ? (
-              <div className="flex justify-between">
-                <span>Discount</span>
-                <span>-{formatCurrencyUsd(order.total.discountUsd)}</span>
-              </div>
-            ) : null}
-            <div className="flex justify-between border-t border-teal-100 pt-3 text-lg font-semibold text-slate-950">
-              <span>Total</span>
-              <span>{formatCurrencyUsd(order.total.totalUsd)}</span>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Button onClick={onOpenBilling} variant="outline">
-              <FileText size={16} />
-              View Invoice / Payment
-            </Button>
-            <Button onClick={() => onStatusChange("shipped")} variant="outline">
-              Mark Shipped
-            </Button>
-            <Button onClick={onCancel} variant="destructive">
-              <XCircle size={16} />
-              Cancel Order
-            </Button>
-          </div>
-        </AdminSurface>
-      </div>
-    </div>
-  );
-}
-
-function ServiceOrderDetail({
-  customerEmail,
-  customerName,
-  customerPhone,
-  onCancel,
-  onOpenBilling,
-  onOpenSchedule,
-  onOpenTechnician,
-  onStatusChange,
-  order,
-}: {
-  customerEmail: string;
-  customerName: string;
-  customerPhone: string;
-  onCancel: () => void;
-  onOpenBilling: () => void;
-  onOpenSchedule: () => void;
-  onOpenTechnician: () => void;
-  onStatusChange: (status: ServiceOrderStatus) => void;
-  order: AdminServiceOrder;
-}) {
-  return (
-    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.9fr]">
-      <div className="space-y-4">
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <UserRound className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Customer</h2>
-              <p className="text-sm text-slate-500">
-                Contact details for the accepted service order.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Name
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-900">{customerName}</p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Phone
-              </p>
-              <p className="mt-2 text-sm text-slate-700">{customerPhone}</p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Email
-              </p>
-              <p className="mt-2 text-sm text-slate-700">{customerEmail}</p>
-            </div>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <ClipboardList className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Service</h2>
-              <p className="text-sm text-slate-500">
-                Accepted service work created after quotation approval.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Service Name
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-900">
-                {order.serviceName}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Problem Summary
-              </p>
-              <p className="mt-2 text-sm text-slate-700">{order.problemSummary}</p>
-            </div>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <MapPin className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Location</h2>
-              <p className="text-sm text-slate-500">
-                Full service address and the unit/problem location.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Service Address
-              </p>
-              <p className="mt-2 text-sm leading-6 text-slate-700">
-                {order.serviceLocation.line1}
-                <br />
-                {order.serviceLocation.city}, {order.serviceLocation.state}{" "}
-                {order.serviceLocation.postalCode}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Problem / Unit Location
-              </p>
-              <p className="mt-2 text-sm text-slate-700">
-                {order.problemLocation ?? "Not provided"}
-              </p>
-            </div>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface id="schedule">
-          <div className="flex items-center gap-3">
-            <CalendarDays className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Schedule</h2>
-              <p className="text-sm text-slate-500">
-                Requested schedule is preserved separately from the current working
-                schedule.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Requested Schedule
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-900">
-                {order.requestedSchedule.label}
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Current Schedule
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-900">
-                {order.currentSchedule.label}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <Button onClick={onOpenSchedule} variant="outline">
-              Manage Schedule
-            </Button>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Equipment</h2>
-              <p className="text-sm text-slate-500">
-                Manufacturer, model, serial, and unit placement.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5">
-            <DetailList
-              rows={[
-                {
-                  label: "Manufacturer",
-                  value: order.equipment?.manufacturer ?? "Not provided",
-                },
-                {
-                  label: "Model",
-                  value: order.equipment?.modelNumber ?? "Not provided",
-                },
-                {
-                  label: "Serial Number",
-                  value: order.equipment?.serialNumber ?? "Not provided",
-                },
-                {
-                  label: "Unit Location",
-                  value: order.equipment?.unitLocation ?? "Not provided",
-                },
-              ]}
-            />
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <FileImage className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">
-                Customer Media
-              </h2>
-              <p className="text-sm text-slate-500">
-                Submitted images and videos from the original request.
-              </p>
-            </div>
-          </div>
-          {order.attachments.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-teal-200 bg-teal-50/50 px-4 py-8 text-center text-sm text-slate-600">
-              No customer media attached.
-            </div>
-          ) : (
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {order.attachments.map((attachment) => (
-                <div
-                  className="rounded-xl border border-teal-100 bg-slate-50 p-4"
-                  key={attachment.id}
+      {order.invoices.length === 0 ? (
+        <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+          No invoice recorded for this order.
+        </p>
+      ) : (
+        <div className="mt-5 space-y-4">
+          {order.invoices.map((invoice) => (
+            <div
+              className="rounded-xl border border-teal-100 p-4"
+              key={invoice.id}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Link
+                  className="font-semibold text-teal-900 hover:underline"
+                  href={`/admin/financials/invoices/${invoice.id}`}
                 >
-                  <div className="flex h-28 items-center justify-center rounded-xl bg-white text-teal-800">
-                    {attachment.kind === "video" ? (
-                      <Video size={28} />
-                    ) : (
-                      <FileImage size={28} />
-                    )}
-                  </div>
-                  <p className="mt-3 truncate font-medium text-slate-900">
-                    {attachment.fileName}
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500">{attachment.fileType}</p>
+                  {invoice.businessId || invoice.id}
+                </Link>
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={toStatusSlug(invoice.status)} />
+                  <span className="font-semibold text-slate-950">
+                    {formatCurrencyUsd(Number(invoice.totalUsd))}
+                  </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </AdminSurface>
-      </div>
+              </div>
 
-      <div className="space-y-4">
-        <AdminSurface id="technician">
-          <div className="flex items-center gap-3">
-            <Settings2 className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Service Status</h2>
-              <p className="text-sm text-slate-500">
-                Progress the accepted service order through operational stages.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 space-y-4">
-            <Select onValueChange={onStatusChange} value={order.status}>
-              <SelectTrigger>
-                <SelectValue placeholder="Current status" />
-              </SelectTrigger>
-              <SelectContent>
-                {serviceStatuses.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status.replaceAll("-", " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="rounded-xl bg-slate-50 p-4">
-              <StatusBadge status={order.status} />
-              {order.cancellation ? (
-                <p className="mt-3 text-sm text-slate-600">
-                  Cancelled {formatShortDate(order.cancellation.cancelledAt)} •{" "}
-                  {order.cancellation.reason}
-                </p>
+              {invoice.payments?.length ? (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Payments
+                  </p>
+                  {invoice.payments.map((payment) => (
+                    <p className="text-xs text-slate-600" key={payment.id}>
+                      {formatCurrencyUsd(Number(payment.amountUsd))} ·{" "}
+                      {payment.status}
+                      {payment.methodLabel ? ` · ${payment.methodLabel}` : ""}
+                      {payment.transactionReference ? (
+                        <span className="ml-1 font-mono text-[11px] text-slate-500">
+                          {payment.transactionReference}
+                        </span>
+                      ) : null}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+
+              {invoice.refunds?.length ? (
+                <div className="mt-3 space-y-1.5">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                    Refunds
+                  </p>
+                  {invoice.refunds.map((entry) => (
+                    <p className="text-xs text-slate-600" key={entry.id}>
+                      {formatCurrencyUsd(Number(entry.amountUsd))} ·{" "}
+                      {entry.status}
+                      {entry.reason ? ` · ${entry.reason}` : ""}
+                      {entry.stripeRefundId ? (
+                        <span className="ml-1 font-mono text-[11px] text-slate-500">
+                          {entry.stripeRefundId}
+                        </span>
+                      ) : null}
+                    </p>
+                  ))}
+                </div>
               ) : null}
             </div>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <Wrench className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Technician</h2>
-              <p className="text-sm text-slate-500">
-                Assign, change, or remove technician assignment.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Current Assignment
-            </p>
-            <p className="mt-2 text-sm font-medium text-slate-900">
-              {order.technicianId
-                ? getTechnicianAvailabilityOptions().find(
-                    (option) => option.technicianId === order.technicianId,
-                  )?.displayName ?? order.technicianId
-                : "Unassigned"}
-            </p>
-          </div>
-          <div className="mt-4">
-            <Button onClick={onOpenTechnician}>
-              {order.technicianId ? "Change Technician" : "Assign Technician"}
-            </Button>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <div className="flex items-center gap-3">
-            <FileText className="text-teal-700" size={20} />
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Quotation</h2>
-              <p className="text-sm text-slate-500">
-                Accepted pricing snapshot retained with the service order.
-              </p>
-            </div>
-          </div>
-          <div className="mt-5 rounded-xl bg-slate-50 p-4">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              Accepted Amount
-            </p>
-            <p className="mt-2 text-2xl font-semibold text-slate-950">
-              {formatCurrencyUsd(order.acceptedQuoteSnapshot.quotationTotalUsd)}
-            </p>
-          </div>
-          <div className="mt-4 space-y-3">
-            {order.acceptedQuoteSnapshot.lineItems.map((lineItem) => (
-              <div
-                className="flex items-center justify-between gap-4 rounded-xl border border-teal-100 px-4 py-3"
-                key={lineItem.id}
-              >
-                <div>
-                  <p className="font-medium text-slate-900">{lineItem.description}</p>
-                  <p className="text-sm text-slate-500">
-                    Qty {lineItem.quantity} • Unit {formatCurrencyUsd(lineItem.unitPriceUsd)}
-                  </p>
-                </div>
-                <p className="font-semibold text-slate-950">
-                  {formatCurrencyUsd(lineItem.quantity * lineItem.unitPriceUsd)}
-                </p>
-              </div>
-            ))}
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <h2 className="text-xl font-semibold text-slate-950">Related Resources</h2>
-          <div className="mt-5 grid gap-3">
-            <Link
-              className="inline-flex items-center justify-between rounded-xl border border-teal-100 px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-teal-50"
-              href={`/admin/service-requests/${order.serviceRequestId}`}
-            >
-              <span>Request {order.serviceRequestId}</span>
-              <span className="text-teal-800">View Request</span>
-            </Link>
-            <Link
-              className="inline-flex items-center justify-between rounded-xl border border-teal-100 px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-teal-50"
-              href={`/admin/quotations/${order.quotationId}`}
-            >
-              <span>Quotation {order.quotationId}</span>
-              <span className="text-teal-800">View Quotation</span>
-            </Link>
-            <button
-              className="inline-flex items-center justify-between rounded-xl border border-teal-100 px-4 py-3 text-sm font-medium text-slate-900 transition hover:bg-teal-50"
-              onClick={onOpenBilling}
-              type="button"
-            >
-              <span>Billing Reference</span>
-              <span className="text-teal-800">View Invoice</span>
-            </button>
-          </div>
-        </AdminSurface>
-
-        <AdminSurface>
-          <h2 className="text-xl font-semibold text-slate-950">Order Actions</h2>
-          <div className="mt-5 grid gap-3">
-            <Button onClick={onOpenTechnician} variant="outline">
-              <Wrench size={16} />
-              {order.technicianId ? "Change Technician" : "Assign Technician"}
-            </Button>
-            <Button onClick={onOpenSchedule} variant="outline">
-              <CalendarDays size={16} />
-              Manage Schedule
-            </Button>
-            <Button onClick={onOpenBilling} variant="outline">
-              <CreditCard size={16} />
-              View Billing
-            </Button>
-            <Button onClick={onCancel} variant="destructive">
-              <XCircle size={16} />
-              Cancel Order
-            </Button>
-          </div>
-        </AdminSurface>
-      </div>
-    </div>
+          ))}
+        </div>
+      )}
+    </AdminSurface>
   );
 }

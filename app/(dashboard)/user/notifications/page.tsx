@@ -1,80 +1,382 @@
+"use client";
+
+import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Bell, CreditCard, ShieldCheck, Wrench } from "lucide-react";
+import {
+  ArrowRight,
+  Bell,
+  CheckCheck,
+  CreditCard,
+  FileText,
+  Loader2,
+  ShieldCheck,
+  Trash2,
+  Wrench,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
-import { Button } from "@/components/ui/Button";
 import {
-  mockCustomerNotifications,
-  mockNotificationHrefById,
-} from "@/data/mock/customer-portal";
+  PortalFilterBar,
+  PortalList,
+  PortalLoading,
+} from "@/components/customer-portal/PortalUI";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  useGetNotificationsQuery,
+  useMarkAllNotificationsAsReadMutation,
+  useMarkNotificationAsReadMutation,
+  useDeleteNotificationMutation,
+} from "@/redux/api/notificationsApi";
 import { formatLongDate } from "@/lib/formatters";
+import type { Notification } from "@/types/domain";
 
-function getNotificationIcon(type: string) {
+type FilterTab = "all" | "unread" | "service-update" | "payment" | "system";
+
+function getNotificationIcon(type?: string) {
   if (type === "payment") return CreditCard;
   if (type === "system") return ShieldCheck;
   if (type === "service-update") return Wrench;
   return Bell;
 }
 
-export default function NotificationsPage() {
+interface NotificationRouting {
+  primaryHref: string;
+  viewRequestHref?: string;
+  reviewQuotationHref?: string;
+  serviceRequestId?: string;
+  quotationId?: string;
+  orderHref?: string;
+  isQuotation: boolean;
+}
+
+function resolveNotificationRouting(notification: Notification): NotificationRouting {
+  const meta = notification.metadata || {};
+  const serviceRequestId =
+    (meta.serviceRequestId as string) ||
+    (meta.requestId as string) ||
+    (meta.businessId as string);
+
+  const quotationId =
+    (meta.quotationId as string) ||
+    (meta.quotationBusinessId as string);
+
+  const orderId = meta.orderId as string;
+
+  const titleLower = notification.title.toLowerCase();
+  const messageLower = notification.message.toLowerCase();
+  const ctaLower = (notification.ctaLabel || "").toLowerCase();
+
+  const isQuotation =
+    Boolean(quotationId) ||
+    titleLower.includes("quotation") ||
+    titleLower.includes("quote") ||
+    messageLower.includes("quotation") ||
+    messageLower.includes("quote") ||
+    ctaLower.includes("quotation") ||
+    ctaLower.includes("quote");
+
+  // Check if we have a service request ID (either business ID or UUID)
+  if (serviceRequestId) {
+    const viewRequestHref = `/user/services/${serviceRequestId}`;
+    const reviewQuotationHref = `/user/services/${serviceRequestId}#quotation`;
+
+    return {
+      primaryHref: isQuotation ? reviewQuotationHref : viewRequestHref,
+      viewRequestHref,
+      reviewQuotationHref: isQuotation ? reviewQuotationHref : undefined,
+      serviceRequestId,
+      quotationId,
+      isQuotation,
+    };
+  }
+
+  // Fallback for orders
+  if (orderId) {
+    return {
+      primaryHref: `/user/orders/${orderId}`,
+      orderHref: `/user/orders/${orderId}`,
+      isQuotation: false,
+    };
+  }
+
+  // Fallback for payments
+  if (notification.type === "payment") {
+    return {
+      primaryHref: "/user/billing",
+      isQuotation: false,
+    };
+  }
+
+  // Generic fallback
+  return {
+    primaryHref: "/user/services",
+    isQuotation,
+  };
+}
+
+export default function CustomerNotificationsPage() {
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+
+  const { data: apiNotificationsData, isLoading } = useGetNotificationsQuery();
+  const [markAllAsRead, { isLoading: isMarkingAll }] = useMarkAllNotificationsAsReadMutation();
+  const [markSingleAsRead] = useMarkNotificationAsReadMutation();
+  const [deleteNotification] = useDeleteNotificationMutation();
+
+  // Phase 11.2 GET /notifications
+  const rawNotifications = apiNotificationsData?.items ?? [];
+
+  const filteredNotifications = rawNotifications.filter((notif) => {
+    if (activeTab === "unread") return !notif.isRead;
+    if (activeTab === "service-update") return notif.type === "service-update";
+    if (activeTab === "payment") return notif.type === "payment";
+    if (activeTab === "system") return notif.type === "system";
+    return true;
+  });
+
+  const unreadCount = rawNotifications.filter((n) => !n.isRead).length;
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllAsRead().unwrap();
+      toast.success("All notifications marked as read.");
+    } catch {
+      toast.error("Failed to mark all as read.");
+    }
+  };
+
+  const handleMarkSingle = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await markSingleAsRead(id).unwrap();
+      toast.success("Notification marked as read.");
+    } catch {
+      toast.error("Failed to update notification.");
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await deleteNotification(id).unwrap();
+      toast.success("Notification removed.");
+    } catch {
+      toast.error("Failed to delete notification.");
+    }
+  };
+
   return (
-    <div className="min-h-screen">
+    <div className="space-y-6 pb-8">
       <PageHeader
         actions={
-          <Button variant="outline">
-            <ShieldCheck className="text-teal-600" size={18} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleMarkAllRead}
+            disabled={isMarkingAll || unreadCount === 0}
+            className="rounded-md font-medium gap-1.5"
+          >
+            {isMarkingAll ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <ShieldCheck className="text-teal-600" size={15} />
+            )}
             Mark all as read
           </Button>
         }
-        description="Notifications now route customers directly into the correct service, payment, or review workflow."
+        description="Notifications route you directly into the correct service, payment, or schedule workflow."
         eyebrow="Updates"
         title="Notifications"
       />
 
-      <div className="space-y-4">
-        {mockCustomerNotifications.map((notification) => {
-          const Icon = getNotificationIcon(notification.type);
+      <PortalFilterBar
+        filterLabel="Showing:"
+        filters={[
+          { label: "All Updates", value: "all" },
+          { label: "Unread", value: "unread", count: unreadCount },
+          { label: "Services & Maintenance", value: "service-update" },
+          { label: "Orders & Invoices", value: "payment" },
+          { label: "System Alerts", value: "system" },
+        ]}
+        onChange={setActiveTab}
+        value={activeTab}
+      />
 
-          return (
-            <Link
-              className="group block overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition hover:border-teal-200 hover:shadow-md"
-              href={mockNotificationHrefById[notification.id] ?? "/user"}
-              key={notification.id}
-            >
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div className="flex gap-4">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[#E8EDEE] text-primary">
-                    <Icon size={22} />
+      {isLoading ? (
+        <PortalLoading label="Loading notifications..." />
+      ) : filteredNotifications.length === 0 ? (
+        <EmptyState
+          className="py-12"
+          description={
+            activeTab === "unread"
+              ? "You have no unread notifications right now."
+              : "No notifications found in this category."
+          }
+          icon={Bell}
+          title="No notifications found"
+          tone="card"
+        />
+      ) : (
+        <PortalList>
+          {filteredNotifications.map((notification) => {
+            const Icon = getNotificationIcon(notification.type);
+            const routing = resolveNotificationRouting(notification);
+
+            return (
+              <div
+                key={notification.id}
+                className={`group relative flex flex-col justify-between gap-4 overflow-hidden rounded-xl border p-4 sm:p-5 shadow-xs transition ${
+                  !notification.isRead
+                    ? "border-teal-400 bg-teal-50/20 hover:border-teal-500 hover:bg-teal-50/30"
+                    : "border-slate-200 bg-white hover:border-teal-300 hover:shadow-sm"
+                }`}
+              >
+                <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-teal-200 bg-teal-50 text-teal-800 shadow-xs">
+                      <Icon size={18} />
+                    </div>
+
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Link
+                          href={routing.primaryHref}
+                          className="text-base sm:text-lg font-bold text-primary transition hover:text-teal-700"
+                        >
+                          {notification.title}
+                        </Link>
+                        {!notification.isRead ? (
+                          <StatusBadge label="Unread" status="pending" />
+                        ) : null}
+                      </div>
+
+                      {/* Associated ID Badges if available */}
+                      {(routing.serviceRequestId || routing.quotationId) && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          {routing.serviceRequestId && (
+                            <span className="inline-flex items-center rounded bg-slate-100 px-2 py-0.5 text-[11px] font-mono font-medium text-slate-700">
+                              Request: {routing.serviceRequestId}
+                            </span>
+                          )}
+                          {routing.quotationId && (
+                            <span className="inline-flex items-center rounded bg-amber-50 px-2 py-0.5 text-[11px] font-mono font-medium text-amber-800 border border-amber-200/60">
+                              Quote: {routing.quotationId}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-xs sm:text-sm leading-relaxed text-slate-600 font-normal">
+                        {notification.message}
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <h2 className="text-lg font-semibold text-gray-900 transition group-hover:text-teal-700">
-                        {notification.title}
-                      </h2>
-                      {!notification.isRead ? (
-                        <StatusBadge label="Unread" status="pending" />
-                      ) : null}
-                    </div>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-                      {notification.message}
+                  {/* Header Actions: Date & Dismiss */}
+                  <div className="flex shrink-0 items-center justify-between sm:justify-end gap-3 self-stretch sm:self-start sm:flex-col sm:items-end">
+                    <p className="text-xs text-slate-400 font-medium">
+                      {formatLongDate(notification.createdAt)}
                     </p>
-                    {notification.ctaLabel ? (
-                      <div className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-teal-700">
-                        {notification.ctaLabel}
-                        <ArrowRight size={16} />
-                      </div>
-                    ) : null}
+                    <div className="flex items-center gap-1">
+                      {!notification.isRead ? (
+                        <button
+                          onClick={(e) => handleMarkSingle(e, notification.id)}
+                          title="Mark as read"
+                          type="button"
+                          className="rounded-md p-1.5 text-slate-400 hover:bg-teal-100 hover:text-teal-800"
+                        >
+                          <CheckCheck size={16} />
+                        </button>
+                      ) : null}
+                      <button
+                        onClick={(e) => handleDelete(e, notification.id)}
+                        title="Delete notification"
+                        type="button"
+                        className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-500">{formatLongDate(notification.createdAt)}</p>
+                {/* Footer Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-slate-100/80">
+                  {routing.isQuotation && routing.reviewQuotationHref ? (
+                    <>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="rounded-md bg-teal-700 hover:bg-teal-800 text-white font-medium shadow-xs text-xs sm:text-sm"
+                      >
+                        <Link href={routing.reviewQuotationHref}>
+                          <FileText size={14} className="mr-1.5" />
+                          Review Quotation
+                          <ArrowRight size={13} className="ml-1" />
+                        </Link>
+                      </Button>
+
+                      {routing.viewRequestHref && (
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="rounded-md text-slate-700 hover:bg-slate-50 font-medium text-xs sm:text-sm"
+                        >
+                          <Link href={routing.viewRequestHref}>
+                            View Request
+                            <ArrowRight size={13} className="ml-1 text-slate-400" />
+                          </Link>
+                        </Button>
+                      )}
+                    </>
+                  ) : routing.viewRequestHref ? (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="rounded-md bg-teal-700 hover:bg-teal-800 text-white font-medium shadow-xs text-xs sm:text-sm"
+                    >
+                      <Link href={routing.viewRequestHref}>
+                        <Wrench size={14} className="mr-1.5" />
+                        View Request
+                        <ArrowRight size={13} className="ml-1" />
+                      </Link>
+                    </Button>
+                  ) : routing.orderHref ? (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="rounded-md bg-teal-700 hover:bg-teal-800 text-white font-medium shadow-xs text-xs sm:text-sm"
+                    >
+                      <Link href={routing.orderHref}>
+                        View Order
+                        <ArrowRight size={13} className="ml-1" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      asChild
+                      variant="outline"
+                      size="sm"
+                      className="rounded-md text-slate-700 hover:bg-slate-50 font-medium text-xs sm:text-sm"
+                    >
+                      <Link href={routing.primaryHref}>
+                        {notification.ctaLabel || "View Details"}
+                        <ArrowRight size={13} className="ml-1 text-slate-400" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
               </div>
-            </Link>
-          );
-        })}
-      </div>
+            );
+          })}
+        </PortalList>
+      )}
     </div>
   );
 }
+

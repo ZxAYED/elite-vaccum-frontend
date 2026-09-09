@@ -70,12 +70,9 @@ export const productCategorySchema = z.object({
   slug: z
     .string()
     .trim()
-    .min(2, "Slug is required.")
     .max(96, "Slug must be 96 characters or fewer.")
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Use lowercase letters, numbers, and single hyphens only.",
-    ),
+    .optional()
+    .or(z.literal("")),
   description: z
     .string()
     .trim()
@@ -94,12 +91,9 @@ export const productSchema = z.object({
   slug: z
     .string()
     .trim()
-    .min(2, "Slug is required.")
     .max(120, "Slug must be 120 characters or fewer.")
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Use lowercase letters, numbers, and single hyphens only.",
-    ),
+    .optional()
+    .or(z.literal("")),
   categoryId: z.string().trim().min(1, "Choose a category."),
   sku: z
     .string()
@@ -127,8 +121,17 @@ export const productSchema = z.object({
     .number({ error: "Price is required." })
     .min(0, "Price cannot be negative.")
     .max(100000, "Price is too high."),
-  availability: z.enum(["in-stock", "special-order"]),
-  status: z.enum(["active", "draft", "archived"]),
+  availability: z.enum([
+    "IN_STOCK",
+    "LOW_STOCK",
+    "OUT_OF_STOCK",
+    "BACKORDER",
+    "PREORDER",
+    "DISCONTINUED",
+  ]),
+  status: z.enum(["ACTIVE", "DRAFT", "ARCHIVED"]),
+  quantity: z.number().int().min(0),
+  isFeatured: z.boolean(),
   taxable: z.boolean(),
   shippingLabel: z
     .string()
@@ -136,10 +139,43 @@ export const productSchema = z.object({
     .max(120, "Shipping information must be 120 characters or fewer.")
     .optional()
     .or(z.literal("")),
+  imageAlt: z
+    .string()
+    .trim()
+    .max(160, "Image alt text must be 160 characters or fewer.")
+    .optional()
+    .or(z.literal("")),
+  popularityRank: z.number().optional(),
+  highlights: z
+    .array(
+      z.object({
+        text: z.string(),
+        sortOrder: z.number().optional(),
+      }),
+    )
+    .optional(),
+  specifications: z
+    .array(
+      z.object({
+        label: z.string(),
+        value: z.string(),
+        sortOrder: z.number().optional(),
+      }),
+    )
+    .optional(),
+  shippingNotes: z
+    .array(
+      z.object({
+        text: z.string(),
+        sortOrder: z.number().optional(),
+      }),
+    )
+    .optional(),
   images: z
     .string()
     .trim()
     .min(1, "Upload at least 1 product image."),
+  deleteImageIds: z.array(z.string()).optional(),
 });
 
 export const serviceCatalogSchema = z.object({
@@ -148,15 +184,7 @@ export const serviceCatalogSchema = z.object({
     .trim()
     .min(2, "Service name is required.")
     .max(80, "Service name must be 80 characters or fewer."),
-  slug: z
-    .string()
-    .trim()
-    .min(2, "Slug is required.")
-    .max(96, "Slug must be 96 characters or fewer.")
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      "Use lowercase letters, numbers, and single hyphens only.",
-    ),
+  group: z.string().min(1, "Group is required."),
   summary: z
     .string()
     .trim()
@@ -168,25 +196,9 @@ export const serviceCatalogSchema = z.object({
     .max(360, "Detailed description must be 360 characters or fewer.")
     .optional()
     .or(z.literal("")),
-  group: z.enum(["Service & Maintenance", "Installation"]),
-  iconKey: z.enum([
-    "home-plus",
-    "wrench",
-    "activity",
-    "shield",
-    "sparkles",
-    "sliders",
-    "upload",
-    "compass",
-  ]),
+  iconKey: z.string().min(1, "Icon is required."),
+  recommendedSymptoms: z.array(z.string()).optional(),
   status: z.enum(["ACTIVE", "INACTIVE"]),
-  sortOrder: z
-    .number({
-      error: "Display order is required.",
-    })
-    .int("Display order must be a whole number.")
-    .min(1, "Display order must be at least 1.")
-    .max(999, "Display order must be 999 or fewer."),
 });
 
 export const technicianSchema = z.object({
@@ -200,7 +212,7 @@ export const technicianSchema = z.object({
     message: "Phone is required.",
   }),
   status: z.enum(["ACTIVE", "INACTIVE"]),
-  availability: z.enum(["AVAILABLE", "BUSY", "OFF_DUTY"]),
+  availability: z.enum(["AVAILABLE", "BUSY", "ON_BREAK", "OFF_DUTY"]),
   notes: z
     .string()
     .trim()

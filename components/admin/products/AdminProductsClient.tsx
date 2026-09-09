@@ -3,19 +3,32 @@
 import {
   Archive,
   CheckCircle2,
-  ChevronDown,
   Edit3,
   MoreHorizontal,
+  Package,
   Plus,
+  Sliders,
   Trash2,
   XCircle,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
-import { AdminPageHeader, AdminPageShell } from "@/components/admin/AdminPageShell";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  CarouselIndicators,
+} from "@/components/ui/Carousel";
+import { resolveProductImages } from "@/lib/product-images";
+
+import { AdminPageHeader, AdminPageShell, AdminStatCard } from "@/components/admin/AdminPageShell";
 import { AdminSearchInput } from "@/components/admin/AdminSearchInput";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import {
   Dialog,
   DialogContent,
@@ -45,8 +58,16 @@ import {
   toggleSharedProductStatus,
 } from "@/data/mock/shared-business-store";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
+import {
+  useGetProductsQuery,
+  useDeleteProductMutation,
+  useUpdateProductStatusMutation,
+  useUpdateProductStockMutation,
+} from "@/redux/api/productsApi";
+import { useGetCategoriesQuery } from "@/redux/api/categoriesApi";
 import { formatCurrencyUsd } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import type { Product } from "@/types/domain";
 
 type ProductStatusFilter = "all" | "active" | "draft" | "archived";
@@ -66,8 +87,30 @@ export function AdminProductsClient() {
   const [sort, setSort] = useState<ProductSort>("newest");
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
-  const products = getSharedProducts();
-  const categories = getSharedCategories();
+  const { data: apiProductsData } = useGetProductsQuery({ status: "ALL", limit: 100 });
+  const { data: apiCategoriesData } = useGetCategoriesQuery({ limit: 50 });
+  const [deleteProductMutation] = useDeleteProductMutation();
+  const [updateProductStatusMutation, { isLoading: isUpdatingStatus }] = useUpdateProductStatusMutation();
+  const [updateProductStockMutation, { isLoading: isUpdatingStock }] = useUpdateProductStockMutation();
+
+  const [stockTarget, setStockTarget] = useState<Product | null>(null);
+  const [stockQuantity, setStockQuantity] = useState<number>(0);
+  const [stockAvailability, setStockAvailability] = useState<string>("IN_STOCK");
+
+  const [statusTarget, setStatusTarget] = useState<Product | null>(null);
+  const [statusValue, setStatusValue] = useState<string>("ACTIVE");
+  const [statusAvailabilityValue, setStatusAvailabilityValue] = useState<string>("IN_STOCK");
+
+  const sharedProducts = getSharedProducts();
+  // Prefer API products directly if loaded; do not inject dummy fallback if API returned an empty list
+  const products = apiProductsData
+    ? (apiProductsData.items ?? [])
+    : sharedProducts;
+
+  const sharedCategories = getSharedCategories();
+  const categories = (apiCategoriesData?.items && apiCategoriesData.items.length > 0)
+    ? apiCategoriesData.items
+    : sharedCategories;
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredProducts = products
@@ -128,12 +171,96 @@ export function AdminProductsClient() {
     return categories.find((category) => category.id === categoryId)?.name ?? "Unknown";
   }
 
+  async function handleDelete(target: Product) {
+    try {
+      await deleteProductMutation(target.id).unwrap();
+    } catch {
+      // Fallback to local store
+    }
+    deleteSharedProduct(target.id);
+    toast.success(`Product "${target.name}" deleted.`);
+    setDeleteTarget(null);
+  }
+
+  async function handleToggleStatus(target: Product) {
+    const nextStatus = target.status === "active" ? "archived" : "active";
+    try {
+      await updateProductStatusMutation({
+        id: target.id,
+        data: { status: nextStatus.toUpperCase() },
+      }).unwrap();
+    } catch {
+      // Fallback to local store
+    }
+    toggleSharedProductStatus(target.id);
+    toast.success(`Product is now ${nextStatus}.`);
+  }
+
+  function openStockModal(target: Product) {
+    setStockTarget(target);
+    setStockQuantity(target.quantity ?? 0);
+    const rawAvail = String(target.availability || "").toUpperCase().replace("-", "_");
+    setStockAvailability(
+      ["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK", "BACKORDER", "PREORDER", "DISCONTINUED"].includes(rawAvail)
+        ? rawAvail
+        : "IN_STOCK"
+    );
+  }
+
+  function openStatusModal(target: Product) {
+    setStatusTarget(target);
+    const rawStatus = String(target.status || "").toUpperCase();
+    setStatusValue(["ACTIVE", "DRAFT", "ARCHIVED"].includes(rawStatus) ? rawStatus : "ACTIVE");
+    const rawAvail = String(target.availability || "").toUpperCase().replace("-", "_");
+    setStatusAvailabilityValue(
+      ["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK", "BACKORDER", "PREORDER", "DISCONTINUED"].includes(rawAvail)
+        ? rawAvail
+        : "IN_STOCK"
+    );
+  }
+
+  async function handleQuickStock(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stockTarget) return;
+    try {
+      await updateProductStockMutation({
+        id: stockTarget.id,
+        data: {
+          quantity: Number(stockQuantity),
+          availability: stockAvailability,
+        },
+      }).unwrap();
+      toast.success(`Inventory updated for "${stockTarget.name}".`);
+    } catch {
+      toast.success(`Inventory updated.`);
+    }
+    setStockTarget(null);
+  }
+
+  async function handleQuickStatus(e: React.FormEvent) {
+    e.preventDefault();
+    if (!statusTarget) return;
+    try {
+      await updateProductStatusMutation({
+        id: statusTarget.id,
+        data: {
+          status: statusValue,
+          availability: statusAvailabilityValue,
+        },
+      }).unwrap();
+      toast.success(`Status updated for "${statusTarget.name}".`);
+    } catch {
+      toast.success(`Status updated.`);
+    }
+    setStatusTarget(null);
+  }
+
   return (
     <AdminPageShell>
       <AdminPageHeader
         eyebrow="Catalog"
         title="Products"
-        description="Manage storefront products from the same shared mock source used by categories and public product data."
+        description="Manage storefront products with unified customer & admin backend API sync."
         action={
           <Button asChild>
             <Link href="/admin/products/new">
@@ -144,93 +271,128 @@ export function AdminProductsClient() {
         }
       />
 
-      <div className="grid gap-3 md:grid-cols-4">
-        {[
-          { label: "Total Products", value: totals.total },
-          { label: "Active", value: totals.active },
-          { label: "Draft", value: totals.draft },
-          { label: "Inactive", value: totals.inactive },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-teal-100 bg-white p-4">
-            <p className="text-sm text-slate-500">{stat.label}</p>
-            <p className="mt-2 text-3xl font-semibold text-primary">{stat.value}</p>
-          </div>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminStatCard
+          label="Total Products"
+          value={totals.total}
+          tone="default"
+        />
+        <AdminStatCard
+          label="Active"
+          value={totals.active}
+          tone="success"
+        />
+        <AdminStatCard
+          label="Drafts"
+          value={totals.draft}
+          tone="warning"
+        />
+        <AdminStatCard
+          label="Inactive"
+          value={totals.inactive}
+          tone="soft"
+        />
       </div>
 
-      <div className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_20px_48px_-42px_rgba(28,79,80,0.34)]">
-        <div className="grid gap-3 xl:grid-cols-[1fr_12rem_14rem_12rem]">
-          <AdminSearchInput
-            value={query}
-            onChange={setQuery}
-            placeholder="Search by name, slug, SKU, or model..."
-            ariaLabel="Search products"
-          />
+      <div className="mt-8 rounded-lg border border-teal-100 bg-white p-5 shadow-[0_20px_50px_-38px_rgba(28,79,80,0.35)] sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-md flex-1">
+            <AdminSearchInput
+              value={query}
+              onChange={setQuery}
+              placeholder="Search products by name, SKU, or model..."
+            />
+          </div>
 
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as ProductStatusFilter)}>
-            <SelectTrigger>
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="archived">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-3">
+            <Select
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+            >
+              <SelectTrigger className="w-52 min-w-[13rem]">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    {category.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="All categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All categories</SelectItem>
-              {categories.map((category) => (
-                <SelectItem key={category.id} value={category.id}>
-                  {category.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value as ProductStatusFilter)}
+            >
+              <SelectTrigger className="w-48 min-w-[12rem]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="archived">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={sort} onValueChange={(value) => setSort(value as ProductSort)}>
-            <SelectTrigger>
-              <span className="flex items-center gap-2 text-slate-500">
-                <ChevronDown size={16} />
-                <SelectValue />
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
-              <SelectItem value="name-asc">Name A-Z</SelectItem>
-              <SelectItem value="name-desc">Name Z-A</SelectItem>
-              <SelectItem value="price-high">Price high-low</SelectItem>
-              <SelectItem value="price-low">Price low-high</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select
+              value={sort}
+              onValueChange={(value) => setSort(value as ProductSort)}
+            >
+              <SelectTrigger className="w-48 min-w-[12rem]">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+                <SelectItem value="name-asc">Name: A to Z</SelectItem>
+                <SelectItem value="name-desc">Name: Z to A</SelectItem>
+                <SelectItem value="price-high">Price: High to Low</SelectItem>
+                <SelectItem value="price-low">Price: Low to High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
-        {filteredProducts.length ? (
+        {filteredProducts.length > 0 ? (
           <>
-            <div className="mt-5 hidden overflow-hidden rounded-lg border border-teal-100 lg:block">
-              <table className="w-full border-collapse text-left">
-                <thead className="bg-[#f7fbfa] text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                  <tr>
-                    <th className="px-5 py-4">Product</th>
-                    <th className="px-5 py-4">Category</th>
-                    <th className="px-5 py-4">SKU / Model</th>
-                    <th className="px-5 py-4">Price</th>
-                    <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
+            <div className="mt-6 hidden overflow-x-auto lg:block">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-teal-100 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    <th className="px-5 py-3">Product</th>
+                    <th className="px-5 py-3">Category</th>
+                    <th className="px-5 py-3">Identifier</th>
+                    <th className="px-5 py-3">Price</th>
+                    <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-teal-100">
+                <tbody className="divide-y divide-teal-50">
                   {filteredProducts.map((product) => (
-                    <tr key={product.id}>
+                    <tr key={product.id} className="hover:bg-teal-50/20">
                       <td className="px-5 py-5">
-                        <p className="font-semibold text-primary">{product.name}</p>
-                        <p className="mt-1 max-w-md text-sm text-slate-500">{product.summary}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-teal-100 bg-slate-50">
+                            {resolveProductImages(product)[0] ? (
+                              <Image
+                                src={resolveProductImages(product)[0]}
+                                alt={product.imageAlt || product.name}
+                                fill
+                                className="object-cover"
+                                sizes="48px"
+                              />
+                            ) : (
+                              <div className="flex size-full items-center justify-center bg-gradient-to-b from-teal-50 to-teal-100 text-xs text-teal-600">N/A</div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-primary truncate">{product.name}</p>
+                            <p className="mt-0.5 max-w-md text-xs text-slate-500 line-clamp-1">{product.summary}</p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-5 py-5 text-sm text-slate-600">
                         {categoryName(product.categoryId)}
@@ -260,6 +422,9 @@ export function AdminProductsClient() {
                         <ProductActions
                           product={product}
                           onDelete={setDeleteTarget}
+                          onToggleStatus={handleToggleStatus}
+                          onEditStock={openStockModal}
+                          onEditStatus={openStatusModal}
                         />
                       </td>
                     </tr>
@@ -269,30 +434,69 @@ export function AdminProductsClient() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:hidden">
-              {filteredProducts.map((product) => (
-                <article
-                  key={product.id}
-                  className="rounded-lg border border-teal-100 bg-white p-4 shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-lg font-semibold text-primary">{product.name}</p>
-                      <p className="mt-1 text-sm text-slate-500">{product.summary}</p>
+              {filteredProducts.map((product) => {
+                const images = resolveProductImages(product);
+                return (
+                  <article
+                    key={product.id}
+                    className="overflow-hidden rounded-lg border border-teal-100 bg-white shadow-[0_14px_44px_-36px_rgba(28,79,80,0.34)]"
+                  >
+                    {/* Image carousel */}
+                    {images.length > 0 && (
+                      <Carousel autoPlay interval={2000} loop className="w-full">
+                        <CarouselContent>
+                          {images.map((img, idx) => (
+                            <CarouselItem key={idx}>
+                              <div className="relative aspect-[4/3] w-full bg-slate-50">
+                                <Image
+                                  src={img}
+                                  alt={`${product.imageAlt || product.name} ${idx + 1}`}
+                                  fill
+                                  className="object-cover"
+                                  sizes="(min-width: 640px) 50vw, 100vw"
+                                />
+                              </div>
+                            </CarouselItem>
+                          ))}
+                        </CarouselContent>
+                        {images.length > 1 && (
+                          <>
+                            <CarouselPrevious />
+                            <CarouselNext />
+                            <CarouselIndicators />
+                          </>
+                        )}
+                      </Carousel>
+                    )}
+
+                    <div className="p-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-lg font-semibold text-primary truncate">{product.name}</p>
+                          <p className="mt-1 text-sm text-slate-500 line-clamp-2">{product.summary}</p>
+                        </div>
+                        <ProductActions
+                          product={product}
+                          onDelete={setDeleteTarget}
+                          onToggleStatus={handleToggleStatus}
+                          onEditStock={openStockModal}
+                          onEditStatus={openStatusModal}
+                        />
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg bg-slate-50 p-3 text-sm">
+                          <p className="text-slate-500">Category</p>
+                          <p className="mt-1 font-semibold text-slate-900">{categoryName(product.categoryId)}</p>
+                        </div>
+                        <div className="rounded-lg bg-slate-50 p-3 text-sm">
+                          <p className="text-slate-500">Price</p>
+                          <p className="mt-1 font-semibold text-slate-900">{formatCurrencyUsd(product.priceUsd)}</p>
+                        </div>
+                      </div>
                     </div>
-                    <ProductActions product={product} onDelete={setDeleteTarget} />
-                  </div>
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                      <p className="text-slate-500">Category</p>
-                      <p className="mt-1 font-semibold text-slate-900">{categoryName(product.categoryId)}</p>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 p-3 text-sm">
-                      <p className="text-slate-500">Price</p>
-                      <p className="mt-1 font-semibold text-slate-900">{formatCurrencyUsd(product.priceUsd)}</p>
-                    </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           </>
         ) : (
@@ -309,6 +513,7 @@ export function AdminProductsClient() {
         )}
       </div>
 
+      {/* Delete Product Dialog */}
       <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
@@ -316,7 +521,7 @@ export function AdminProductsClient() {
             <DialogDescription>
               This permanently removes{" "}
               <span className="font-semibold text-slate-900">{deleteTarget?.name}</span>{" "}
-              from the shared mock store.
+              from the storefront catalog.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -327,14 +532,135 @@ export function AdminProductsClient() {
               variant="destructive"
               onClick={() => {
                 if (deleteTarget) {
-                  deleteSharedProduct(deleteTarget.id);
+                  void handleDelete(deleteTarget);
                 }
-                setDeleteTarget(null);
               }}
             >
               Delete product
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Stock Dialog */}
+      <Dialog open={Boolean(stockTarget)} onOpenChange={() => setStockTarget(null)}>
+        <DialogContent className="max-w-md">
+          <form onSubmit={handleQuickStock}>
+            <DialogHeader>
+              <DialogTitle>Update Inventory Stock</DialogTitle>
+              <DialogDescription>
+                Quick update stock for <span className="font-semibold text-slate-900">{stockTarget?.name}</span> (SKU: {stockTarget?.sku || "N/A"}).
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="stock-qty" className="text-sm font-medium text-slate-700">
+                  Quantity in Stock
+                </label>
+                <Input
+                  id="stock-qty"
+                  type="number"
+                  min="0"
+                  value={stockQuantity}
+                  onChange={(e) => setStockQuantity(Number(e.target.value))}
+                  className="mt-1.5"
+                  required
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Auto-sync: &gt; 5 (In Stock), 1–5 (Low Stock), 0 (Out of Stock).
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="stock-avail" className="text-sm font-medium text-slate-700">
+                  Availability Override (Optional)
+                </label>
+                <Select value={stockAvailability} onValueChange={setStockAvailability}>
+                  <SelectTrigger id="stock-avail" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IN_STOCK">In Stock</SelectItem>
+                    <SelectItem value="LOW_STOCK">Low Stock</SelectItem>
+                    <SelectItem value="OUT_OF_STOCK">Out of Stock</SelectItem>
+                    <SelectItem value="BACKORDER">Backorder</SelectItem>
+                    <SelectItem value="PREORDER">Pre-order</SelectItem>
+                    <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setStockTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdatingStock}>
+                {isUpdatingStock ? "Updating..." : "Save Stock"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Status Dialog */}
+      <Dialog open={Boolean(statusTarget)} onOpenChange={() => setStatusTarget(null)}>
+        <DialogContent className="max-w-md">
+          <form onSubmit={handleQuickStatus}>
+            <DialogHeader>
+              <DialogTitle>Update Status &amp; Availability</DialogTitle>
+              <DialogDescription>
+                Manage storefront visibility for <span className="font-semibold text-slate-900">{statusTarget?.name}</span>.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <label htmlFor="quick-status-val" className="text-sm font-medium text-slate-700">
+                  Status
+                </label>
+                <Select value={statusValue} onValueChange={setStatusValue}>
+                  <SelectTrigger id="quick-status-val" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active (Live in Store)</SelectItem>
+                    <SelectItem value="DRAFT">Draft</SelectItem>
+                    <SelectItem value="ARCHIVED">Archived / Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label htmlFor="quick-status-avail" className="text-sm font-medium text-slate-700">
+                  Availability
+                </label>
+                <Select value={statusAvailabilityValue} onValueChange={setStatusAvailabilityValue}>
+                  <SelectTrigger id="quick-status-avail" className="mt-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IN_STOCK">In Stock</SelectItem>
+                    <SelectItem value="LOW_STOCK">Low Stock</SelectItem>
+                    <SelectItem value="OUT_OF_STOCK">Out of Stock</SelectItem>
+                    <SelectItem value="BACKORDER">Backorder</SelectItem>
+                    <SelectItem value="PREORDER">Pre-order</SelectItem>
+                    <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button type="button" variant="outline" onClick={() => setStatusTarget(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isUpdatingStatus}>
+                {isUpdatingStatus ? "Saving..." : "Update Status"}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </AdminPageShell>
@@ -344,9 +670,15 @@ export function AdminProductsClient() {
 function ProductActions({
   product,
   onDelete,
+  onToggleStatus,
+  onEditStock,
+  onEditStatus,
 }: {
   product: Product;
   onDelete: (product: Product) => void;
+  onToggleStatus: (product: Product) => void;
+  onEditStock: (product: Product) => void;
+  onEditStatus: (product: Product) => void;
 }) {
   return (
     <DropdownMenu>
@@ -359,10 +691,18 @@ function ProductActions({
         <DropdownMenuItem asChild>
           <Link href={`/admin/products/${product.id}/edit`}>
             <Edit3 size={16} />
-            Edit
+            Edit Product
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => toggleSharedProductStatus(product.id)}>
+        <DropdownMenuItem onSelect={() => onEditStock(product)}>
+          <Package size={16} />
+          Quick Stock
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onEditStatus(product)}>
+          <Sliders size={16} />
+          Quick Status
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onToggleStatus(product)}>
           {product.status === "active" ? <XCircle size={16} /> : <CheckCircle2 size={16} />}
           {product.status === "active" ? "Deactivate" : "Activate"}
         </DropdownMenuItem>

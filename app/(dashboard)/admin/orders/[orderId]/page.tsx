@@ -1,6 +1,4 @@
 import { AdminOrderDetailClient } from "@/components/admin/orders/AdminOrderDetailClient";
-import { getAdminOrderById } from "@/data/mock/admin-orders";
-import { notFound } from "next/navigation";
 
 interface AdminOrderDetailPageProps {
   params: Promise<{
@@ -13,9 +11,7 @@ export default async function AdminOrderDetailPage({
 }: AdminOrderDetailPageProps) {
   const { orderId } = await params;
 
-  if (!getAdminOrderById(orderId)) {
-    notFound();
-  }
-
+  // Existence is decided by `GET /store/orders/:id`, which the client owns —
+  // the id may be a UUID or a businessId ("ORD-4F92A").
   return <AdminOrderDetailClient orderId={orderId} />;
 }

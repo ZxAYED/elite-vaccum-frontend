@@ -8,5 +8,6 @@ export default async function ServiceQuotationRedirectPage({
   params,
 }: ServiceQuotationRedirectPageProps) {
   const { requestId } = await params;
-  redirect(`/user/quotations/${requestId}`);
+  redirect(`/user/services/${requestId}#quotation`);
 }
+

@@ -147,16 +147,16 @@ export function getAdminOrderById(orderId: string) {
     ?? getSharedAdminServiceOrderById(orderId);
 }
 
-export function getAdminOrderCustomer(order: AdminUnifiedOrder) {
-  return getSharedCustomerById(order.customerId);
+export function getAdminOrderCustomer(order?: AdminUnifiedOrder) {
+  return order?.customerId ? getSharedCustomerById(order.customerId) : undefined;
 }
 
-export function getAdminOrderPayment(order: AdminUnifiedOrder) {
-  return order.paymentId ? getBillingPaymentById(order.paymentId) : undefined;
+export function getAdminOrderPayment(order?: AdminUnifiedOrder) {
+  return order?.paymentId ? getBillingPaymentById(order.paymentId) : undefined;
 }
 
-export function getAdminOrderInvoice(order: AdminUnifiedOrder) {
-  return order.invoiceId ? getBillingInvoiceById(order.invoiceId) : undefined;
+export function getAdminOrderInvoice(order?: AdminUnifiedOrder) {
+  return order?.invoiceId ? getBillingInvoiceById(order.invoiceId) : undefined;
 }
 
 export function getTechnicianAvailabilityOptions() {

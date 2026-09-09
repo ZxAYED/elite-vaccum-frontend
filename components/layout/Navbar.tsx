@@ -19,7 +19,6 @@ import {
   UserCog,
   UserPlus,
   Wrench,
-  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -37,8 +36,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/Sheet";
 import logo from "@/public/logo.png";
 import { useLogoutMutation } from "@/redux/api/authApi";
+import { useGetUnreadNotificationsCountQuery } from "@/redux/api/notificationsApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { logout } from "@/redux/slices/authSlice";
 
@@ -55,11 +63,13 @@ function NavIconButton({
   label,
   children,
   withBadge = false,
+  badgeCount,
 }: {
   href: string;
   label: string;
   children: React.ReactNode;
   withBadge?: boolean;
+  badgeCount?: number;
 }) {
   return (
     <Link
@@ -68,7 +78,11 @@ function NavIconButton({
       href={href}
     >
       {children}
-      {withBadge ? (
+      {typeof badgeCount === "number" && badgeCount > 0 ? (
+        <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+          {badgeCount > 99 ? "99+" : badgeCount}
+        </span>
+      ) : withBadge ? (
         <span className="absolute right-2 top-2 size-2 rounded-full bg-[#0ea5b7]" />
       ) : null}
     </Link>
@@ -131,9 +145,18 @@ export function Navbar() {
       ? "/technician/notifications"
       : "/user/notifications";
 
+  const cartItemsCount = useAppSelector((state) =>
+    state.cart.items.reduce((acc, item) => acc + item.quantity, 0),
+  );
+  const { data: unreadNotificationsData } = useGetUnreadNotificationsCountQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const unreadNotificationCount = unreadNotificationsData?.unreadCount ?? 0;
+
   return (
-    <header className="sticky top-0 z-50 border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-360 items-center justify-between px-4 py-4">
+    <header className="h-[4.875rem]">
+      <div className="fixed inset-x-0 top-0 z-[70] border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
+      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-0">
         <Link
           href="/"
           className="flex items-center gap-2 font-bold text-xl text-primary"
@@ -159,13 +182,13 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
-          <NavIconButton href="/cart" label="Open cart">
+          <NavIconButton href="/cart" label="Open cart" badgeCount={cartItemsCount}>
             <ShoppingCart size={18} />
           </NavIconButton>
           <NavIconButton
             href={notificationsHref}
-            label="View notifications"
-            withBadge
+            label={unreadNotificationCount > 0 ? `View notifications (${unreadNotificationCount} unread)` : "View notifications"}
+            badgeCount={isAuthenticated ? unreadNotificationCount : 0}
           >
             <Bell size={18} />
           </NavIconButton>
@@ -311,7 +334,7 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/admin/profile"
+                        href="/admin/settings"
                         className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
                       >
                         <UserCircle2 size={16} className="text-teal-600" />
@@ -387,11 +410,11 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/technician/profile"
+                        href="/technician/settings"
                         className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
                       >
                         <UserCircle2 size={16} className="text-teal-600" />
-                        My Profile
+                        Settings
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
@@ -472,11 +495,11 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
-                        href="/user/profile"
+                        href="/user/settings"
                         className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
                       >
                         <UserCircle2 size={16} className="text-teal-600" />
-                        Profile
+                        Settings
                       </Link>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
@@ -494,120 +517,153 @@ export function Navbar() {
           </DropdownMenu>
 
           {/* Mobile hamburger trigger */}
-          <button
-            className="inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-[var(--brand-soft)] xl:hidden"
-            onClick={() => setIsOpen(!isOpen)}
-            aria-label="Toggle menu"
-            type="button"
-          >
-            {isOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
+          <Sheet open={isOpen} onOpenChange={setIsOpen}>
+            <SheetTrigger asChild>
+              <button
+                className="inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary shadow-sm transition hover:bg-[var(--brand-soft)] xl:hidden"
+                aria-label="Open menu"
+                type="button"
+              >
+                <Menu size={22} />
+              </button>
+            </SheetTrigger>
+            <SheetContent className="overflow-y-auto p-5 xl:hidden">
+              <SheetHeader className="border-b border-teal-100 px-1 pb-5 pr-12 pt-1">
+                <Link
+                  href="/"
+                  className="inline-flex w-fit items-center"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <Image
+                    src={logo}
+                    alt="Elite Central Vacuum logo"
+                    priority
+                    className="h-auto w-[6rem]"
+                  />
+                </Link>
+                <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+                <SheetDescription className="sr-only">
+                  Site navigation, account links, cart, and notifications.
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="flex flex-col gap-5">
+                {/* Quick action bar */}
+                <div className="flex items-center justify-between border-b border-teal-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <Link
+                      aria-label="Open cart"
+                      className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
+                      href="/cart"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <ShoppingCart size={18} />
+                      {cartItemsCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+                          {cartItemsCount > 99 ? "99+" : cartItemsCount}
+                        </span>
+                      ) : null}
+                    </Link>
+                    <Link
+                      aria-label="View notifications"
+                      className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
+                      href={notificationsHref}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Bell size={18} />
+                      {isAuthenticated && unreadNotificationCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
+                          {unreadNotificationCount > 99
+                            ? "99+"
+                            : unreadNotificationCount}
+                        </span>
+                      ) : null}
+                    </Link>
+                  </div>
+
+                  {isAuthenticated ? (
+                    <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-teal-800">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 font-bold text-teal-900">
+                        {initials}
+                      </span>
+                      <span className="truncate">{fullName}</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Navigation links */}
+                <div className="flex flex-col gap-3">
+                  {navItems.map((item) => (
+                    <Link
+                      href={item.href}
+                      className={navLinkClass(item.href)}
+                      key={item.href}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Mobile Auth Actions */}
+                <div className="border-t border-teal-100 pt-3">
+                  {!isAuthenticated ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <Button asChild size="pill" variant="outline">
+                        <Link
+                          href="/auth/login"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Sign in
+                        </Link>
+                      </Button>
+                      <Button asChild size="pill">
+                        <Link
+                          href="/auth/register"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Sign up
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Button asChild size="pill">
+                        <Link
+                          href={
+                            isAdmin
+                              ? "/admin"
+                              : isTechnician
+                                ? "/technician"
+                                : "/user"
+                          }
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <LayoutDashboard size={16} />
+                          Go to Dashboard
+                        </Link>
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setIsOpen(false);
+                          handleLogout();
+                        }}
+                        size="pill"
+                        variant="ghost"
+                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      >
+                        <LogOut size={16} />
+                        Logout
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </nav>
-
-      {/* Mobile Drawer */}
-      {isOpen ? (
-        <div className="border-t border-[#e5f2ef] xl:hidden">
-          <div className="mx-auto flex max-w-360 flex-col gap-5 px-4 py-5">
-            {/* Quick action bar */}
-            <div className="flex items-center justify-between border-b border-teal-100 pb-4">
-              <div className="flex items-center gap-3">
-                <Link
-                  aria-label="Open cart"
-                  className="inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
-                  href="/cart"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <ShoppingCart size={18} />
-                </Link>
-                <Link
-                  aria-label="View notifications"
-                  className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
-                  href={notificationsHref}
-                  onClick={() => setIsOpen(false)}
-                >
-                  <Bell size={18} />
-                  <span className="absolute right-2 top-2 size-2 rounded-full bg-[#0ea5b7]" />
-                </Link>
-              </div>
-
-              {isAuthenticated ? (
-                <div className="flex items-center gap-2 text-xs font-semibold text-teal-800">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-teal-100 text-teal-900 font-bold">
-                    {initials}
-                  </span>
-                  <span className="max-w-32 truncate">{fullName}</span>
-                </div>
-              ) : null}
-            </div>
-
-            {/* Navigation links */}
-            <div className="flex flex-col gap-3">
-              {navItems.map((item) => (
-                <Link
-                  href={item.href}
-                  className={navLinkClass(item.href)}
-                  key={item.href}
-                  onClick={() => setIsOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
-
-            {/* Mobile Auth Actions */}
-            <div className="border-t border-teal-100 pt-3">
-              {!isAuthenticated ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button asChild size="pill" variant="outline">
-                    <Link href="/auth/login" onClick={() => setIsOpen(false)}>
-                      Sign in
-                    </Link>
-                  </Button>
-                  <Button asChild size="pill">
-                    <Link
-                      href="/auth/register"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      Sign up
-                    </Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Button asChild size="pill">
-                    <Link
-                      href={
-                        isAdmin
-                          ? "/admin"
-                          : isTechnician
-                            ? "/technician"
-                            : "/user"
-                      }
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <LayoutDashboard size={16} />
-                      Go to Dashboard
-                    </Link>
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setIsOpen(false);
-                      handleLogout();
-                    }}
-                    size="pill"
-                    variant="ghost"
-                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-                  >
-                    <LogOut size={16} />
-                    Logout
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
+      </div>
     </header>
   );
 }

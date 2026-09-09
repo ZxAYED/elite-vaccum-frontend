@@ -12,7 +12,14 @@ export type ProductStatus = "active" | "draft" | "archived";
 export type ProductAvailability = "in-stock" | "special-order";
 export type ServiceStatus = "active" | "inactive";
 export type ServiceCatalogStatus = "ACTIVE" | "INACTIVE";
-export type ServiceUrgency = "normal" | "priority" | "urgent";
+export type ServiceUrgency =
+  | "LOW"
+  | "MEDIUM"
+  | "HIGH"
+  | "EMERGENCY"
+  | "normal"
+  | "priority"
+  | "urgent";
 export type ServiceRequestStatus =
   | "draft"
   | "submitted"
@@ -30,7 +37,9 @@ export type QuoteStatus =
   | "viewed"
   | "accepted"
   | "rejected"
-  | "expired";
+  | "expired"
+  | "awaiting_payment"
+  | "awaiting-payment";
 export type AppointmentStatus =
   | "requested"
   | "confirmed"
@@ -40,7 +49,7 @@ export type AppointmentStatus =
   | "cancelled";
 export type TechnicianStatus = "available" | "on-job" | "offline";
 export type AdminTechnicianStatus = "ACTIVE" | "INACTIVE";
-export type TechnicianAvailability = "AVAILABLE" | "BUSY" | "OFF_DUTY";
+export type TechnicianAvailability = "AVAILABLE" | "BUSY" | "ON_BREAK" | "OFF_DUTY";
 export type OrderStatus =
   | "pending"
   | "confirmed"
@@ -95,6 +104,7 @@ export interface Address {
   state: string;
   postalCode: string;
   country: string;
+  isDefault?: boolean;
 }
 
 export interface User {
@@ -195,11 +205,61 @@ export interface ProductCategory {
   status: ServiceCatalogStatus;
   createdAt: string;
   updatedAt: string;
+  productCount?: number;
+  imageUrl?: string | null;
+  sortOrder?: number;
+  icon?: string | null;
+  _count?: {
+    products?: number;
+  };
+}
+
+export interface ProductImageItem {
+  id?: string;
+  productId?: string;
+  key?: string;
+  url: string;
+  alt?: string;
+  isPrimary?: boolean;
+  sortOrder?: number;
+  createdAt?: string;
+}
+
+export interface ProductHighlightItem {
+  id?: string;
+  productId?: string;
+  text: string;
+  sortOrder?: number;
+  createdAt?: string;
+}
+
+export interface ProductSpecificationItem {
+  id?: string;
+  productId?: string;
+  label: string;
+  value: string;
+  sortOrder?: number;
+  createdAt?: string;
+}
+
+export interface ProductShippingNoteItem {
+  id?: string;
+  productId?: string;
+  text: string;
+  sortOrder?: number;
+  createdAt?: string;
 }
 
 export interface Product {
   id: string;
   categoryId: string;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+    status?: string;
+  };
+  categorySlug?: string;
   slug: string;
   name: string;
   sku?: string;
@@ -208,20 +268,28 @@ export interface Product {
   summary: string;
   description: string;
   priceUsd: number;
+  quantity?: number;
   status: ProductStatus;
   availability?: ProductAvailability;
   taxable?: boolean;
+  isFeatured?: boolean;
   shippingLabel?: string;
-  images?: string[];
+  images?: Array<string | ProductImageItem>;
   popularityRank?: number;
   addedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
   imageAlt: string;
-  highlights?: string[];
+  highlights?: Array<string | ProductHighlightItem>;
   specifications?: Array<{
+    id?: string;
+    productId?: string;
     label: string;
     value: string;
+    sortOrder?: number;
+    createdAt?: string;
   }>;
-  shippingNotes?: string[];
+  shippingNotes?: Array<string | ProductShippingNoteItem>;
 }
 
 export interface Service {
@@ -245,12 +313,19 @@ export type PublicServiceIconKey =
   | "sparkles"
   | "sliders"
   | "upload"
-  | "compass";
+  | "compass"
+  | "Building2"
+  | "Home"
+  | "Wrench"
+  | "ShieldCheck"
+  | string;
 
 export interface ServiceOffering {
+  id?: string;
+  key?: string;
   slug: string;
   serviceId: string;
-  group: PublicServiceGroup;
+  group: PublicServiceGroup | "SERVICE_AND_MAINTENANCE" | "INSTALLATION" | string;
   title: string;
   summary: string;
   description?: string;
@@ -258,6 +333,9 @@ export interface ServiceOffering {
   image?: string;
   status: ProductCategoryStatus;
   sortOrder?: number;
+  recommendedSymptoms?: string[];
+  requestCount?: number;
+  reviewCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -383,6 +461,7 @@ export interface ScheduleCancellationEntry {
 
 export interface ServiceRequest {
   id: string;
+  businessId?: string;
   customerId: string;
   serviceId: string;
   title: string;
@@ -392,7 +471,16 @@ export interface ServiceRequest {
   preferredDate: string;
   preferredTime: string;
   propertyLabel: string;
-  serviceAddress: Address;
+  serviceAddress: Address & {
+    contactName?: string;
+    contactPhone?: string;
+    contactEmail?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    problemLocation?: string;
+  };
   estimatedAmountUsd?: number;
   assignedTechnicianId?: string;
   attachments: ServiceRequestAttachment[];
@@ -401,12 +489,42 @@ export interface ServiceRequest {
   currentSchedule?: ServiceScheduleWindow;
   equipment?: ServiceRequestEquipment;
   problemLocation?: string;
+  symptoms?: string[];
   additionalNotes?: string;
+  service?: {
+    id: string;
+    slug: string;
+    name: string;
+    category?: string;
+  };
+  appointments?: Array<{
+    id: string;
+    status: string;
+    startAt?: string;
+    endAt?: string;
+    technician?: {
+      id: string;
+      displayName: string;
+      phone?: string;
+      rating?: number;
+      completedJobs?: number;
+      specializations?: string[];
+    };
+  }>;
+  quotations?: Array<AdminQuotation>;
+  serviceOrder?: {
+    id: string;
+    businessId?: string;
+    status: string;
+    scheduledAt?: string;
+    totalUsd?: string | number;
+  };
   rejectionHistory?: RejectionHistoryEntry[];
 }
 
 export interface Quote {
   id: string;
+  businessId?: string;
   serviceRequestId: string;
   status: QuoteStatus;
   subtotalUsd: number;
@@ -414,6 +532,7 @@ export interface Quote {
   issuedAt: string;
   expiresAt: string;
   notes?: string;
+  paidAt?: string;
 }
 
 export interface FlexibleQuotationLineItem {
@@ -546,6 +665,15 @@ export interface Notification {
   createdAt: string;
   isRead: boolean;
   ctaLabel?: string;
+  metadata?: {
+    serviceRequestId?: string;
+    quotationId?: string;
+    requestId?: string;
+    orderId?: string;
+    businessId?: string;
+    quotationBusinessId?: string;
+    [key: string]: unknown;
+  };
 }
 
 export interface ReviewModerationHistoryEntry {
@@ -574,6 +702,21 @@ export interface CustomerReview {
   hiddenAt?: string;
   preview?: string;
   moderationHistory: ReviewModerationHistoryEntry[];
+}
+
+/** A date plus the bookable time windows offered on it. */
+export interface SuggestedSlot {
+  date: string;
+  windows: string[];
+}
+
+export interface CartItem {
+  productId: string;
+  quantity: number;
+}
+
+export interface CartProduct extends CartItem {
+  product: Product;
 }
 
 export interface OrderTimelineStep {
@@ -615,6 +758,8 @@ export interface UnifiedOrderTotal {
 
 export interface UnifiedOrderBase {
   id: string;
+  /** Human-readable reference from the API, e.g. `SO-2026-0045`. */
+  businessId?: string;
   type: OrderType;
   customerId: string;
   status: UnifiedOrderStatus;

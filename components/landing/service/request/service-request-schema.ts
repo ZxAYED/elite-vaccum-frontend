@@ -15,7 +15,6 @@ export const serviceRequestSchema = z
     serviceSlug: z.string().min(1),
     serviceTitle: z.string().min(1),
     fullName: z.string().min(2, "Enter your full name."),
-    email: z.string().email("Enter a valid email address."),
     phone: z.string().min(7, "Enter a valid phone number."),
     address: z.string().min(4, "Enter the service address."),
     city: z.string().min(2, "Enter the city."),
@@ -30,6 +29,7 @@ export const serviceRequestSchema = z
         message: "Choose a date that is today or later.",
       }),
     requestedTime: z.string().min(1, "Choose the requested time window."),
+    urgency: z.enum(["LOW", "MEDIUM", "HIGH", "EMERGENCY"]).default("MEDIUM"),
     problemDescription: z
       .string()
       .min(20, "Describe the issue in at least 20 characters."),
@@ -66,6 +66,7 @@ export const serviceRequestSchema = z
   });
 
 export type ServiceRequestFormValues = z.input<typeof serviceRequestSchema>;
+export type ServiceRequestUrgency = "LOW" | "MEDIUM" | "HIGH" | "EMERGENCY";
 
 export const mediaConstraints = {
   acceptedMediaTypes,

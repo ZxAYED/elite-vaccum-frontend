@@ -1,6 +1,7 @@
+import { Suspense } from "react";
+import { Loader2 } from "lucide-react";
+
 import { CheckoutExperience } from "@/components/store/CheckoutExperience";
-import { getCartProducts } from "@/data/mock/customer-portal";
-import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
 
 export const metadata = {
   title: "Checkout - Elite Central Vacuum",
@@ -8,16 +9,21 @@ export const metadata = {
 };
 
 export default function CheckoutPage() {
-  const items = getCartProducts();
-
   return (
     <main className="bg-[#f7fbfa] pb-20 pt-8 sm:pt-10">
       <div className="mx-auto max-w-360 px-4">
-        <CheckoutExperience
-          initialItems={items}
-          user={mockCurrentUser}
-          addresses={mockCurrentCustomer.addresses}
-        />
+        {/* CheckoutExperience reads the `cancelled` search param, so it needs a
+            Suspense boundary to stay prerenderable. */}
+        <Suspense
+          fallback={
+            <div className="flex min-h-[60vh] items-center justify-center text-slate-400">
+              <Loader2 className="size-6 animate-spin" />
+              <span className="sr-only">Loading checkout</span>
+            </div>
+          }
+        >
+          <CheckoutExperience />
+        </Suspense>
       </div>
     </main>
   );
