@@ -82,7 +82,7 @@ function SheetTitle({
 }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return (
     <DialogPrimitive.Title
-      className={cn("text-lg font-semibold text-slate-950", className)}
+      className={cn("text-lg font-semibold text-primary", className)}
       data-slot="sheet-title"
       {...props}
     />

@@ -126,7 +126,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
       <PageStateShell>
         <AdminSurface className="py-10 text-center">
           <AlertTriangle className="mx-auto size-8 text-slate-400" />
-          <h1 className="mt-4 text-xl font-semibold text-slate-950">
+          <h1 className="mt-4 text-xl font-semibold text-primary">
             Order not found
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -346,7 +346,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             <div className="flex items-center gap-3">
               <Package className="text-teal-700" size={20} />
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   Order Items
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -375,7 +375,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                       )}
                     </div>
                     <div>
-                      <p className="text-lg font-semibold text-slate-950">
+                      <p className="text-lg font-semibold text-primary">
                         {item.productName}
                       </p>
                       {item.productSku ? (
@@ -389,7 +389,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                       </p>
                     </div>
                   </div>
-                  <p className="text-xl font-semibold text-slate-950">
+                  <p className="text-xl font-semibold text-primary">
                     {formatCurrencyUsd(Number(item.totalUsd))}
                   </p>
                 </div>
@@ -401,7 +401,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             <div className="flex items-center gap-3">
               <Truck className="text-teal-700" size={20} />
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   Shipping &amp; Tracking
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -509,7 +509,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
               <div className="flex items-center gap-3">
                 <History className="text-teal-700" size={20} />
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">
+                  <h2 className="text-xl font-semibold text-primary">
                     Status History
                   </h2>
                   <p className="text-sm text-slate-500">
@@ -550,7 +550,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
               <div className="flex items-center gap-3">
                 <RotateCcw className="text-teal-700" size={20} />
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">
+                  <h2 className="text-xl font-semibold text-primary">
                     Return Requests
                   </h2>
                   <p className="text-sm text-slate-500">
@@ -593,7 +593,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             <div className="flex items-center gap-3">
               <Settings2 className="text-teal-700" size={20} />
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   Order Status
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -641,10 +641,10 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
           <AdminSurface>
             <div className="flex items-center gap-3">
               <UserRound className="text-teal-700" size={20} />
-              <h2 className="text-xl font-semibold text-slate-950">Customer</h2>
+              <h2 className="text-xl font-semibold text-primary">Customer</h2>
             </div>
             <div className="mt-4 space-y-2 text-sm">
-              <p className="font-semibold text-slate-950">
+              <p className="font-semibold text-primary">
                 {order.customer?.displayName || "Customer"}
               </p>
               {order.customer?.email ? (
@@ -678,7 +678,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
           </AdminSurface>
 
           <AdminSurface>
-            <h2 className="text-xl font-semibold text-slate-950">
+            <h2 className="text-xl font-semibold text-primary">
               Order Summary
             </h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -703,7 +703,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                   <span>-{formatCurrencyUsd(Number(order.discountUsd))}</span>
                 </div>
               ) : null}
-              <div className="flex justify-between border-t border-teal-100 pt-3 text-lg font-semibold text-slate-950">
+              <div className="flex justify-between border-t border-teal-100 pt-3 text-lg font-semibold text-primary">
                 <span>Total</span>
                 <span>{formatCurrencyUsd(Number(order.totalUsd))}</span>
               </div>
@@ -798,7 +798,7 @@ function InvoicesPanel({ order }: { order: StoreOrderDto }) {
       <div className="flex items-center gap-3">
         <FileText className="text-teal-700" size={20} />
         <div>
-          <h2 className="text-xl font-semibold text-slate-950">
+          <h2 className="text-xl font-semibold text-primary">
             Invoices &amp; Payments
           </h2>
           <p className="text-sm text-slate-500">
@@ -827,7 +827,7 @@ function InvoicesPanel({ order }: { order: StoreOrderDto }) {
                 </Link>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={toStatusSlug(invoice.status)} />
-                  <span className="font-semibold text-slate-950">
+                  <span className="font-semibold text-primary">
                     {formatCurrencyUsd(Number(invoice.totalUsd))}
                   </span>
                 </div>

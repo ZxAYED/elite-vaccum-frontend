@@ -397,7 +397,7 @@ export function AdminTechnicianDetailClient({
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
                 Jobs Today
               </p>
-              <p className="mt-3 text-2xl font-semibold text-slate-950">
+              <p className="mt-3 text-2xl font-semibold text-primary">
                 {jobsTodayCount}
               </p>
             </div>
@@ -405,7 +405,7 @@ export function AdminTechnicianDetailClient({
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
                 Upcoming Assignments
               </p>
-              <p className="mt-3 text-2xl font-semibold text-slate-950">
+              <p className="mt-3 text-2xl font-semibold text-primary">
                 {upcomingAssignmentsCount}
               </p>
             </div>
@@ -433,7 +433,7 @@ export function AdminTechnicianDetailClient({
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
               Today
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">
+            <h2 className="mt-2 text-xl font-semibold text-primary">
               Current / Next Assignment
             </h2>
           </div>
@@ -481,7 +481,7 @@ export function AdminTechnicianDetailClient({
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
                 Next
               </p>
-              <p className="mt-2 font-semibold text-slate-950">
+              <p className="mt-2 font-semibold text-primary">
                 {today.nextAssignment.serviceName}
               </p>
               <p className="mt-1 text-sm text-slate-600">
@@ -507,7 +507,7 @@ export function AdminTechnicianDetailClient({
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
               Upcoming Assignments
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">
+            <h2 className="mt-2 text-xl font-semibold text-primary">
               Linked Service Orders
             </h2>
           </div>
@@ -526,7 +526,7 @@ export function AdminTechnicianDetailClient({
               >
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-slate-950">{order.id}</p>
+                    <p className="font-semibold text-primary">{order.id}</p>
                     <StatusBadge label={order.status} status={order.status} />
                   </div>
                   <p className="text-sm text-slate-700">{order.serviceName}</p>
@@ -561,7 +561,7 @@ export function AdminTechnicianDetailClient({
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-slate-400">
             Recent Completed Services
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">
+          <h2 className="mt-2 text-xl font-semibold text-primary">
             Completed Service History
           </h2>
         </div>
@@ -579,7 +579,7 @@ export function AdminTechnicianDetailClient({
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-slate-950">{order.id}</p>
+                    <p className="font-semibold text-primary">{order.id}</p>
                     <StatusBadge label="Completed" status="completed" />
                   </div>
                   <p className="mt-2 text-sm text-slate-700">

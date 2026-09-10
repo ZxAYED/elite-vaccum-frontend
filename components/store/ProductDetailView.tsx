@@ -114,7 +114,7 @@ export function ProductDetailView({ slug }: ProductDetailViewProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700/80">
                 You may also like
               </p>
-              <h2 className="mt-2 text-3xl font-semibold text-slate-950">
+              <h2 className="mt-2 text-3xl font-semibold text-primary">
                 Related accessories and support tools
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">

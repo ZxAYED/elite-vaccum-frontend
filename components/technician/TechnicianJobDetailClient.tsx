@@ -404,7 +404,7 @@ export function TechnicianJobDetailClient({
             {job.totalUsd > 0 ? (
               <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 Accepted quote total:{" "}
-                <strong className="text-slate-950">
+                <strong className="text-primary">
                   {formatCurrencyUsd(job.totalUsd)}
                 </strong>
               </p>
@@ -413,7 +413,7 @@ export function TechnicianJobDetailClient({
 
           {job.problemSummary || job.symptoms.length > 0 || job.customerNotes ? (
             <AdminSurface>
-              <h2 className="text-xl font-semibold text-slate-950">
+              <h2 className="text-xl font-semibold text-primary">
                 Reported Problem
               </h2>
               {job.problemSummary ? (
@@ -453,7 +453,7 @@ export function TechnicianJobDetailClient({
           <AdminSurface>
             <div className="flex items-center gap-3">
               <Truck size={20} className="text-teal-700" />
-              <h2 className="text-xl font-semibold text-slate-950">
+              <h2 className="text-xl font-semibold text-primary">
                 Field Actions
               </h2>
             </div>
@@ -514,7 +514,7 @@ export function TechnicianJobDetailClient({
           </AdminSurface>
 
           <AdminSurface>
-            <h2 className="text-lg font-semibold text-slate-950">
+            <h2 className="text-lg font-semibold text-primary">
               Field workflow
             </h2>
             <ol className="mt-4 space-y-3">

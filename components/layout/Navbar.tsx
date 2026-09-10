@@ -154,8 +154,7 @@ export function Navbar() {
   const unreadNotificationCount = unreadNotificationsData?.unreadCount ?? 0;
 
   return (
-    <header className="h-[4.875rem]">
-      <div className="fixed inset-x-0 top-0 z-[70] border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
+    <header className="sticky top-0 z-[70] border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
       <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-0">
         <Link
           href="/"
@@ -663,7 +662,6 @@ export function Navbar() {
           </Sheet>
         </div>
       </nav>
-      </div>
     </header>
   );
 }

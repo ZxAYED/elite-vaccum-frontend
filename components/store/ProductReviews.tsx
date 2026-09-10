@@ -88,7 +88,7 @@ export function ProductReviews({
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700/80">
           Customer Reviews
         </p>
-        <h2 className="mt-2 text-3xl font-semibold text-slate-950">
+        <h2 className="mt-2 text-3xl font-semibold text-primary">
           What owners say
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
@@ -108,7 +108,7 @@ export function ProductReviews({
               standalone number looks loose with tabular digits.
             */}
             <div className="flex items-end gap-3">
-              <span className="text-4xl font-semibold leading-none text-slate-950">
+              <span className="text-4xl font-semibold leading-none text-primary">
                 {summary?.averageRating.toFixed(1)}
               </span>
               <span className="pb-0.5 text-sm text-slate-500">out of 5</span>

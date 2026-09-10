@@ -51,3 +51,8 @@ frotned.zip
 .agents/
 skills-lock.json
 API_INTEGRATION_GUIDE.md
+
+# Graphify local/runtime artifacts
+graphify-out/cache/
+graphify-out/manifest.json
+graphify-out/cost.json

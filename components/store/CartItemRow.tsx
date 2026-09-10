@@ -51,7 +51,7 @@ export function CartItemRow({
           </div>
 
           <div className="min-w-0">
-            <h2 className={`text-sm  text-slate-950`}>
+            <h2 className={`text-sm  text-primary`}>
               {item.product.name}
             </h2>
             {!compact ? (
@@ -74,7 +74,7 @@ export function CartItemRow({
               : "sm:min-w-[9rem] sm:flex-col sm:items-end"
           }`}
         >
-          <span className="text-xl font-semibold text-slate-950">
+          <span className="text-xl font-semibold text-primary">
             {formatCurrencyUsd(total)}
           </span>
           <button

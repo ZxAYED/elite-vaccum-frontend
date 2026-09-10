@@ -78,7 +78,7 @@ export function TechnicianFormDialog({
         >
           <div className="space-y-3">
             <div>
-              <p className="text-sm font-semibold text-slate-950">
+              <p className="text-sm font-semibold text-primary">
                 Personal Information
               </p>
               <p className="text-sm text-slate-500">
@@ -151,7 +151,7 @@ export function TechnicianFormDialog({
 
           <div className="space-y-3">
             <div>
-              <p className="text-sm font-semibold text-slate-950">Work Information</p>
+              <p className="text-sm font-semibold text-primary">Work Information</p>
               <p className="text-sm text-slate-500">
                 Status controls assignment eligibility. Availability reflects baseline
                 duty state before schedule conflicts are applied.

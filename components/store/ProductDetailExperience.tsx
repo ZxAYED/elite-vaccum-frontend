@@ -157,7 +157,7 @@ export function ProductDetailExperience({
           {product.eyebrow ?? categoryName}
         </p>
         {/* Sized for the 40% column — 5xl only once it is actually wide. */}
-        <h1 className="mt-4 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl xl:text-5xl">
+        <h1 className="mt-4 text-3xl font-semibold leading-tight text-primary sm:text-4xl xl:text-5xl">
           {product.name}
         </h1>
         <p className="mt-3 text-xl font-medium text-slate-600">{product.summary}</p>
@@ -191,7 +191,7 @@ export function ProductDetailExperience({
         </StaggerGroup>
 
         <div className="mt-8 flex flex-wrap items-center gap-4">
-          <span className="text-4xl font-semibold text-slate-950">{totalPrice}</span>
+          <span className="text-4xl font-semibold text-primary">{totalPrice}</span>
           <QuantityControl
             quantity={quantity}
             onDecrease={() => setQuantity((current) => Math.max(1, current - 1))}

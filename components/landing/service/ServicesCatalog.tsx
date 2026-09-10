@@ -299,7 +299,7 @@ export function ServicesCatalog() {
               >
                 <article className="flex min-h-60 h-full flex-col bg-transparent p-6 lg:p-7">
                   <Icon aria-hidden="true" className="text-primary" size={22} />
-                  <h2 className="mt-8 text-xl font-semibold tracking-[-0.03em] text-slate-950">
+                  <h2 className="mt-8 text-xl font-semibold tracking-[-0.03em] text-primary">
                     {service.title}
                   </h2>
                   <p className="mt-3 max-w-72 text-sm leading-6 text-slate-500 flex-1">
@@ -379,7 +379,7 @@ export function ServicesCatalog() {
             </Pressable>
           </div>
           <div className="rounded-[1.15rem] bg-white p-6 ring-1 ring-teal-100">
-            <h3 className="text-lg font-semibold text-slate-950">
+            <h3 className="text-lg font-semibold text-primary">
               Have these ready
             </h3>
             <ul className="mt-5 space-y-4 text-sm leading-6 text-slate-600">

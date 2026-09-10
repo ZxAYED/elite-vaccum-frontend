@@ -819,7 +819,7 @@ export function ServiceRequestForm({ service }: ServiceRequestFormProps) {
                               className={cn(
                                 "flex items-center gap-3.5 rounded-2xl border p-3.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                                 isSelected
-                                  ? "border-primary bg-teal-50/70 text-slate-950 shadow-xs ring-1 ring-primary/20"
+                                  ? "border-primary bg-teal-50/70 text-primary shadow-xs ring-1 ring-primary/20"
                                   : "border-slate-200/80 bg-slate-50 text-slate-700 hover:border-teal-200 hover:bg-slate-100/70",
                               )}
                             >

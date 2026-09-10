@@ -136,7 +136,7 @@ export default function AdminNotificationsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f4f7f7] text-slate-950">
+    <main className="min-h-screen bg-[#f4f7f7] text-primary">
       <section className="space-y-6">
         <div className="flex flex-col gap-4 rounded-xl border border-teal-100 bg-white p-5 shadow-[0_18px_56px_-44px_rgba(28,79,80,0.35)] sm:flex-row sm:items-end sm:justify-between">
           <div>
