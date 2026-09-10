@@ -19,6 +19,7 @@ import {
 } from "@/components/admin/AdminPageShell";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import {
   getAdminTechnicianById,
   getTechnicianUpcomingSchedules,
@@ -267,15 +268,17 @@ export function AdminTechnicianDetailClient({
 
   if (!technician) {
     return (
-      <AdminPageShell>
-        <AdminPageHeader
-          eyebrow="Team"
-          title="Technician not found"
-          description="This technician does not exist or the record is no longer available."
-        />
-
+      <PageStateShell
+        header={
+          <AdminPageHeader
+            eyebrow="Team"
+            title="Technician not found"
+            description="This technician does not exist or the record is no longer available."
+          />
+        }
+      >
         <AdminSurface>
-          <div className="py-10 text-center">
+          <div className="py-6 text-center">
             <p className="text-sm text-slate-600">
               The technician record could not be found.
             </p>
@@ -285,7 +288,7 @@ export function AdminTechnicianDetailClient({
             </Button>
           </div>
         </AdminSurface>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 

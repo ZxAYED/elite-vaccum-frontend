@@ -32,6 +32,7 @@ import {
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { OrderInvoiceCard } from "@/components/invoices/OrderInvoiceCard";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import {
   Dialog,
   DialogContent,
@@ -111,19 +112,19 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
 
   if (isLoading) {
     return (
-      <AdminPageShell>
-        <div className="flex items-center justify-center rounded-xl border border-teal-100 bg-white py-24 text-slate-500">
+      <PageStateShell>
+        <div className="flex items-center justify-center rounded-xl border border-teal-100 bg-white py-14 text-slate-500">
           <Loader2 className="mr-2 size-5 animate-spin text-teal-700" />
           Loading order...
         </div>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 
   if (isError || !order) {
     return (
-      <AdminPageShell>
-        <AdminSurface className="py-16 text-center">
+      <PageStateShell>
+        <AdminSurface className="py-10 text-center">
           <AlertTriangle className="mx-auto size-8 text-slate-400" />
           <h1 className="mt-4 text-xl font-semibold text-slate-950">
             Order not found
@@ -140,7 +141,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             </Button>
           </div>
         </AdminSurface>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 

@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import { readApiMessage } from "@/lib/api-error";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 import {
@@ -117,28 +118,30 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
 
   if (isError) {
     return (
-      <EmptyState
-        action={{ label: "Try Again", onClick: () => void refetch() }}
-        className="py-14"
-        description="We couldn't load this invoice. Please try again in a moment."
-        icon={ReceiptText}
-        secondaryAction={{ label: "Back to Billing", href: "/user/billing" }}
-        title="Invoice unavailable"
-        tone="card"
-      />
+      <PageStateShell>
+        <EmptyState
+          action={{ label: "Try Again", onClick: () => void refetch() }}
+          description="We couldn't load this invoice. Please try again in a moment."
+          icon={ReceiptText}
+          secondaryAction={{ label: "Back to Billing", href: "/user/billing" }}
+          title="Invoice unavailable"
+          tone="card"
+        />
+      </PageStateShell>
     );
   }
 
   if (!invoice) {
     return (
-      <EmptyState
-        action={{ label: "Back to Billing", href: "/user/billing" }}
-        className="py-14"
-        description={`We couldn't find an invoice matching ID "${invoiceId}". It may have been archived or removed.`}
-        icon={FileText}
-        title="Invoice not found"
-        tone="card"
-      />
+      <PageStateShell>
+        <EmptyState
+          action={{ label: "Back to Billing", href: "/user/billing" }}
+          description={`We couldn't find an invoice matching ID "${invoiceId}". It may have been archived or removed.`}
+          icon={FileText}
+          title="Invoice not found"
+          tone="card"
+        />
+      </PageStateShell>
     );
   }
 

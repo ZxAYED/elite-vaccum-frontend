@@ -7,6 +7,7 @@ import {
   Bell,
   CheckCheck,
   CreditCard,
+  Package,
   Plus,
   ShieldCheck,
   Trash2,
@@ -19,6 +20,7 @@ import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { AdminEnqueueNotificationModal } from "@/components/admin/notifications/AdminEnqueueNotificationModal";
 import {
+  type NotificationType,
   useGetNotificationsQuery,
   useMarkAllNotificationsAsReadMutation,
   useMarkNotificationAsReadMutation,
@@ -26,7 +28,25 @@ import {
 } from "@/redux/api/notificationsApi";
 import { formatLongDate } from "@/lib/formatters";
 
-type FilterTab = "all" | "unread" | "payment" | "service-update" | "system";
+type FilterTab = "all" | "unread" | "service" | "orders" | "billing" | "system";
+
+/**
+ * The API stores the `NotificationType` enum, so the tabs group those values —
+ * filtering on invented slugs ("payment", "system") matched nothing.
+ */
+const FILTER_TYPE_GROUPS: Record<
+  Exclude<FilterTab, "all" | "unread">,
+  NotificationType[]
+> = {
+  service: [
+    "SERVICE_REQUEST_UPDATE",
+    "QUOTATION_UPDATE",
+    "SCHEDULE_DISPATCH",
+  ],
+  orders: ["ORDER_STATUS_UPDATE"],
+  billing: ["BILLING_INVOICE"],
+  system: ["SYSTEM_ALERT", "REVIEW_MODERATION"],
+};
 
 const adminNotificationHrefById: Record<string, string> = {
   "notif-1001": "/admin/service-requests",
@@ -35,11 +55,29 @@ const adminNotificationHrefById: Record<string, string> = {
   "notif-1004": "/admin/service-requests",
 };
 
+/** Older seeded rows carry lowercase slugs, so normalise before comparing. */
+function normalizeType(type?: string) {
+  return String(type ?? "")
+    .toUpperCase()
+    .replace(/-/g, "_");
+}
+
 function getNotificationIcon(type?: string) {
-  if (type === "payment") return CreditCard;
-  if (type === "system") return ShieldCheck;
-  if (type === "service-update") return Wrench;
-  return Bell;
+  switch (normalizeType(type)) {
+    case "BILLING_INVOICE":
+      return CreditCard;
+    case "ORDER_STATUS_UPDATE":
+      return Package;
+    case "SERVICE_REQUEST_UPDATE":
+    case "QUOTATION_UPDATE":
+    case "SCHEDULE_DISPATCH":
+      return Wrench;
+    case "SYSTEM_ALERT":
+    case "REVIEW_MODERATION":
+      return ShieldCheck;
+    default:
+      return Bell;
+  }
 }
 
 export default function AdminNotificationsPage() {
@@ -57,11 +95,11 @@ export default function AdminNotificationsPage() {
       : [];
 
   const filteredNotifications = rawNotifications.filter((notif) => {
+    if (activeTab === "all") return true;
     if (activeTab === "unread") return !notif.isRead;
-    if (activeTab === "payment") return notif.type === "payment";
-    if (activeTab === "service-update") return notif.type === "service-update";
-    if (activeTab === "system") return notif.type === "system";
-    return true;
+    return (FILTER_TYPE_GROUPS[activeTab] as string[]).includes(
+      normalizeType(notif.type),
+    );
   });
 
   const unreadCount = rawNotifications.filter((n) => !n.isRead).length;
@@ -149,8 +187,9 @@ export default function AdminNotificationsPage() {
             [
               { key: "all", label: "All Updates" },
               { key: "unread", label: `Unread (${unreadCount})` },
-              { key: "service-update", label: "Service Operations" },
-              { key: "payment", label: "Payments & Invoices" },
+              { key: "service", label: "Service Operations" },
+              { key: "orders", label: "Orders" },
+              { key: "billing", label: "Payments & Invoices" },
               { key: "system", label: "System Alerts" },
             ] as const
           ).map((tab) => (

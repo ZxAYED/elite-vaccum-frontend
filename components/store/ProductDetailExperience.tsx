@@ -16,6 +16,7 @@ import { useCartSync } from "@/hooks/useCartSync";
 import { useGetProductByIdOrSlugQuery } from "@/redux/api/productsApi";
 import type { Product } from "@/types/domain";
 
+import { ProductReviews } from "./ProductReviews";
 import { QuantityControl } from "./QuantityControl";
 
 const productFeatureIcons = [ShieldCheck, Truck, ShoppingCart];
@@ -76,80 +77,111 @@ export function ProductDetailExperience({
   };
 
   return (
-    <section className="mt-6 grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
-      <FadeIn className="landing-card landing-card-soft overflow-hidden p-5 sm:p-6">
-        <div className="rounded-[1.8rem] bg-[linear-gradient(180deg,#f8fcfc_0%,#eaf4f1_100%)] p-5 sm:p-8">
-          {selectedImage ? (
-            <div className="relative mx-auto aspect-square max-w-[34rem]">
-              <Image
-                src={selectedImage}
-                alt={product.imageAlt || product.name}
-                fill
-                priority
-                className="object-contain"
-                sizes="(min-width: 1280px) 42rem, (min-width: 768px) 50vw, 95vw"
-              />
-            </div>
-          ) : (
-            <div className="flex aspect-square items-center justify-center rounded-[1.4rem] bg-[linear-gradient(180deg,#eff5f4_0%,#dde9e7_100%)] text-slate-400">
-              <span className="text-xs font-semibold uppercase tracking-wider">
-                No image available
-              </span>
-            </div>
-          )}
-        </div>
+    /*
+      No `items-start`: the columns stretch to the taller of the two, and the
+      reviews card below the gallery takes the leftover height, so the 60/40
+      split ends level on both sides instead of leaving dead space under the
+      image.
+    */
+    <section className="mt-6 flex flex-col gap-6 lg:flex-row">
+      <div className="flex w-full min-w-0 flex-col gap-6 lg:w-3/5">
+        <FadeIn className="landing-card landing-card-soft w-full min-w-0 overflow-hidden p-3 sm:p-4">
+          {/*
+            Product shots are mostly landscape, so a square stage left a deep band
+            of empty gradient above and below. A 4:3 stage with no width cap lets
+            the image use the full panel.
+          */}
+          <div className="rounded-[1.8rem] bg-[linear-gradient(180deg,#f8fcfc_0%,#eaf4f1_100%)] p-3 sm:p-4">
+            {selectedImage ? (
+              <div className="relative aspect-[4/3] w-full">
+                <Image
+                  src={selectedImage}
+                  alt={product.imageAlt || product.name}
+                  fill
+                  priority
+                  className="object-contain"
+                  sizes="(min-width: 1024px) 60vw, 95vw"
+                />
+              </div>
+            ) : (
+              <div className="flex aspect-[4/3] items-center justify-center rounded-[1.4rem] bg-[linear-gradient(180deg,#eff5f4_0%,#dde9e7_100%)] text-slate-400">
+                <span className="text-xs font-semibold uppercase tracking-wider">
+                  No image available
+                </span>
+              </div>
+            )}
+          </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(galleryImages.length > 1 ? galleryImages : []).map((galleryImage, index) => (
-            <Pressable key={`${product.id}-thumb-${index}`} className="w-full">
-              <button
-                type="button"
-                aria-label={`View image ${index + 1} for ${product.name}`}
-                onClick={() => setSelectedImageIndex(index)}
-                className={`w-full rounded-[1.2rem] p-3 transition ${
-                  selectedImageIndex === index
-                    ? "bg-[#eef7f5] shadow-[inset_0_0_0_1px_rgba(24,112,108,0.18)]"
-                    : "bg-white shadow-[0_18px_34px_-30px_rgba(28,79,80,0.24)]"
-                }`}
-              >
-                <div className="relative mx-auto aspect-square max-w-[6.5rem]">
-                  <Image
-                    src={galleryImage}
-                    alt={`${product.imageAlt || product.name} ${index + 1}`}
-                    fill
-                    className="object-contain"
-                    sizes="8rem"
-                  />
-                </div>
-              </button>
-            </Pressable>
-          ))}
-        </div>
-      </FadeIn>
+          <div className="mt-3 grid grid-cols-3 gap-2.5 sm:grid-cols-5">
+            {(galleryImages.length > 1 ? galleryImages : []).map((galleryImage, index) => (
+              <Pressable key={`${product.id}-thumb-${index}`} className="w-full">
+                <button
+                  type="button"
+                  aria-label={`View image ${index + 1} for ${product.name}`}
+                  onClick={() => setSelectedImageIndex(index)}
+                  className={`w-full rounded-2xl p-1.5 transition ${
+                    selectedImageIndex === index
+                      ? "bg-[#eef7f5] shadow-[inset_0_0_0_1px_rgba(24,112,108,0.18)]"
+                      : "bg-white shadow-[0_18px_34px_-30px_rgba(28,79,80,0.24)]"
+                  }`}
+                >
+                  {/* Matches the main stage ratio so the crop reads the same. */}
+                  <div className="relative aspect-[4/3] w-full">
+                    <Image
+                      src={galleryImage}
+                      alt={`${product.imageAlt || product.name} ${index + 1}`}
+                      fill
+                      className="object-contain"
+                      sizes="(min-width: 1280px) 12rem, 30vw"
+                    />
+                  </div>
+                </button>
+              </Pressable>
+            ))}
+          </div>
+        </FadeIn>
 
-      <FadeIn className="landing-card landing-card-soft p-6 sm:p-8" delay={0.08}>
+        {/* flex-1 so the gallery + reviews stack fills the row height. */}
+        <ProductReviews
+          className="flex-1"
+          productId={currentProduct.id || productIdentifier}
+          productName={currentProduct.name}
+        />
+      </div>
+
+      <FadeIn
+        className="landing-card landing-card-soft w-full min-w-0 p-6 sm:p-8 lg:w-2/5"
+        delay={0.08}
+      >
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
           {product.eyebrow ?? categoryName}
         </p>
-        <h1 className="mt-4 text-4xl font-semibold leading-tight text-slate-950 sm:text-5xl">
+        {/* Sized for the 40% column — 5xl only once it is actually wide. */}
+        <h1 className="mt-4 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl xl:text-5xl">
           {product.name}
         </h1>
-        <p className="mt-3 text-2xl font-medium text-slate-600">{product.summary}</p>
-        <p className="mt-6 text-base leading-8 text-slate-600">{product.description}</p>
+        <p className="mt-3 text-xl font-medium text-slate-600">{product.summary}</p>
+        <p className="mt-5 text-base leading-7 text-slate-600">{product.description}</p>
 
-        <StaggerGroup className="mt-8 grid gap-3 sm:grid-cols-3" delay={0.06}>
+        <StaggerGroup
+          className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3"
+          delay={0.06}
+        >
           {productHighlights.slice(0, 3).map((highlight, index) => {
             const Icon = productFeatureIcons[index] ?? ShieldCheck;
             const text = typeof highlight === "string" ? highlight : highlight?.text || "";
             const key = typeof highlight === "string" ? highlight : highlight?.id || `highlight-${index}`;
 
+            // StaggerItem is the grid item, so it needs h-full as well —
+            // without it the card sizes to its own text and the three
+            // highlights end up ragged instead of one even row.
             return (
-              <StaggerItem key={key}>
-                <div className="rounded-[1.3rem] bg-white/90 p-4 shadow-[0_20px_42px_-34px_rgba(28,79,80,0.26)]">
-                  <div className="landing-icon-tile flex size-10 items-center justify-center bg-teal-50 text-teal-700">
+              <StaggerItem key={key} className="h-full">
+                <div className="flex h-full flex-col rounded-[1.3rem] border border-[#2F3131]/5 bg-white p-4">
+                  <div className="landing-icon-tile flex size-10 shrink-0 items-center justify-center bg-teal-50 text-teal-700">
                     <Icon size={17} />
                   </div>
-                  <p className="mt-4 text-sm font-semibold leading-7 text-slate-900">
+                  <p className="mt-3 text-sm font-normal leading-6 text-slate-600">
                     {text}
                   </p>
                 </div>

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   AlertCircle,
   Check,
@@ -20,6 +20,7 @@ import { OrderInvoiceCard } from "@/components/invoices/OrderInvoiceCard";
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import {
   Dialog,
   DialogContent,
@@ -41,8 +42,8 @@ import { readApiMessage } from "@/lib/api-error";
 import { buildProductTimeline, toStatusSlug } from "@/lib/customer-orders";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-import type { CustomerReview } from "@/types/domain";
 import {
+  useGetMyReviewedProductsQuery,
   useGetMyReviewsQuery,
   useSubmitReviewMutation,
   type SubmitReviewRequest,
@@ -81,6 +82,14 @@ const emptyReviewDraft: ReviewDraft = {
   body: "",
 };
 
+/** One product's existing review, flattened from whichever endpoint answered. */
+type ItemReviewState = {
+  rating: number;
+  status: string;
+};
+
+const REVIEWABLE_ORDER_STATUSES = ["DELIVERED", "COMPLETED"] as const;
+
 export function UserOrderDetailClient({ orderId }: { orderId: string }) {
   const {
     data: order,
@@ -102,9 +111,21 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
     useLazyGetStripeCheckoutSessionQuery();
   const [submitReturn, { isLoading: isSubmittingReturn }] =
     useSubmitOrderReturnMutation();
-  const { data: myProductReviews = [] } = useGetMyReviewsQuery({
-    type: "PRODUCT",
+  // Reviews only open up once the goods actually arrived.
+  const canReviewOrder = order
+    ? (REVIEWABLE_ORDER_STATUSES as readonly string[]).includes(order.status)
+    : false;
+
+  // `/reviews/me/products` (guide 13.2) is the authoritative product-to-review
+  // link — it returns the product and order each review belongs to. `/reviews/me`
+  // is kept as a fallback for deployments that predate it.
+  const { data: reviewedProducts } = useGetMyReviewedProductsQuery(undefined, {
+    skip: !canReviewOrder,
   });
+  const { data: myProductReviews = [] } = useGetMyReviewsQuery(
+    { type: "PRODUCT" },
+    { skip: !canReviewOrder },
+  );
   const [submitReview, { isLoading: isSubmittingReview }] =
     useSubmitReviewMutation();
 
@@ -118,35 +139,63 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
   const [returnFiled, setReturnFiled] = useState(false);
   const [reviewDraft, setReviewDraft] = useState<ReviewDraft>(emptyReviewDraft);
 
+  const reviewByProductId = useMemo(() => {
+    const map: Record<string, ItemReviewState> = {};
+
+    for (const review of myProductReviews) {
+      if (review.type !== "PRODUCT" || !review.relatedEntityId) continue;
+      map[review.relatedEntityId] = {
+        rating: review.rating,
+        status: review.status,
+      };
+    }
+
+    // Listed second so the documented endpoint wins on any disagreement.
+    for (const entry of reviewedProducts?.items ?? []) {
+      const productId = entry.product?.id;
+      if (!productId || !entry.review) continue;
+      map[productId] = {
+        rating: entry.review.rating,
+        status: entry.review.status,
+      };
+    }
+
+    return map;
+  }, [myProductReviews, reviewedProducts]);
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-20 text-slate-500">
-        <Loader2 className="mr-2 size-5 animate-spin text-teal-700" />
-        Loading order details...
-      </div>
+      <PageStateShell>
+        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-14 text-slate-500">
+          <Loader2 className="mr-2 size-5 animate-spin text-teal-700" />
+          Loading order details...
+        </div>
+      </PageStateShell>
     );
   }
 
   if (isError || !order) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-10 text-center">
-        <AlertCircle className="mx-auto size-8 text-slate-400" />
-        <h1 className="mt-4 text-lg font-bold text-slate-900">
-          Order not found
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Order {orderId} isn&apos;t on your account, or it couldn&apos;t be
-          loaded.
-        </p>
-        <div className="mt-5 flex justify-center gap-2">
-          <Button onClick={() => void refetch()} size="sm" variant="outline">
-            Try again
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/user/orders">Back to Orders</Link>
-          </Button>
+      <PageStateShell>
+        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center">
+          <AlertCircle className="mx-auto size-8 text-slate-400" />
+          <h1 className="mt-4 text-lg font-bold text-slate-900">
+            Order not found
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Order {orderId} isn&apos;t on your account, or it couldn&apos;t be
+            loaded.
+          </p>
+          <div className="mt-5 flex justify-center gap-2">
+            <Button onClick={() => void refetch()} size="sm" variant="outline">
+              Try again
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/user/orders">Back to Orders</Link>
+            </Button>
+          </div>
         </div>
-      </div>
+      </PageStateShell>
     );
   }
 
@@ -156,8 +205,6 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
     order.status === "PENDING" && order.paymentMethod !== "COD";
   const hasReturnRequest = returnFiled || Boolean(returnStatus?.hasReturnRequest);
   const canRequestReturn = returnable && !hasReturnRequest;
-  const canReview =
-    order.status === "DELIVERED" || order.status === "COMPLETED";
   const refund = order.refundSummary;
   // An invoice exists only once payment resolved — a PENDING card order has
   // none, and `invoices` is []. The card renders the waiting state instead.
@@ -221,7 +268,7 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
   }
 
   async function handleSubmitProductReview(item: StoreOrderItemDto) {
-    if (!order) return;
+    if (!order || !item.productId) return;
     if (!reviewDraft.title.trim() || reviewDraft.body.trim().length < 20) {
       return;
     }
@@ -294,9 +341,9 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
               </Button>
             ) : null}
 
-            {canReview ? (
+            {canReviewOrder ? (
               <Button asChild variant="outline" size="sm" className="rounded-md">
-                <Link href={`/user/reviews?compose=product&orderId=${order.id}`}>
+                <Link href="#order-reviews">
                   <Star size={14} className="mr-1.5" />
                   Write Review
                 </Link>
@@ -370,24 +417,26 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-8">
           <DeliveryProgress status={order.status} />
-          <OrderItems
-            activeDraft={reviewDraft}
-            canReview={canReview}
-            isSubmittingReview={isSubmittingReview}
-            order={order}
-            productReviews={myProductReviews}
-            onCancelReview={() => setReviewDraft(emptyReviewDraft)}
-            onChangeDraft={setReviewDraft}
-            onStartReview={(item) =>
-              setReviewDraft({
-                itemId: item.id,
-                rating: 5,
-                title: "",
-                body: "",
-              })
-            }
-            onSubmitReview={handleSubmitProductReview}
-          />
+          <OrderItems order={order} />
+          {canReviewOrder ? (
+            <ProductReviewSection
+              activeDraft={reviewDraft}
+              isSubmittingReview={isSubmittingReview}
+              order={order}
+              reviewByProductId={reviewByProductId}
+              onCancelReview={() => setReviewDraft(emptyReviewDraft)}
+              onChangeDraft={setReviewDraft}
+              onStartReview={(item) =>
+                setReviewDraft({
+                  itemId: item.id,
+                  rating: 5,
+                  title: "",
+                  body: "",
+                })
+              }
+              onSubmitReview={handleSubmitProductReview}
+            />
+          ) : null}
           <StatusHistory order={order} />
         </div>
 
@@ -539,10 +588,66 @@ function DeliveryProgress({ status }: { status: StoreOrderDto["status"] }) {
   );
 }
 
-interface OrderItemsProps {
+function OrderItems({ order }: { order: StoreOrderDto }) {
+  return (
+    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
+      <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
+        Order Items ({order.items.length})
+      </p>
+      <div className="space-y-3">
+        {order.items.map((item) => (
+          <div
+            key={item.id}
+            className="rounded-md border border-slate-200 bg-white p-4 transition hover:border-teal-100"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <ItemThumbnail item={item} />
+                <div>
+                  <h3 className="text-base font-bold leading-snug text-slate-900">
+                    {item.productName}
+                  </h3>
+                  <p className="mt-1 text-sm font-medium text-slate-500">
+                    Qty: {item.quantity}
+                    {item.productSku ? ` · SKU: ${item.productSku}` : ""}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-500">
+                    {formatCurrencyUsd(Number(item.unitPriceUsd))} each
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-lg font-bold text-slate-900">
+                {formatCurrencyUsd(Number(item.totalUsd))}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ItemThumbnail({ item }: { item: StoreOrderItemDto }) {
+  return (
+    <div className="relative flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 sm:size-20">
+      {item.imageUrl ? (
+        <Image
+          src={item.imageUrl}
+          alt={item.productName}
+          fill
+          className="object-contain p-2"
+        />
+      ) : (
+        <Package size={24} className="text-slate-400" />
+      )}
+    </div>
+  );
+}
+
+interface ProductReviewSectionProps {
   order: StoreOrderDto;
-  canReview: boolean;
-  productReviews: CustomerReview[];
+  reviewByProductId: Record<string, ItemReviewState>;
   activeDraft: ReviewDraft;
   isSubmittingReview: boolean;
   onStartReview: (item: StoreOrderItemDto) => void;
@@ -551,54 +656,72 @@ interface OrderItemsProps {
   onSubmitReview: (item: StoreOrderItemDto) => void;
 }
 
-function OrderItems({
+/**
+ * Shown once the order reaches DELIVERED / COMPLETED. One review per product
+ * (the API keys reviews by product, not by order line), so an item already
+ * reviewed on an earlier order shows its existing rating here too.
+ */
+function ProductReviewSection({
   order,
-  canReview,
-  productReviews,
+  reviewByProductId,
   activeDraft,
   isSubmittingReview,
   onStartReview,
   onCancelReview,
   onChangeDraft,
   onSubmitReview,
-}: OrderItemsProps) {
+}: ProductReviewSectionProps) {
+  // A line without a productId cannot be reviewed — the API keys on the product.
+  const reviewableItems = order.items.filter((item) => Boolean(item.productId));
+
+  if (reviewableItems.length === 0) return null;
+
+  const reviewedCount = reviewableItems.filter(
+    (item) => reviewByProductId[item.productId],
+  ).length;
+  const allReviewed = reviewedCount === reviewableItems.length;
+
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs sm:p-6">
-      <p className="mb-4 text-sm font-semibold uppercase tracking-wider text-slate-500">
-        Order Items ({order.items.length})
-      </p>
-      <div className="space-y-3">
-        {order.items.map((item) => {
-          const existingReview = productReviews.find(
-            (review) =>
-              review.type === "PRODUCT" &&
-              review.relatedEntityId === item.productId,
-          );
+    <section
+      id="order-reviews"
+      className="scroll-mt-6 rounded-lg border border-teal-200 bg-white p-5 shadow-xs sm:p-6"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+            Rate your purchase
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            {allReviewed
+              ? "Thanks for reviewing this order. Reviews appear publicly once our team moderates them."
+              : "Your order was delivered. Tell other buyers how it went — reviews are published after moderation."}
+          </p>
+        </div>
+
+        <span className="shrink-0 rounded-md border border-teal-200 bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-800">
+          {reviewedCount} of {reviewableItems.length} reviewed
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {reviewableItems.map((item) => {
+          const existingReview = reviewByProductId[item.productId];
           const isComposing = activeDraft.itemId === item.id;
 
           return (
             <div
               key={item.id}
               className={cn(
-                "rounded-md border border-slate-200 bg-white p-4 transition",
-                isComposing ? "border-teal-200 shadow-sm" : "hover:border-teal-100",
+                "rounded-md border p-4 transition",
+                isComposing
+                  ? "border-teal-200 bg-teal-50/30 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-teal-100",
               )}
             >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="relative flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50 sm:size-20">
-                    {item.imageUrl ? (
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.productName}
-                        fill
-                        className="object-contain p-2"
-                      />
-                    ) : (
-                      <Package size={24} className="text-slate-400" />
-                    )}
-                  </div>
-                  <div>
+                  <ItemThumbnail item={item} />
+                  <div className="min-w-0">
                     <h3 className="text-base font-bold leading-snug text-slate-900">
                       {item.productName}
                     </h3>
@@ -606,16 +729,10 @@ function OrderItems({
                       Qty: {item.quantity}
                       {item.productSku ? ` · SKU: ${item.productSku}` : ""}
                     </p>
-                    <p className="mt-0.5 text-sm text-slate-500">
-                      {formatCurrencyUsd(Number(item.unitPriceUsd))} each
-                    </p>
                   </div>
                 </div>
 
                 <div className="flex flex-col items-start gap-2 sm:items-end">
-                  <p className="text-lg font-bold text-slate-900">
-                    {formatCurrencyUsd(Number(item.totalUsd))}
-                  </p>
                   {existingReview ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-800">
@@ -633,7 +750,7 @@ function OrderItems({
                         status={existingReview.status.toLowerCase()}
                       />
                     </div>
-                  ) : canReview ? (
+                  ) : (
                     <Button
                       type="button"
                       size="sm"
@@ -642,13 +759,13 @@ function OrderItems({
                       onClick={() => onStartReview(item)}
                     >
                       <Star className="mr-1.5 size-4" />
-                      Review product
+                      {isComposing ? "Writing review" : "Write a review"}
                     </Button>
-                  ) : null}
+                  )}
                 </div>
               </div>
 
-              {isComposing ? (
+              {isComposing && !existingReview ? (
                 <ProductReviewComposer
                   draft={activeDraft}
                   item={item}
@@ -661,6 +778,15 @@ function OrderItems({
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-4 border-t border-slate-100 pt-3">
+        <Link
+          href="/user/reviews"
+          className="text-sm font-semibold text-primary hover:text-teal-700"
+        >
+          View all my reviews
+        </Link>
       </div>
     </section>
   );

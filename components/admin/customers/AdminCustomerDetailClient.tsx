@@ -33,6 +33,7 @@ import { FormField } from "@/components/forms/FormField";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import { Checkbox } from "@/components/ui/Checkbox";
 import {
   Dialog,
@@ -1124,11 +1125,11 @@ export function AdminCustomerDetailClient({
 
   if (!customer) {
     return (
-      <AdminPageShell>
-        <AdminSurface className="text-center text-sm text-slate-600">
+      <PageStateShell>
+        <AdminSurface className="py-10 text-center text-sm text-slate-600">
           Customer not found.
         </AdminSurface>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 
