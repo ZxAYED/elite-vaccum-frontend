@@ -11,6 +11,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  MessagesSquare,
   PackageSearch,
   Settings,
   ShoppingBag,
@@ -40,7 +41,10 @@ const navGroups: Array<{
   items: AdminNavItem[];
 }> = [
   {
-    items: [{ label: "Overview", href: "/admin", icon: LayoutDashboard }],
+    items: [
+      { label: "Overview", href: "/admin", icon: LayoutDashboard },
+      { label: "Messages", href: "/admin/chat", icon: MessagesSquare },
+    ],
   },
   {
     label: "Customers",

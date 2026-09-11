@@ -9,7 +9,7 @@ import { FadeIn, Pressable, motion } from "@/components/motion/Animated";
 export default function SmartIntegration() {
   return (
     <section className="overflow-hidden bg-white py-12 md:py-20">
-      <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-8 rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-100 bg-[linear-gradient(180deg,#ffffff_0%,#f6fbfa_100%)] px-5 py-7 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.9fr)] lg:gap-12 lg:px-10 lg:py-10">
           <FadeIn className="space-y-6 sm:space-y-8" x={-24} y={0} duration={0.65}>
             <div className="inline-flex rounded-full bg-teal-50 px-5 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">

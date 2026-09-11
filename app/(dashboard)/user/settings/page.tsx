@@ -213,7 +213,7 @@ export default function UserSettingsPage() {
                 <UserRound size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-slate-950">Account profile</h2>
+                <h2 className="text-lg font-bold text-primary">Account profile</h2>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   Identity comes from `/auth/me`; customer details are saved through `/customers/:id`.
                 </p>
@@ -302,7 +302,7 @@ export default function UserSettingsPage() {
           className="rounded-lg border border-slate-200 bg-white p-5 shadow-xs sm:p-6"
         >
           <div className="border-b border-slate-100 pb-5">
-            <h2 className="text-lg font-bold text-slate-950">Password change</h2>
+            <h2 className="text-lg font-bold text-primary">Password change</h2>
             <p className="mt-1 text-sm leading-6 text-slate-500">
               Update your portal password through `/auth/change-password`.
             </p>

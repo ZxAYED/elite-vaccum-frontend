@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquareQuote, Package, Star } from "lucide-react";
+import { MessageSquareQuote, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -9,15 +9,6 @@ import { useAppSelector } from "@/redux/hooks";
 import { useGetMyReviewsQuery, useSubmitReviewMutation } from "@/redux/api/reviewsApi";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
-import {
-  PortalCard,
-  PortalCardFooter,
-  PortalCardTitle,
-  PortalCardTop,
-  PortalDetailAction,
-  PortalFact,
-  PortalList,
-} from "@/components/customer-portal/PortalUI";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
@@ -35,6 +26,34 @@ import {
 import { mockCurrentCustomer, mockCurrentUser } from "@/data/mock/user";
 import { useSharedBusinessStoreVersion } from "@/hooks/useSharedBusinessStoreVersion";
 import { formatLongDate } from "@/lib/formatters";
+
+/**
+ * The score as five stars rather than a "4 / 5" chip. A rating is the one
+ * value on this screen a reader takes in without reading, so it is drawn, and
+ * the numeric value stays available to screen readers through the label.
+ */
+function RatingStars({ rating }: { rating: number }) {
+  return (
+    <span
+      aria-label={`Rated ${rating} out of 5`}
+      className="inline-flex items-center gap-0.5"
+      role="img"
+    >
+      {[1, 2, 3, 4, 5].map((value) => (
+        <Star
+          aria-hidden="true"
+          className={
+            value <= rating
+              ? "fill-amber-400 text-amber-400"
+              : "fill-slate-200 text-slate-200"
+          }
+          key={value}
+          size={15}
+        />
+      ))}
+    </span>
+  );
+}
 
 type ComposeType = "product" | "service" | null;
 
@@ -351,76 +370,56 @@ export function ReviewsExperience({
           </p>
         </section>
       ) : (
-        <PortalList>
+        <div className="grid gap-4 lg:grid-cols-2">
           {customerReviews.map((review) => (
-            <PortalCard key={review.id}>
-              <PortalCardTop
-                badges={
-                  <>
-                    <StatusBadge
-                      label={
-                        review.status === "PENDING"
-                          ? "Pending"
-                          : review.status === "PUBLISHED"
-                            ? "Published"
-                            : "Hidden"
-                      }
-                      status={review.status.toLowerCase()}
-                    />
-                    <TypeBadge type={review.type} />
-                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
-                      <Star className="fill-amber-400 text-amber-500" size={12} />
-                      {review.rating} / 5
-                    </span>
-                  </>
-                }
-                meta={
-                  <>
-                    Submitted:{" "}
-                    <span className="font-medium text-slate-700">
-                      {formatLongDate(review.submittedAt)}
-                    </span>
-                  </>
-                }
-              />
+            <article
+              className="flex flex-col rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs transition hover:border-teal-200 sm:p-6"
+              key={review.id}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                <RatingStars rating={review.rating} />
+                <span className="text-xs font-medium tabular-nums text-slate-500">
+                  {formatLongDate(review.submittedAt)}
+                </span>
+              </div>
 
-              <PortalCardTitle subtitle={review.relatedName}>
+              <h3 className="mt-3 wrap-break-word text-balance text-base font-semibold text-slate-900">
                 {review.title}
-              </PortalCardTitle>
+              </h3>
 
-              <p className="-mt-1 mb-4 rounded-md border border-slate-200 bg-slate-50/60 p-3 text-xs leading-relaxed text-slate-700">
+              {/*
+                The review reads as a quotation, not as a disabled form field:
+                a hairline rule and italic body, so the card showcases what the
+                customer wrote instead of echoing the composer they wrote it in.
+              */}
+              <blockquote className="mt-2.5 grow border-l-2 border-teal-200 pl-3.5 text-sm italic leading-relaxed text-slate-700">
                 {review.body}
-              </p>
+              </blockquote>
 
-              <PortalCardFooter
-                actions={
-                  <PortalDetailAction
-                    href={`/user/orders/${review.relatedOrderId}`}
-                    label="View Related Order"
-                  />
-                }
-                facts={
-                  <>
-                    <PortalFact
-                      emphasis
-                      icon={Star}
-                      label="Your Rating"
-                      tone="warning"
-                      value={`${review.rating} / 5`}
-                    />
-                    <PortalFact
-                      icon={Package}
-                      label="Reviewed Item"
-                      placeholder="Not linked"
-                      truncate
-                      value={review.relatedName}
-                    />
-                  </>
-                }
-              />
-            </PortalCard>
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3.5">
+                <StatusBadge
+                  label={
+                    review.status === "PENDING"
+                      ? "Pending"
+                      : review.status === "PUBLISHED"
+                        ? "Published"
+                        : "Hidden"
+                  }
+                  status={review.status.toLowerCase()}
+                />
+                <TypeBadge type={review.type} />
+                {review.relatedName ? (
+                  <span
+                    className="ml-auto min-w-0 truncate text-xs font-medium text-slate-500"
+                    title={review.relatedName}
+                  >
+                    {review.relatedName}
+                  </span>
+                ) : null}
+              </div>
+            </article>
           ))}
-        </PortalList>
+        </div>
       )}
     </div>
   );

@@ -5,11 +5,15 @@ import {
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
+  Home,
+  Info,
   LayoutDashboard,
   LogIn,
   LogOut,
   Menu,
+  MessagesSquare,
   Package,
+  PhoneCall,
   ReceiptText,
   ShoppingBag,
   ShoppingCart,
@@ -46,17 +50,66 @@ import {
 } from "@/components/ui/Sheet";
 import logo from "@/public/logo.png";
 import { useLogoutMutation } from "@/redux/api/authApi";
+import { useGetChatUnreadCountQuery } from "@/redux/api/chatApi";
 import { useGetUnreadNotificationsCountQuery } from "@/redux/api/notificationsApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { logout } from "@/redux/slices/authSlice";
 
+/**
+ * One list for both breakpoints. The desktop bar renders labels only; the
+ * mobile sheet pairs each label with its icon, because a drawer row is a
+ * target rather than a word and reads faster with a mark beside it.
+ */
 const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/services", label: "Services" },
-  { href: "/store", label: "Store" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact Us" },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/services", label: "Services", icon: Wrench },
+  { href: "/store", label: "Store", icon: ShoppingBag },
+  { href: "/about", label: "About", icon: Info },
+  { href: "/contact", label: "Contact Us", icon: PhoneCall },
 ];
+
+/**
+ * Cart and notifications in the mobile drawer: a labelled tile with its count,
+ * sized past the 44px touch minimum. The count is a number rather than a dot
+ * so it survives being read aloud, and the label means the icon never has to
+ * carry the meaning by itself.
+ */
+function MobileQuickAction({
+  href,
+  icon: Icon,
+  label,
+  count,
+  onNavigate,
+}: {
+  href: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  count: number;
+  onNavigate: () => void;
+}) {
+  return (
+    <Link
+      className="flex min-h-14 items-center gap-3 rounded-[var(--radius-control)] border border-teal-100 bg-white px-3 text-primary shadow-sm transition hover:bg-[var(--brand-soft)] active:bg-[#dff0ec]"
+      href={href}
+      onClick={onNavigate}
+    >
+      <span className="relative flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-soft)]">
+        <Icon size={18} />
+        {count > 0 ? (
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-700 px-1 text-[10px] font-bold tabular-nums text-white ring-1 ring-white">
+            {count > 99 ? "99+" : count}
+          </span>
+        ) : null}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{label}</span>
+        <span className="block text-[11px] font-medium tabular-nums text-slate-500">
+          {count > 0 ? `${count} new` : "Nothing new"}
+        </span>
+      </span>
+    </Link>
+  );
+}
 
 function NavIconButton({
   href,
@@ -145,6 +198,21 @@ export function Navbar() {
       ? "/technician/notifications"
       : "/user/notifications";
 
+  const dashboardHref = isAdmin
+    ? "/admin"
+    : isTechnician
+      ? "/technician"
+      : "/user";
+
+  // Chat lives inside the dashboards, so the link resolves by role the same
+  // way notifications does. Technicians fall through to the customer inbox
+  // until their own route exists.
+  const chatHref = isAdmin ? "/admin/chat" : "/user/chat";
+
+  // Every link inside the sheet dismisses it; naming it once keeps the twelve
+  // call sites from drifting into "some close it, some don't".
+  const closeMenu = () => setIsOpen(false);
+
   const cartItemsCount = useAppSelector((state) =>
     state.cart.items.reduce((acc, item) => acc + item.quantity, 0),
   );
@@ -153,10 +221,22 @@ export function Navbar() {
   });
   const unreadNotificationCount = unreadNotificationsData?.unreadCount ?? 0;
 
+  const { data: unreadChatData } = useGetChatUnreadCountQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+  const unreadChatCount = unreadChatData?.unreadCount ?? 0;
+
   return (
-    <header className="h-[4.875rem]">
-      <div className="fixed inset-x-0 top-0 z-[70] border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
-      <nav className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-0">
+    <>
+      {/*
+        Reserves the fixed bar's place in the flow. Both read --navbar-h, so
+        the spacer is the bar's height by construction rather than by someone
+        remembering to update a measured constant.
+      */}
+      <div aria-hidden="true" className="h-[var(--navbar-h)]" />
+
+      <header className="fixed inset-x-0 top-0 z-[70] h-[var(--navbar-h)] border-b border-[#dff0ec] bg-white/95 backdrop-blur-md">
+      <nav className="mx-auto flex h-full w-full max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           href="/"
           className="flex items-center gap-2 font-bold text-xl text-primary"
@@ -165,7 +245,7 @@ export function Navbar() {
             src={logo}
             alt="Elite Central Vacuum logo"
             priority
-            className="h-auto w-[5.5rem] sm:w-[6.5rem]"
+            className="h-auto max-h-11 w-[5.5rem] object-contain sm:w-[6.5rem]"
           />
         </Link>
 
@@ -184,6 +264,17 @@ export function Navbar() {
         <div className="flex items-center gap-2 md:gap-3">
           <NavIconButton href="/cart" label="Open cart" badgeCount={cartItemsCount}>
             <ShoppingCart size={18} />
+          </NavIconButton>
+          <NavIconButton
+            badgeCount={isAuthenticated ? unreadChatCount : 0}
+            href={chatHref}
+            label={
+              unreadChatCount > 0
+                ? `Open messages (${unreadChatCount} unread)`
+                : "Open messages"
+            }
+          >
+            <MessagesSquare size={18} />
           </NavIconButton>
           <NavIconButton
             href={notificationsHref}
@@ -330,6 +421,15 @@ export function Navbar() {
                       >
                         <UserCog size={16} className="text-teal-600" />
                         Technicians
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/admin/chat"
+                        className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
+                      >
+                        <MessagesSquare size={16} className="text-teal-600" />
+                        Messages
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -495,6 +595,15 @@ export function Navbar() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
+                        href="/user/chat"
+                        className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
+                      >
+                        <MessagesSquare size={16} className="text-teal-600" />
+                        Messages
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
                         href="/user/settings"
                         className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-teal-50 hover:text-teal-900"
                       >
@@ -527,12 +636,18 @@ export function Navbar() {
                 <Menu size={22} />
               </button>
             </SheetTrigger>
-            <SheetContent className="overflow-y-auto p-5 xl:hidden">
-              <SheetHeader className="border-b border-teal-100 px-1 pb-5 pr-12 pt-1">
+            {/*
+              A column, not a scrolling block: the brand bar and the account
+              footer hold their edges while only the navigation between them
+              scrolls, so the primary actions stay reachable on a short screen
+              instead of floating in the middle of a void.
+            */}
+            <SheetContent className="flex flex-col p-0 xl:hidden">
+              <SheetHeader className="shrink-0 border-b border-teal-100 px-5 py-4 pr-16">
                 <Link
                   href="/"
                   className="inline-flex w-fit items-center"
-                  onClick={() => setIsOpen(false)}
+                  onClick={closeMenu}
                 >
                   <Image
                     src={logo}
@@ -547,123 +662,180 @@ export function Navbar() {
                 </SheetDescription>
               </SheetHeader>
 
-              <div className="flex flex-col gap-5">
-                {/* Quick action bar */}
-                <div className="flex items-center justify-between border-b border-teal-100 pb-4">
-                  <div className="flex items-center gap-3">
-                    <Link
-                      aria-label="Open cart"
-                      className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
-                      href="/cart"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <ShoppingCart size={18} />
-                      {cartItemsCount > 0 ? (
-                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
-                          {cartItemsCount > 99 ? "99+" : cartItemsCount}
-                        </span>
-                      ) : null}
-                    </Link>
-                    <Link
-                      aria-label="View notifications"
-                      className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] border border-teal-100 bg-white text-primary"
-                      href={notificationsHref}
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Bell size={18} />
-                      {isAuthenticated && unreadNotificationCount > 0 ? (
-                        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-teal-600 px-1 text-[10px] font-bold text-white shadow-xs ring-1 ring-white">
-                          {unreadNotificationCount > 99
-                            ? "99+"
-                            : unreadNotificationCount}
-                        </span>
-                      ) : null}
-                    </Link>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+                {/* Who you are signed in as, before anything you can do. */}
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-3 rounded-[var(--radius-control)] border border-teal-100 bg-[linear-gradient(180deg,#f9fcfb_0%,#f0f7f5_100%)] p-3">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">
+                      {initials}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {fullName}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">
+                        {user?.email}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-md border border-teal-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-teal-800">
+                      {isAdmin ? "Admin" : isTechnician ? "Tech" : "Customer"}
+                    </span>
                   </div>
+                ) : (
+                  <div className="rounded-[var(--radius-control)] border border-teal-100 bg-[linear-gradient(180deg,#f9fcfb_0%,#f0f7f5_100%)] p-4">
+                    <p className="text-sm font-semibold text-slate-900">
+                      You are browsing as a guest
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Sign in to track orders, quotes, and service visits.
+                    </p>
+                  </div>
+                )}
 
-                  {isAuthenticated ? (
-                    <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-teal-800">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-100 font-bold text-teal-900">
-                        {initials}
-                      </span>
-                      <span className="truncate">{fullName}</span>
-                    </div>
-                  ) : null}
+                {/*
+                  Cart and notifications as labelled tiles rather than bare
+                  icons: a glyph alone forces the reader to guess, and the
+                  counts are the reason to open the menu in the first place.
+                */}
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <MobileQuickAction
+                    count={cartItemsCount}
+                    href="/cart"
+                    icon={ShoppingCart}
+                    label="Cart"
+                    onNavigate={closeMenu}
+                  />
+                  <MobileQuickAction
+                    count={isAuthenticated ? unreadNotificationCount : 0}
+                    href={notificationsHref}
+                    icon={Bell}
+                    label="Alerts"
+                    onNavigate={closeMenu}
+                  />
                 </div>
 
-                {/* Navigation links */}
-                <div className="flex flex-col gap-3">
-                  {navItems.map((item) => (
-                    <Link
-                      href={item.href}
-                      className={navLinkClass(item.href)}
-                      key={item.href}
-                      onClick={() => setIsOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
+                <nav aria-label="Main" className="mt-6">
+                  <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Browse
+                  </p>
+                  <ul className="space-y-1">
+                    {navItems.map((item) => {
+                      const isActive = pathname === item.href;
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            aria-current={isActive ? "page" : undefined}
+                            className={`relative flex min-h-12 items-center gap-3 rounded-[var(--radius-control)] px-3 text-base transition ${
+                              isActive
+                                ? "bg-[var(--brand-soft)] font-semibold text-primary before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-primary before:content-['']"
+                                : "font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+                            }`}
+                            href={item.href}
+                            onClick={closeMenu}
+                          >
+                            <Icon
+                              aria-hidden="true"
+                              className={isActive ? "text-primary" : "text-teal-600"}
+                              size={18}
+                            />
+                            {item.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </nav>
 
-                {/* Mobile Auth Actions */}
-                <div className="border-t border-teal-100 pt-3">
-                  {!isAuthenticated ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button asChild size="pill" variant="outline">
-                        <Link
-                          href="/auth/login"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          Sign in
-                        </Link>
-                      </Button>
-                      <Button asChild size="pill">
-                        <Link
-                          href="/auth/register"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          Sign up
-                        </Link>
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      <Button asChild size="pill">
-                        <Link
-                          href={
-                            isAdmin
-                              ? "/admin"
-                              : isTechnician
-                                ? "/technician"
-                                : "/user"
-                          }
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <LayoutDashboard size={16} />
-                          Go to Dashboard
-                        </Link>
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setIsOpen(false);
-                          handleLogout();
-                        }}
-                        size="pill"
-                        variant="ghost"
-                        className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                {/*
+                  Chat is an account destination, not a public page, so it
+                  sits in its own group rather than among the site links.
+                */}
+                <nav aria-label="Account" className="mt-6">
+                  <p className="px-1 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Your account
+                  </p>
+                  <ul className="space-y-1">
+                    <li>
+                      <Link
+                        aria-current={
+                          pathname === chatHref ? "page" : undefined
+                        }
+                        className={`relative flex min-h-12 items-center gap-3 rounded-[var(--radius-control)] px-3 text-base transition ${
+                          pathname === chatHref
+                            ? "bg-[var(--brand-soft)] font-semibold text-primary before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-primary before:content-['']"
+                            : "font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100"
+                        }`}
+                        href={chatHref}
+                        onClick={closeMenu}
                       >
-                        <LogOut size={16} />
-                        Logout
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                        <MessagesSquare
+                          aria-hidden="true"
+                          className={
+                            pathname === chatHref
+                              ? "text-primary"
+                              : "text-teal-600"
+                          }
+                          size={18}
+                        />
+                        Messages
+                        {unreadChatCount > 0 ? (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold tabular-nums text-white">
+                            {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                          </span>
+                        ) : null}
+                      </Link>
+                    </li>
+                  </ul>
+                </nav>
+              </div>
+
+              {/*
+                Pinned to the bottom edge. Logout is separated from the
+                navigation above it so a mistap cannot land on it.
+              */}
+              <div className="shrink-0 border-t border-teal-100 bg-white px-5 py-4">
+                {!isAuthenticated ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button asChild size="pill" variant="outline">
+                      <Link href="/auth/login" onClick={closeMenu}>
+                        Sign in
+                      </Link>
+                    </Button>
+                    <Button asChild size="pill">
+                      <Link href="/auth/register" onClick={closeMenu}>
+                        Sign up
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <Button asChild size="pill">
+                      <Link href={dashboardHref} onClick={closeMenu}>
+                        <LayoutDashboard size={16} />
+                        Go to Dashboard
+                      </Link>
+                    </Button>
+                    <Button
+                      className="text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                      onClick={() => {
+                        closeMenu();
+                        handleLogout();
+                      }}
+                      size="pill"
+                      variant="ghost"
+                    >
+                      <LogOut size={16} />
+                      Logout
+                    </Button>
+                  </div>
+                )}
               </div>
             </SheetContent>
           </Sheet>
         </div>
       </nav>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

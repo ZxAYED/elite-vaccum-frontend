@@ -1035,7 +1035,7 @@ export function AdminScheduleClient() {
                   <div>
                     <div className="flex items-center gap-2">
                       <CalendarClock className="text-teal-700" size={18} />
-                      <h2 className="text-lg font-semibold text-slate-950">
+                      <h2 className="text-lg font-semibold text-primary">
                         {formatLongDate(`${selectedDate}T12:00:00`)}
                       </h2>
                     </div>

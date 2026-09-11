@@ -33,6 +33,7 @@ import { FormField } from "@/components/forms/FormField";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import { Checkbox } from "@/components/ui/Checkbox";
 import {
   Dialog,
@@ -288,7 +289,7 @@ function OverviewForm({
     <AdminSurface>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-slate-950">Account Information</h2>
+          <h2 className="text-xl font-semibold text-primary">Account Information</h2>
           <p className="mt-1 text-sm text-slate-500">
             Basic customer contact data shared across requests, orders, quotations, and schedules.
           </p>
@@ -1124,11 +1125,11 @@ export function AdminCustomerDetailClient({
 
   if (!customer) {
     return (
-      <AdminPageShell>
-        <AdminSurface className="text-center text-sm text-slate-600">
+      <PageStateShell>
+        <AdminSurface className="py-10 text-center text-sm text-slate-600">
           Customer not found.
         </AdminSurface>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 
@@ -1235,7 +1236,7 @@ export function AdminCustomerDetailClient({
                   <MapPin size={18} />
                 </span>
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">Addresses</h2>
+                  <h2 className="text-xl font-semibold text-primary">Addresses</h2>
                   <p className="text-sm text-slate-500">
                     Primary address plus additional saved customer locations.
                   </p>
@@ -1313,7 +1314,7 @@ export function AdminCustomerDetailClient({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-2xl font-semibold text-slate-950">{property.label}</h2>
+                      <h2 className="text-2xl font-semibold text-primary">{property.label}</h2>
                       <StatusBadge
                         label={property.status}
                         status={property.status === "active" ? "accepted" : "cancelled"}
@@ -1369,7 +1370,7 @@ export function AdminCustomerDetailClient({
                   <AdminSurface className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-slate-950">Vacuum Units</h3>
+                        <h3 className="text-lg font-semibold text-primary">Vacuum Units</h3>
                         <p className="text-sm text-slate-500">
                           Manufacturer, model, serial, and internal location per unit.
                         </p>
@@ -1452,7 +1453,7 @@ export function AdminCustomerDetailClient({
                   <AdminSurface className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-slate-950">Inlets / Ports by Floor</h3>
+                        <h3 className="text-lg font-semibold text-primary">Inlets / Ports by Floor</h3>
                         <p className="text-sm text-slate-500">
                           Flexible floor records with HDH, Chameleon, Chameleon-Elite, and Standard counts.
                         </p>
@@ -1520,7 +1521,7 @@ export function AdminCustomerDetailClient({
                   <AdminSurface className="p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <h3 className="text-lg font-semibold text-slate-950">Additional Features</h3>
+                        <h3 className="text-lg font-semibold text-primary">Additional Features</h3>
                         <p className="text-sm text-slate-500">
                           VacPan, Spot Vacuum, and Wally Flex with quantity, locations, and field notes.
                         </p>
@@ -1594,7 +1595,7 @@ export function AdminCustomerDetailClient({
                   </AdminSurface>
 
                   <AdminSurface className="p-4">
-                    <h3 className="text-lg font-semibold text-slate-950">Internal Property Notes</h3>
+                    <h3 className="text-lg font-semibold text-primary">Internal Property Notes</h3>
                     <div className="mt-4 space-y-3">
                       <PropertyNote title="Access">
                         {property.accessInformation ?? "No access information recorded."}
@@ -1634,7 +1635,7 @@ export function AdminCustomerDetailClient({
                         <StatusBadge label={entry.order.status} status={entry.order.status} />
                       ) : null}
                     </div>
-                    <h2 className="mt-3 text-2xl font-semibold text-slate-950">
+                    <h2 className="mt-3 text-2xl font-semibold text-primary">
                       {entry.request.title}
                     </h2>
                     <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -1699,7 +1700,7 @@ export function AdminCustomerDetailClient({
                       <TypeBadge type={order.type} />
                       <StatusBadge label={order.status} status={order.status} />
                     </div>
-                    <h2 className="mt-3 text-xl font-semibold text-slate-950">{order.id}</h2>
+                    <h2 className="mt-3 text-xl font-semibold text-primary">{order.id}</h2>
                     <p className="mt-1 text-sm text-slate-500">
                       Created {formatLongDate(order.createdAt)}
                     </p>
@@ -1792,7 +1793,7 @@ export function AdminCustomerDetailClient({
           </div>
           <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <AdminSurface>
-              <h2 className="text-xl font-semibold text-slate-950">Business Notes</h2>
+              <h2 className="text-xl font-semibold text-primary">Business Notes</h2>
               <div className="mt-5 space-y-3">
                 {(customer.internalNotes ?? []).length === 0 ? (
                   <EmptyCard text="No internal notes have been recorded." />
@@ -1814,7 +1815,7 @@ export function AdminCustomerDetailClient({
             </AdminSurface>
 
             <AdminSurface>
-              <h2 className="text-xl font-semibold text-slate-950">Operational Summary</h2>
+              <h2 className="text-xl font-semibold text-primary">Operational Summary</h2>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <OverviewTile
                   icon={Mail}

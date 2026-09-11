@@ -17,7 +17,7 @@ export function FormSection({
   return (
     <section className={cn("border-t border-teal-100 pt-8", className)}>
       <div className="mb-6 max-w-2xl">
-        <h2 className="text-2xl font-semibold tracking-[-0.035em] text-slate-950">
+        <h2 className="text-2xl font-semibold tracking-[-0.035em] text-primary">
           {title}
         </h2>
         <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>

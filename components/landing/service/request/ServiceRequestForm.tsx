@@ -492,7 +492,7 @@ export function ServiceRequestForm({ service }: ServiceRequestFormProps) {
     <main className="w-full min-w-0 bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_34%)] py-8 sm:py-12 md:py-16">
       <form
         onSubmit={handleSubmit(onSubmit, onInvalid)}
-        className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
+        className="mx-auto grid w-full max-w-[1400px] gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
       >
         <div className="w-full min-w-0">
           <div>
@@ -819,7 +819,7 @@ export function ServiceRequestForm({ service }: ServiceRequestFormProps) {
                               className={cn(
                                 "flex items-center gap-3.5 rounded-2xl border p-3.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                                 isSelected
-                                  ? "border-primary bg-teal-50/70 text-slate-950 shadow-xs ring-1 ring-primary/20"
+                                  ? "border-primary bg-teal-50/70 text-primary shadow-xs ring-1 ring-primary/20"
                                   : "border-slate-200/80 bg-slate-50 text-slate-700 hover:border-teal-200 hover:bg-slate-100/70",
                               )}
                             >

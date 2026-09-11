@@ -45,6 +45,9 @@ export interface LegalPolicyDto {
   version: string;
   effectiveDate: string;
   isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  lastUpdated?: string;
 }
 
 function unwrapData<T>(raw: unknown): T {
@@ -156,12 +159,19 @@ function normalizeFaq(raw: unknown): FaqDto {
 }
 
 function serializeFaq(body: Partial<FaqDto>) {
+  const isActive =
+    body.isActive !== undefined
+      ? body.isActive
+      : body.status
+        ? body.status.toLowerCase() === "published"
+        : true;
   return {
     question: body.question,
     answer: body.answer,
     category: body.category,
-    status: body.status ?? (body.isActive === false ? "Hidden" : "Published"),
+    status: body.status ?? (isActive ? "Published" : "Hidden"),
     sortOrder: body.sortOrder,
+    isActive,
   };
 }
 
@@ -189,11 +199,19 @@ function normalizePolicy(raw: unknown): LegalPolicyDto {
 }
 
 function serializePolicy(body: Partial<LegalPolicyDto>) {
+  const isActive =
+    body.isActive !== undefined
+      ? body.isActive
+      : body.status
+        ? body.status.toLowerCase() === "published"
+        : true;
   return {
     slug: body.slug,
     title: body.title,
     content: body.content ?? body.contentMarkdown,
-    status: body.status ?? (body.isActive === false ? "Draft" : "Published"),
+    contentMarkdown: body.contentMarkdown ?? body.content,
+    status: body.status ?? (isActive ? "Published" : "Draft"),
+    isActive,
   };
 }
 

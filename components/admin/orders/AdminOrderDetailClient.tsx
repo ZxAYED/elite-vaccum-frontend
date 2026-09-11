@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
   Loader2,
   Mail,
   MapPin,
+  MessageSquare,
   Package,
   Phone,
   RotateCcw,
@@ -23,6 +25,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useStartConversationMutation,
+  useSendConversationMessageMutation,
+} from "@/redux/api/chatApi";
 
 import {
   AdminPageHeader,
@@ -32,6 +38,7 @@ import {
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { OrderInvoiceCard } from "@/components/invoices/OrderInvoiceCard";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import {
   Dialog,
   DialogContent,
@@ -98,6 +105,10 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
   const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
   const [approveRefund, { isLoading: isRefunding }] =
     useApproveReturnRefundMutation();
+  const router = useRouter();
+  const [startConversation, { isLoading: isStartingChat }] =
+    useStartConversationMutation();
+  const [sendMessage] = useSendConversationMessageMutation();
 
   const [statusDraft, setStatusDraft] = useState<StoreOrderStatus | null>(null);
   const [statusNote, setStatusNote] = useState("");
@@ -111,21 +122,21 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
 
   if (isLoading) {
     return (
-      <AdminPageShell>
-        <div className="flex items-center justify-center rounded-xl border border-teal-100 bg-white py-24 text-slate-500">
+      <PageStateShell>
+        <div className="flex items-center justify-center rounded-xl border border-teal-100 bg-white py-14 text-slate-500">
           <Loader2 className="mr-2 size-5 animate-spin text-teal-700" />
           Loading order...
         </div>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 
   if (isError || !order) {
     return (
-      <AdminPageShell>
-        <AdminSurface className="py-16 text-center">
+      <PageStateShell>
+        <AdminSurface className="py-10 text-center">
           <AlertTriangle className="mx-auto size-8 text-slate-400" />
-          <h1 className="mt-4 text-xl font-semibold text-slate-950">
+          <h1 className="mt-4 text-xl font-semibold text-primary">
             Order not found
           </h1>
           <p className="mt-1 text-sm text-slate-500">
@@ -140,7 +151,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             </Button>
           </div>
         </AdminSurface>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 
@@ -248,6 +259,38 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
     }
   }
 
+  async function handleMessageCustomer() {
+    if (!order) return;
+    try {
+      const customerName = order.customer?.displayName || "Customer";
+      const initialText = `Hello ${customerName}, this is regarding your order #${orderRef}.`;
+      const res = await startConversation({
+        type: "ORDER_INQUIRY",
+        targetUserId: order.customerId ?? undefined,
+        orderId: order.id,
+        title: `Order #${orderRef} - ${customerName}`,
+        initialMessage: initialText,
+      }).unwrap();
+
+      if (res?.id) {
+        try {
+          await sendMessage({
+            conversationId: res.id,
+            content: initialText,
+          }).unwrap();
+        } catch {
+          // Room may have already processed initial message on creation
+        }
+        toast.success(`Connecting to chat with ${customerName}...`);
+        router.push(`/admin/chat?conversationId=${res.id}`);
+      }
+    } catch (err) {
+      toast.error("Could not start chat session", {
+        description: readApiMessage(err, "Please try again shortly."),
+      });
+    }
+  }
+
   return (
     <AdminPageShell>
       <AdminPageHeader
@@ -262,6 +305,17 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                 All Orders
               </Link>
             </Button>
+            {order.customerId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isStartingChat}
+                onClick={handleMessageCustomer}
+              >
+                <MessageSquare size={14} className="mr-1.5" />
+                {isStartingChat ? "Connecting..." : "Message Customer"}
+              </Button>
+            ) : null}
             {canRefund ? (
               <Button
                 variant="outline"
@@ -345,7 +399,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             <div className="flex items-center gap-3">
               <Package className="text-teal-700" size={20} />
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   Order Items
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -374,7 +428,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                       )}
                     </div>
                     <div>
-                      <p className="text-lg font-semibold text-slate-950">
+                      <p className="text-lg font-semibold text-primary">
                         {item.productName}
                       </p>
                       {item.productSku ? (
@@ -388,7 +442,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                       </p>
                     </div>
                   </div>
-                  <p className="text-xl font-semibold text-slate-950">
+                  <p className="text-xl font-semibold text-primary">
                     {formatCurrencyUsd(Number(item.totalUsd))}
                   </p>
                 </div>
@@ -400,7 +454,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             <div className="flex items-center gap-3">
               <Truck className="text-teal-700" size={20} />
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   Shipping &amp; Tracking
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -508,7 +562,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
               <div className="flex items-center gap-3">
                 <History className="text-teal-700" size={20} />
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">
+                  <h2 className="text-xl font-semibold text-primary">
                     Status History
                   </h2>
                   <p className="text-sm text-slate-500">
@@ -549,7 +603,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
               <div className="flex items-center gap-3">
                 <RotateCcw className="text-teal-700" size={20} />
                 <div>
-                  <h2 className="text-xl font-semibold text-slate-950">
+                  <h2 className="text-xl font-semibold text-primary">
                     Return Requests
                   </h2>
                   <p className="text-sm text-slate-500">
@@ -592,7 +646,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
             <div className="flex items-center gap-3">
               <Settings2 className="text-teal-700" size={20} />
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   Order Status
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -640,10 +694,10 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
           <AdminSurface>
             <div className="flex items-center gap-3">
               <UserRound className="text-teal-700" size={20} />
-              <h2 className="text-xl font-semibold text-slate-950">Customer</h2>
+              <h2 className="text-xl font-semibold text-primary">Customer</h2>
             </div>
             <div className="mt-4 space-y-2 text-sm">
-              <p className="font-semibold text-slate-950">
+              <p className="font-semibold text-primary">
                 {order.customer?.displayName || "Customer"}
               </p>
               {order.customer?.email ? (
@@ -659,11 +713,23 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                 </p>
               ) : null}
               {order.customerId ? (
-                <Button asChild className="mt-2 w-full" size="sm" variant="outline">
-                  <Link href={`/admin/customers/${order.customerId}`}>
-                    View Customer
-                  </Link>
-                </Button>
+                <div className="mt-3 flex flex-col gap-2">
+                  <Button asChild className="w-full" size="sm" variant="outline">
+                    <Link href={`/admin/customers/${order.customerId}`}>
+                      View Customer Profile
+                    </Link>
+                  </Button>
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    variant="default"
+                    disabled={isStartingChat}
+                    onClick={handleMessageCustomer}
+                  >
+                    <MessageSquare size={14} className="mr-1.5" />
+                    {isStartingChat ? "Connecting..." : "Message Customer"}
+                  </Button>
+                </div>
               ) : null}
             </div>
             {order.customerNotes ? (
@@ -677,7 +743,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
           </AdminSurface>
 
           <AdminSurface>
-            <h2 className="text-xl font-semibold text-slate-950">
+            <h2 className="text-xl font-semibold text-primary">
               Order Summary
             </h2>
             <p className="mt-1 text-sm text-slate-500">
@@ -702,7 +768,7 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                   <span>-{formatCurrencyUsd(Number(order.discountUsd))}</span>
                 </div>
               ) : null}
-              <div className="flex justify-between border-t border-teal-100 pt-3 text-lg font-semibold text-slate-950">
+              <div className="flex justify-between border-t border-teal-100 pt-3 text-lg font-semibold text-primary">
                 <span>Total</span>
                 <span>{formatCurrencyUsd(Number(order.totalUsd))}</span>
               </div>
@@ -797,7 +863,7 @@ function InvoicesPanel({ order }: { order: StoreOrderDto }) {
       <div className="flex items-center gap-3">
         <FileText className="text-teal-700" size={20} />
         <div>
-          <h2 className="text-xl font-semibold text-slate-950">
+          <h2 className="text-xl font-semibold text-primary">
             Invoices &amp; Payments
           </h2>
           <p className="text-sm text-slate-500">
@@ -826,7 +892,7 @@ function InvoicesPanel({ order }: { order: StoreOrderDto }) {
                 </Link>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={toStatusSlug(invoice.status)} />
-                  <span className="font-semibold text-slate-950">
+                  <span className="font-semibold text-primary">
                     {formatCurrencyUsd(Number(invoice.totalUsd))}
                   </span>
                 </div>

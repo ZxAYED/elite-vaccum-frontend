@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Bell,
   LogOut,
+  MessagesSquare,
   Package,
   ReceiptText,
   Settings,
@@ -30,6 +31,7 @@ const navItems = [
   },
   { label: "Orders", href: "/user/orders", icon: Package },
   { label: "Billing", href: "/user/billing", icon: ReceiptText },
+  { label: "Messages", href: "/user/chat", icon: MessagesSquare },
   { label: "Reviews", href: "/user/reviews", icon: Star },
   { label: "Notifications", href: "/user/notifications", icon: Bell },
   { label: "Settings", href: "/user/settings", icon: Settings },

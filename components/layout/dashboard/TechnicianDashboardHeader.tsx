@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bell, Menu, Wrench } from "lucide-react";
 import { useAppSelector } from "@/redux/hooks";
 import { useGetUnreadNotificationsCountQuery } from "@/redux/api/notificationsApi";
+import { useGetTechnicianProfileQuery } from "@/redux/api/technicianApi";
 
 export default function TechnicianDashboardHeader({
   onMenuToggle,
@@ -11,16 +12,29 @@ export default function TechnicianDashboardHeader({
   onMenuToggle: () => void;
 }) {
   const user = useAppSelector((state) => state.auth.user);
+  const reduxTech = useAppSelector((state) => state.auth.technicianProfile);
+  const { data: technicianQuery } = useGetTechnicianProfileQuery();
   const { data: unreadData } = useGetUnreadNotificationsCountQuery();
   const unreadCount = unreadData?.unreadCount ?? 0;
 
-  const displayName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Technician";
-  const initials = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase() || "TC";
+  const tech =
+    technicianQuery ||
+    reduxTech ||
+    (user?.technicianProfile as typeof technicianQuery) ||
+    null;
+  const avatarUrl = tech?.avatarUrl || user?.avatarUrl;
+  const displayName =
+    tech?.displayName ||
+    user?.fullName ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    "Technician";
+  const initials =
+    displayName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "TC";
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 py-3 backdrop-blur-md lg:px-6">
@@ -58,9 +72,18 @@ export default function TechnicianDashboardHeader({
           href="/technician/settings"
           className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-1.5 pr-3 shadow-xs transition hover:border-teal-300 hover:bg-slate-50"
         >
-          <div className="flex size-7 items-center justify-center rounded-lg bg-teal-800 text-xs font-bold text-white">
-            {initials}
-          </div>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="size-7 rounded-lg object-cover border border-teal-200 shrink-0"
+            />
+          ) : (
+            <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-teal-800 text-xs font-bold text-white">
+              {initials}
+            </div>
+          )}
           <div className="hidden flex-col text-left sm:flex">
             <span className="text-xs font-semibold text-slate-900 leading-tight">
               {displayName}

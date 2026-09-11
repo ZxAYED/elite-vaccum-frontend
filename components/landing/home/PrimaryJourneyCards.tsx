@@ -42,7 +42,7 @@ const cards = [
 export function PrimaryJourneyCards() {
   return (
     <section className="py-8 md:py-20 bg-white">
-      <FadeIn className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8" y={24} duration={0.65}>
+      <FadeIn className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8" y={24} duration={0.65}>
         <StaggerGroup className="grid auto-rows-fr gap-6 lg:grid-cols-2" delay={0.05} once>
           {cards.map(
             ({

@@ -176,7 +176,7 @@ export default function TechnicianSchedulePage() {
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <AdminSurface>
-          <h2 className="text-xl font-semibold text-slate-950">
+          <h2 className="text-xl font-semibold text-primary">
             {todayEntry ? "Today" : "This week"}
           </h2>
           <div className="mt-5 space-y-3">
@@ -259,7 +259,7 @@ export default function TechnicianSchedulePage() {
           .map((day) => (
             <AdminSurface key={day.date}>
               <div className="flex items-baseline justify-between gap-3">
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   {formatLongDate(`${day.date}T12:00:00.000Z`)}
                 </h2>
                 <span className="text-sm text-slate-500">
