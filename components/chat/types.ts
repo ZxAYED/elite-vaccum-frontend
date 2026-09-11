@@ -42,8 +42,15 @@ export interface ChatAttachment {
   name: string;
   /** Bytes; formatted for display at render time. */
   size: number;
-  kind: "image" | "file";
+  kind: "image" | "video" | "file";
+  /** Set once the upload endpoint has returned a location. */
   url?: string;
+  /**
+   * The picked file, present only on a draft the customer has not sent yet.
+   * The upload call takes this; everything rendered comes from the fields
+   * above, so a message read back from the API needs no `file`.
+   */
+  file?: File;
 }
 
 export interface Conversation {

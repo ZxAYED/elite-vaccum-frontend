@@ -83,7 +83,7 @@ export function TestimonialsCarousel() {
 
   return (
     <section className="bg-white py-20 md:py-24">
-      <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <FadeIn
           className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between"
           y={24}

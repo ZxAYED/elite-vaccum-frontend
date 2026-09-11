@@ -26,11 +26,16 @@ import { toast } from "sonner";
 import {
   useGetBusinessProfileQuery,
   useUpdateBusinessProfileMutation,
+  useGetFaqsQuery,
   useCreateFaqMutation,
   useUpdateFaqMutation,
   useDeleteFaqMutation,
+  useGetPoliciesQuery,
+  useCreatePolicyMutation,
   useUpdatePolicyMutation,
+  useDeletePolicyMutation,
 } from "@/redux/api/settingsApi";
+import { formatLongDate } from "@/lib/formatters";
 import { useGetMeQuery } from "@/redux/api/authApi";
 import {
   Dialog,
@@ -76,7 +81,7 @@ interface PolicySection {
 interface PolicyDocument {
   id: string;
   title: string;
-  route: "/terms" | "/privacy" | "/accessibility";
+  route: string;
   status: PolicyStatus;
   updatedAt: string;
   intro: string;
@@ -791,50 +796,106 @@ function parsePolicyContent(text: string): { intro: string; sections: PolicySect
 export default function AdminSettingsPage() {
   const { data: adminUser, isLoading: isAdminLoading } = useGetMeQuery();
   const { data: apiProfile } = useGetBusinessProfileQuery();
+  const { data: apiFaqs } = useGetFaqsQuery();
+  const { data: apiPolicies } = useGetPoliciesQuery();
+
   const [updateBusinessProfile] = useUpdateBusinessProfileMutation();
   const [createFaqMutation] = useCreateFaqMutation();
   const [updateFaqMutation] = useUpdateFaqMutation();
   const [deleteFaqMutation] = useDeleteFaqMutation();
+  const [createPolicyMutation] = useCreatePolicyMutation();
   const [updatePolicyMutation] = useUpdatePolicyMutation();
+  const [deletePolicyMutation] = useDeletePolicyMutation();
 
   const [activeTab, setActiveTab] = useState<SettingsTabKey>("legal");
-  const [policies, setPolicies] = useState(policyDocumentsSeed);
-  const [faqs, setFaqs] = useState(initialFaqs);
-  const [contactSettings, setContactSettings] = useState(contactSettingsSeed);
-  const [savedContactSettings, setSavedContactSettings] = useState(contactSettingsSeed);
+  const [localPolicies, setLocalPolicies] = useState<PolicyDocument[] | null>(null);
+  const [localFaqs, setLocalFaqs] = useState<FaqItem[] | null>(null);
+  const [localContactSettings, setLocalContactSettings] = useState<ContactSettings | null>(null);
+  const [savedContactSettings, setSavedContactSettings] = useState<ContactSettings | null>(null);
   const [notifications, setNotifications] = useState(notificationEventsSeed);
   const [savedNotifications, setSavedNotifications] = useState(notificationEventsSeed);
 
-  const [profileLoaded, setProfileLoaded] = useState(false);
-  if (apiProfile && !profileLoaded) {
-    setProfileLoaded(true);
-    setContactSettings((curr) => ({
-      ...curr,
-      businessName: apiProfile.companyName || curr.businessName,
-      supportEmail: apiProfile.email || curr.supportEmail,
-      primaryPhone: apiProfile.phone || curr.primaryPhone,
-      secondaryPhone: apiProfile.secondaryPhone || curr.secondaryPhone,
-      businessAddress: apiProfile.address || curr.businessAddress,
-      city: apiProfile.city || curr.city,
-      state: apiProfile.state || curr.state,
-      zipCode: apiProfile.zipCode || curr.zipCode,
-      country: apiProfile.country || curr.country,
-      serviceCoverageMessage: apiProfile.coverageMessage || curr.serviceCoverageMessage,
-      coverageNotes: apiProfile.coverageNotes || curr.coverageNotes,
-      facebook: apiProfile.socialLinks?.facebook || curr.facebook,
-      instagram: apiProfile.socialLinks?.instagram || curr.instagram,
-      linkedIn: apiProfile.socialLinks?.linkedin || curr.linkedIn,
-      hours: Object.keys(apiProfile.operatingHours || {}).length
-        ? curr.hours.map((entry) => ({
-            ...entry,
-            hours:
-              apiProfile.operatingHours?.[entry.day.toLowerCase()] ??
-              apiProfile.operatingHours?.[entry.day] ??
-              entry.hours,
-          }))
-        : curr.hours,
-    }));
-  }
+  const faqs = useMemo(() => {
+    if (localFaqs !== null) return localFaqs;
+    if (apiFaqs && apiFaqs.length > 0) {
+      return apiFaqs.map((dto) => ({
+        id: dto.id,
+        question: dto.question,
+        answer: dto.answer,
+        category: (dto.category as FaqCategory) || "General",
+        status: (dto.status as FaqStatus) || (dto.isActive ? "Published" : "Hidden"),
+        updatedAt: "Live Data",
+      }));
+    }
+    return initialFaqs;
+  }, [apiFaqs, localFaqs]);
+
+  const policies = useMemo(() => {
+    if (localPolicies !== null) return localPolicies;
+    if (apiPolicies && apiPolicies.length > 0) {
+      const serverDocs: PolicyDocument[] = apiPolicies.map((p) => {
+        const parsed = parsePolicyContent(p.content || p.contentMarkdown);
+        const route =
+          p.slug === "terms"
+            ? "/terms"
+            : p.slug === "privacy"
+              ? "/privacy"
+              : p.slug === "accessibility"
+                ? "/accessibility"
+                : `/policies/${p.slug}`;
+        return {
+          id: p.id,
+          title: p.title,
+          route,
+          status: (p.status as PolicyStatus) || (p.isActive ? "Published" : "Draft"),
+          updatedAt: p.effectiveDate ? formatLongDate(p.effectiveDate) : "Live Data",
+          intro: parsed.intro || p.title,
+          sections: parsed.sections.length
+            ? parsed.sections
+            : [{ heading: "Overview", body: [p.content || p.contentMarkdown] }],
+        };
+      });
+      const serverSlugs = new Set(apiPolicies.map((p) => p.slug));
+      const missingSeeds = policyDocumentsSeed.filter(
+        (c) => !serverSlugs.has(c.route.replace("/", "")),
+      );
+      return [...serverDocs, ...missingSeeds];
+    }
+    return policyDocumentsSeed;
+  }, [apiPolicies, localPolicies]);
+
+  const contactSettings = useMemo(() => {
+    if (localContactSettings !== null) return localContactSettings;
+    if (apiProfile) {
+      return {
+        ...contactSettingsSeed,
+        businessName: apiProfile.companyName || contactSettingsSeed.businessName,
+        supportEmail: apiProfile.email || contactSettingsSeed.supportEmail,
+        primaryPhone: apiProfile.phone || contactSettingsSeed.primaryPhone,
+        secondaryPhone: apiProfile.secondaryPhone || contactSettingsSeed.secondaryPhone,
+        businessAddress: apiProfile.address || contactSettingsSeed.businessAddress,
+        city: apiProfile.city || contactSettingsSeed.city,
+        state: apiProfile.state || contactSettingsSeed.state,
+        zipCode: apiProfile.zipCode || contactSettingsSeed.zipCode,
+        country: apiProfile.country || contactSettingsSeed.country,
+        serviceCoverageMessage: apiProfile.coverageMessage || contactSettingsSeed.serviceCoverageMessage,
+        coverageNotes: apiProfile.coverageNotes || contactSettingsSeed.coverageNotes,
+        facebook: apiProfile.socialLinks?.facebook || contactSettingsSeed.facebook,
+        instagram: apiProfile.socialLinks?.instagram || contactSettingsSeed.instagram,
+        linkedIn: apiProfile.socialLinks?.linkedin || contactSettingsSeed.linkedIn,
+        hours: Object.keys(apiProfile.operatingHours || {}).length
+          ? contactSettingsSeed.hours.map((entry) => ({
+              ...entry,
+              hours:
+                apiProfile.operatingHours?.[entry.day.toLowerCase()] ??
+                apiProfile.operatingHours?.[entry.day] ??
+                entry.hours,
+            }))
+          : contactSettingsSeed.hours,
+      };
+    }
+    return contactSettingsSeed;
+  }, [apiProfile, localContactSettings]);
 
   const [policyEditorOpen, setPolicyEditorOpen] = useState(false);
   const [activePolicyId, setActivePolicyId] = useState<string | null>(null);
@@ -859,6 +920,7 @@ export default function AdminSettingsPage() {
   const [notificationFeedback, setNotificationFeedback] = useState("");
 
   const faqToDelete = faqs.find((faq) => faq.id === deleteFaqId) ?? null;
+  const policyToDelete = policies.find((policy) => policy.id === deletePolicyId) ?? null;
 
   const filteredFaqs = useMemo(() => {
     const query = faqSearch.trim().toLowerCase();
@@ -881,7 +943,9 @@ export default function AdminSettingsPage() {
   const faqHiddenCount = faqs.filter((faq) => faq.status === "Hidden").length;
 
   const hasContactChanges =
-    JSON.stringify(contactSettings) !== JSON.stringify(savedContactSettings);
+    savedContactSettings !== null
+      ? JSON.stringify(contactSettings) !== JSON.stringify(savedContactSettings)
+      : localContactSettings !== null;
   const hasNotificationChanges =
     JSON.stringify(notifications) !== JSON.stringify(savedNotifications);
 
@@ -892,6 +956,18 @@ export default function AdminSettingsPage() {
       Admin: notifications.filter((event) => event.recipient === "Admin"),
     };
   }, [notifications]);
+
+  const [deletePolicyId, setDeletePolicyId] = useState<string | null>(null);
+
+  function openCreatePolicy() {
+    setActivePolicyId(null);
+    setPolicyEditorTitle("");
+    setPolicyEditorContent("");
+    setPolicyEditorStatus("Draft");
+    setPolicyEditorUpdatedAt(new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }));
+    setPolicyFeedback("");
+    setPolicyEditorOpen(true);
+  }
 
   function openPolicyEditor(policy: PolicyDocument) {
     setActivePolicyId(policy.id);
@@ -904,37 +980,116 @@ export default function AdminSettingsPage() {
   }
 
   async function savePolicyEditor() {
-    if (!activePolicyId) return;
+    if (!policyEditorTitle.trim()) {
+      toast.error("Policy title is required.");
+      return;
+    }
+
+    const isPublished = policyEditorStatus === "Published";
+    const existingInDb = apiPolicies?.find(
+      (p) => p.id === activePolicyId || p.slug === activePolicyId,
+    );
+
+    const activePolicy = activePolicyId ? policies.find((p) => p.id === activePolicyId) : null;
+    const slug =
+      existingInDb?.slug ||
+      (activePolicy
+        ? activePolicy.route.replace(/^\/(policies\/)?/, "")
+        : policyEditorTitle
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, ""));
+
     try {
-      await updatePolicyMutation({
-        id: activePolicyId,
-        body: {
+      if (existingInDb) {
+        await updatePolicyMutation({
+          id: existingInDb.id,
+          body: {
+            title: policyEditorTitle.trim(),
+            contentMarkdown: policyEditorContent,
+            content: policyEditorContent,
+            status: policyEditorStatus,
+            isActive: isPublished,
+          },
+        }).unwrap();
+        toast.success("Policy updated successfully.");
+      } else {
+        await createPolicyMutation({
           title: policyEditorTitle.trim(),
+          slug,
           contentMarkdown: policyEditorContent,
-          isActive: policyEditorStatus === "Published",
-        },
-      }).unwrap();
-      toast.success("Policy updated successfully.");
+          content: policyEditorContent,
+          status: policyEditorStatus,
+          isActive: isPublished,
+        }).unwrap();
+        toast.success(activePolicyId ? "Policy updated successfully." : "Policy created successfully.");
+      }
+    } catch {
+      toast.success("Policy saved locally.");
+    }
+
+    const parsed = parsePolicyContent(policyEditorContent);
+    const route =
+      slug === "terms"
+        ? "/terms"
+        : slug === "privacy"
+          ? "/privacy"
+          : slug === "accessibility"
+            ? "/accessibility"
+            : (`/policies/${slug}` as const);
+
+    if (activePolicyId) {
+      setLocalPolicies((current) =>
+        (current ?? policies).map((policy) =>
+          policy.id === activePolicyId
+            ? {
+                ...policy,
+                title: policyEditorTitle.trim(),
+                status: policyEditorStatus,
+                updatedAt: policyEditorUpdatedAt.trim() || "Just now",
+                intro: parsed.intro || policyEditorTitle.trim(),
+                sections: parsed.sections.length
+                  ? parsed.sections
+                  : [{ heading: "Overview", body: [policyEditorContent] }],
+              }
+            : policy,
+        ),
+      );
+      setPolicyFeedback(`${policyEditorTitle.trim()} updated.`);
+    } else {
+      const newDoc: PolicyDocument = {
+        id: `policy-${Date.now()}`,
+        title: policyEditorTitle.trim(),
+        route,
+        status: policyEditorStatus,
+        updatedAt: "Just now",
+        intro: parsed.intro || policyEditorTitle.trim(),
+        sections: parsed.sections.length
+          ? parsed.sections
+          : [{ heading: "Overview", body: [policyEditorContent] }],
+      };
+      setLocalPolicies((current) => [newDoc, ...(current ?? policies)]);
+      setPolicyFeedback(`${policyEditorTitle.trim()} created.`);
+    }
+
+    setPolicyEditorOpen(false);
+  }
+
+  async function deletePolicy() {
+    if (!deletePolicyId) return;
+    try {
+      const existingInDb = apiPolicies?.find((p) => p.id === deletePolicyId);
+      if (existingInDb) {
+        await deletePolicyMutation(existingInDb.id).unwrap();
+        toast.success("Policy deleted successfully.");
+      }
     } catch {
       // fallback
     }
-    const parsed = parsePolicyContent(policyEditorContent);
-    setPolicies((current) =>
-      current.map((policy) =>
-        policy.id === activePolicyId
-          ? {
-              ...policy,
-              title: policyEditorTitle.trim(),
-              status: policyEditorStatus,
-              updatedAt: policyEditorUpdatedAt.trim(),
-              intro: parsed.intro,
-              sections: parsed.sections,
-            }
-          : policy,
-      ),
-    );
-    setPolicyFeedback(`${policyEditorTitle.trim()} updated.`);
-    setPolicyEditorOpen(false);
+    setLocalPolicies((current) => (current ?? policies).filter((p) => p.id !== deletePolicyId));
+    setDeletePolicyId(null);
+    setPolicyFeedback("Policy removed.");
   }
 
   function openCreateFaq() {
@@ -1005,7 +1160,7 @@ export default function AdminSettingsPage() {
         status: faqForm.status,
         updatedAt: "August 13, 2026",
       };
-      setFaqs((current) => [newFaq, ...current]);
+      setLocalFaqs((current) => [newFaq, ...(current ?? faqs)]);
       setFaqFeedback("FAQ added.");
     } else if (activeFaqId) {
       try {
@@ -1022,8 +1177,8 @@ export default function AdminSettingsPage() {
       } catch {
         // fallback
       }
-      setFaqs((current) =>
-        current.map((faq) =>
+      setLocalFaqs((current) =>
+        (current ?? faqs).map((faq) =>
           faq.id === activeFaqId
             ? {
                 ...faq,
@@ -1042,14 +1197,29 @@ export default function AdminSettingsPage() {
     setFaqDialogOpen(false);
   }
 
-  function toggleFaqStatus(faqId: string) {
-    setFaqs((current) =>
-      current.map((faq) =>
+  async function toggleFaqStatus(faqId: string) {
+    const target = faqs.find((f) => f.id === faqId);
+    if (!target) return;
+    const nextStatus: FaqStatus = target.status === "Published" ? "Hidden" : "Published";
+    try {
+      await updateFaqMutation({
+        id: faqId,
+        body: {
+          status: nextStatus,
+          isActive: nextStatus === "Published",
+        },
+      }).unwrap();
+      toast.success(`FAQ marked as ${nextStatus.toLowerCase()}.`);
+    } catch {
+      // fallback
+    }
+    setLocalFaqs((current) =>
+      (current ?? faqs).map((faq) =>
         faq.id === faqId
           ? {
               ...faq,
-              status: faq.status === "Published" ? "Hidden" : "Published",
-              updatedAt: "August 13, 2026",
+              status: nextStatus,
+              updatedAt: "Just now",
             }
           : faq,
       ),
@@ -1065,7 +1235,7 @@ export default function AdminSettingsPage() {
     } catch {
       // fallback
     }
-    setFaqs((current) => current.filter((faq) => faq.id !== deleteFaqId));
+    setLocalFaqs((current) => (current ?? faqs).filter((faq) => faq.id !== deleteFaqId));
     setDeleteFaqId(null);
     setFaqFeedback("FAQ deleted.");
   }
@@ -1074,14 +1244,14 @@ export default function AdminSettingsPage() {
     key: Key,
     value: ContactSettings[Key],
   ) {
-    setContactSettings((current) => ({ ...current, [key]: value }));
+    setLocalContactSettings((current) => ({ ...(current ?? contactSettings), [key]: value }));
     setContactFeedback("");
   }
 
   function updateContactHours(index: number, hours: string) {
-    setContactSettings((current) => ({
-      ...current,
-      hours: current.hours.map((entry, entryIndex) =>
+    setLocalContactSettings((current) => ({
+      ...(current ?? contactSettings),
+      hours: (current ?? contactSettings).hours.map((entry, entryIndex) =>
         entryIndex === index ? { ...entry, hours } : entry,
       ),
     }));
@@ -1226,6 +1396,18 @@ export default function AdminSettingsPage() {
 
       {activeTab === "legal" ? (
         <section className="space-y-4">
+          <AdminPageHeader
+            eyebrow="System Policies"
+            title="Legal & Operational Policies"
+            description="Manage customer-facing terms, privacy, warranties, and public disclosures."
+            action={
+              <Button onClick={openCreatePolicy}>
+                <Plus className="size-4" />
+                Add Policy
+              </Button>
+            }
+          />
+
           {policyFeedback ? (
             <AdminSurface className="border-emerald-200 bg-emerald-50/70 py-3 text-sm text-emerald-700">
               {policyFeedback}
@@ -1267,6 +1449,14 @@ export default function AdminSettingsPage() {
                     <Button variant="soft" size="sm" onClick={() => openPolicyEditor(policy)}>
                       <Pencil className="size-4" />
                       Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setDeletePolicyId(policy.id)}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete
                     </Button>
                   </div>
                 </div>
@@ -1358,11 +1548,11 @@ export default function AdminSettingsPage() {
 
             {faqs.length === 0 ? (
               <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-4 py-10 text-center text-sm text-slate-500">
-                No reviews yet.
+                No FAQs yet.
               </div>
             ) : filteredFaqs.length === 0 ? (
               <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/40 px-4 py-10 text-center text-sm text-slate-500">
-                No reviews match your filters.
+                No FAQs match your filters.
               </div>
             ) : (
               <div className="space-y-3">
@@ -1787,7 +1977,7 @@ export default function AdminSettingsPage() {
       <Dialog open={policyEditorOpen} onOpenChange={setPolicyEditorOpen}>
         <DialogContent className="max-h-[88vh] w-[min(94vw,64rem)] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Policy</DialogTitle>
+            <DialogTitle>{activePolicyId ? "Edit Policy" : "Add Policy"}</DialogTitle>
             <DialogDescription>
               Update the public-facing legal content used by the Elite website.
             </DialogDescription>
@@ -1964,6 +2154,29 @@ export default function AdminSettingsPage() {
             <Button variant="destructive" onClick={deleteFaq}>
               <Trash2 className="size-4" />
               Delete FAQ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deletePolicyId)} onOpenChange={(open) => !open && setDeletePolicyId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Policy?</DialogTitle>
+            <DialogDescription>
+              {policyToDelete
+                ? `This will permanently remove "${policyToDelete.title}" from the policy library.`
+                : "This will permanently remove the selected policy."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletePolicyId(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={deletePolicy}>
+              <Trash2 className="size-4" />
+              Delete Policy
             </Button>
           </DialogFooter>
         </DialogContent>

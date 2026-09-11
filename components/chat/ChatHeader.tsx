@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, MoreVertical, Phone, Video } from "lucide-react";
+import { ArrowLeft, MoreVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -53,58 +53,45 @@ export function ChatHeader({
 
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-primary">{participant.name}</p>
-        <p className="flex min-w-0 items-center gap-1.5 text-xs">
+        {/*
+          One line, never two: the presence label and the role are both short,
+          but a narrow header wraps them into a second row that pushes the
+          transcript down, so the role is the part that goes.
+        */}
+        <p className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs">
           <span
             aria-hidden="true"
             className={cn("size-2 shrink-0 rounded-full", tone.dot)}
           />
-          <span className={cn("font-medium", tone.text)}>{label}</span>
+          <span className={cn("shrink-0 font-medium", tone.text)}>{label}</span>
           {participant.role ? (
             <>
-              <span aria-hidden="true" className="text-slate-300">
+              <span aria-hidden="true" className="hidden text-slate-300 sm:inline">
                 ·
               </span>
-              <span className="truncate text-slate-500">{participant.role}</span>
+              <span className="hidden truncate text-slate-500 sm:inline">
+                {participant.role}
+              </span>
             </>
           ) : null}
         </p>
       </div>
 
       {subject ? (
-        <span className="hidden max-w-56 truncate rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-semibold text-primary xl:inline-block">
+        <span className="hidden max-w-56 truncate rounded-full bg-[var(--brand-soft)] px-3 py-1 text-xs font-semibold text-primary lg:inline-block">
           {subject}
         </span>
       ) : null}
 
-      <div className="flex shrink-0 items-center gap-1">
-        <Button
-          aria-label="Start a voice call"
-          className="hidden text-primary sm:inline-flex"
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <Phone size={17} />
-        </Button>
-        <Button
-          aria-label="Start a video call"
-          className="hidden text-primary sm:inline-flex"
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <Video size={17} />
-        </Button>
-        <Button
-          aria-label="Conversation options"
-          className="text-slate-500"
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <MoreVertical size={17} />
-        </Button>
-      </div>
+      <Button
+        aria-label="Conversation options"
+        className="shrink-0 text-slate-500"
+        size="icon-sm"
+        type="button"
+        variant="ghost"
+      >
+        <MoreVertical size={17} />
+      </Button>
     </header>
   );
 }

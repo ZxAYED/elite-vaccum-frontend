@@ -48,6 +48,7 @@ branch_structure.json
 frotned.zip
 *.code-profile
 .codex-temp/
+.codex/
 .agents/
 skills-lock.json
 API_INTEGRATION_GUIDE.md

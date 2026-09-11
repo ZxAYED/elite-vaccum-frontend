@@ -34,7 +34,7 @@ export function HeroSection() {
   return (
     <section className="relative overflow-hidden bg-white">
       <div className="absolute inset-x-0 top-0 h-px bg-teal-100" />
-      <div className="mx-auto grid max-w-360 items-center gap-8 px-4 pb-12 pt-8 sm:gap-10 sm:px-6 sm:pb-14 sm:pt-10 lg:gap-14 lg:pb-[4.5rem] lg:pt-28 xl:px-8 xl:pb-20 2xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)]">
+      <div className="mx-auto grid max-w-[1400px] items-center gap-8 px-4 pb-12 pt-8 sm:gap-10 sm:px-6 sm:pb-14 sm:pt-10 lg:gap-14 lg:pb-[4.5rem] lg:pt-28 xl:px-8 xl:pb-20 2xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.92fr)]">
         <div className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left">
           <FadeIn animateOnLoad duration={0.65} y={24}>
             <h1 className="mx-auto mt-2 max-w-[12ch] text-[clamp(2.45rem,9.2vw,4.2rem)] font-bold leading-[0.94] tracking-[-0.05em] text-primary sm:max-w-[12.5ch] lg:mx-0 lg:max-w-[10.8ch] 2xl:max-w-none 2xl:text-[4.3rem]">
@@ -85,12 +85,7 @@ export function HeroSection() {
           </StaggerGroup>
         </div>
 
-        <FadeIn
-          animateOnLoad
-          delay={0.12}
-          duration={0.7}
-          className="relative mx-auto w-full max-w-xl sm:max-w-2xl 2xl:max-w-[34rem]"
-        >
+        <div className="relative mx-auto w-full max-w-xl sm:max-w-2xl 2xl:max-w-[34rem]">
           <div className="absolute inset-x-12 bottom-6 h-16 rounded-full bg-teal-200/50 blur-3xl" />
           <motion.div
             className="relative overflow-hidden px-4 py-4 sm:px-6 sm:py-6"
@@ -102,10 +97,10 @@ export function HeroSection() {
               alt="Elite central vacuum unit with hose and floor attachment"
               priority
               sizes="(max-width: 1279px) 100vw, 42vw"
-              className="relative mx-auto h-auto w-full max-w-[34rem] object-contain "
+              className="relative mx-auto h-auto w-full max-w-[34rem] object-contain"
             />
           </motion.div>
-        </FadeIn>
+        </div>
       </div>
     </section>
   );

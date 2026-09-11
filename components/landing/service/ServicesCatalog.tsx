@@ -158,7 +158,7 @@ export function ServicesCatalog() {
   return (
     <main className="overflow-hidden bg-white">
       <section className="bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_86%)] pt-16 md:pt-24">
-        <div className="mx-auto grid max-w-360 items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:px-8">
+        <div className="mx-auto grid max-w-[1400px] items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:px-8">
           <FadeIn className="max-w-2xl">
             <h1 className="text-5xl font-semibold tracking-[-0.06em] text-primary md:text-6xl lg:text-7xl">
               Professional Vacuum Services & Installation
@@ -192,12 +192,13 @@ export function ServicesCatalog() {
               src={heroVacuum}
               alt="Central vacuum unit with hose and floor tool"
               priority
+              sizes="(max-width: 1024px) 100vw, 45vw"
               className="relative mx-auto h-auto w-full object-contain"
             />
           </FadeIn>
         </div>
 
-        <StaggerGroup className="mx-auto mt-16 grid max-w-360 gap-5 px-4 pb-20 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
+        <StaggerGroup className="mx-auto mt-16 grid max-w-[1400px] gap-5 px-4 pb-20 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
           {benefits.map(({ title, icon: Icon }) => (
             <StaggerItem key={title}>
               <article className="flex min-h-32 flex-col items-center justify-center rounded-[1.15rem] bg-white/80 p-6 text-center shadow-[0_22px_70px_-54px_rgba(28,79,80,0.65)] ring-1 ring-teal-100">
@@ -211,7 +212,7 @@ export function ServicesCatalog() {
         </StaggerGroup>
       </section>
 
-      <section id="service-options" className="mx-auto max-w-360 px-4 py-16 sm:px-6 lg:px-8">
+      <section id="service-options" className="mx-auto max-w-[1400px] px-4 py-16 sm:px-6 lg:px-8">
         <FadeIn>
           <div className="flex flex-wrap gap-8 text-xl font-semibold md:text-2xl">
             {groups.map((group) => {
@@ -322,7 +323,7 @@ export function ServicesCatalog() {
         )}
       </section>
 
-      <section className="mx-auto max-w-360 px-4 py-18 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-[1400px] px-4 py-18 sm:px-6 lg:px-8">
         <FadeIn className="text-center">
           <h2 className="text-3xl font-semibold tracking-[-0.04em] text-primary md:text-4xl">
             The Path to Pristine Air
@@ -354,7 +355,7 @@ export function ServicesCatalog() {
 
       <FadeIn
         once={false}
-        className="mx-auto max-w-360 px-4 py-16 sm:px-6 lg:px-8"
+        className="mx-auto max-w-[1400px] px-4 py-16 sm:px-6 lg:px-8"
       >
         <section className="grid gap-8 rounded-[1.5rem] bg-slate-50 p-6 md:p-10 lg:grid-cols-[1fr_0.9fr] lg:p-14">
           <div>
@@ -404,7 +405,7 @@ export function ServicesCatalog() {
         </section>
       </FadeIn>
 
-      <FadeIn className="mx-auto max-w-360 px-4 py-18 sm:px-6 lg:px-8">
+      <FadeIn className="mx-auto max-w-[1400px] px-4 py-18 sm:px-6 lg:px-8">
         <section className="relative min-h-88 overflow-hidden rounded-[1.35rem] bg-primary">
           <Image
             src={serviceVanImage}
