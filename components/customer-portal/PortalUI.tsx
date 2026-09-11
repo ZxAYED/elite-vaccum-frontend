@@ -147,17 +147,45 @@ export function PortalFilterBar<T extends string>({
 /* Record card                                                                */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Left-edge accent rail. Purely supplementary: every state it marks is also
+ * spelled out by the card's StatusBadge, so the colour never carries meaning
+ * on its own. Its job is to make the one card that needs action findable in a
+ * stack of ten without reading any of them.
+ */
+const CARD_ACCENTS = {
+  brand: "before:bg-teal-500",
+  warning: "before:bg-amber-500",
+  danger: "before:bg-rose-500",
+  success: "before:bg-emerald-500",
+} as const;
+
 export function PortalCard({
   children,
   className,
+  accent,
 }: {
   children: ReactNode;
   className?: string;
+  /** Marks a card that needs the customer's attention. Omit for the default. */
+  accent?: keyof typeof CARD_ACCENTS;
 }) {
   return (
     <article
       className={cn(
-        "rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs transition-all hover:border-teal-300 hover:shadow-sm sm:p-6",
+        "group relative rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs",
+        "transition duration-200 hover:-translate-y-px hover:border-teal-300",
+        "hover:shadow-[0_10px_28px_-16px_rgba(28,79,80,0.45)]",
+        // The card is not itself a link; the ring follows whichever control
+        // inside it takes keyboard focus so the row still reads as active.
+        "focus-within:border-teal-400 focus-within:ring-2 focus-within:ring-teal-600/20",
+        "motion-reduce:transform-none motion-reduce:transition-none",
+        accent && [
+          "before:absolute before:inset-y-0 before:left-0 before:w-1",
+          "before:rounded-l-lg before:content-['']",
+          CARD_ACCENTS[accent],
+        ],
+        "sm:p-6",
         className,
       )}
     >
@@ -202,9 +230,17 @@ export function PortalCardTitle({
 }) {
   return (
     <div className={cn("pb-4 pt-1", className)}>
-      <h2 className="text-xl font-semibold tracking-tight text-primary sm:text-2xl">
+      <h2 className="wrap-break-word text-balance text-lg font-semibold tracking-tight text-primary sm:text-xl">
         {href ? (
-          <Link className="transition hover:opacity-80" href={href}>
+          <Link
+            className={cn(
+              "rounded-sm transition-colors hover:text-teal-700",
+              // No underline; the focus ring is what makes the link's keyboard
+              // state visible, so it must stay.
+              "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600",
+            )}
+            href={href}
+          >
             {children}
           </Link>
         ) : (
@@ -223,7 +259,9 @@ export function PortalCardTitle({
 /** Small inline reference chip, e.g. an order or invoice number. */
 export function PortalRef({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700">
+    // `select-all` because these are the strings customers actually copy out
+    // of the list (order and invoice numbers they paste into support chats).
+    <span className="select-all rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-slate-700">
       {children}
     </span>
   );
@@ -265,30 +303,38 @@ export function PortalFact({
     value === "" ||
     (typeof value === "number" && Number.isNaN(value));
 
+  // A truncated value is only acceptable if the full string stays reachable,
+  // so anything clipped carries it as a title tooltip.
+  const fullText =
+    truncate && !isEmpty && typeof value === "string" ? value : undefined;
+
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2.5">
       <div
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-md",
+          "flex size-8 shrink-0 items-center justify-center rounded-md ring-1 ring-inset ring-black/5",
           FACT_TONES[tone],
         )}
       >
         <Icon size={15} />
       </div>
       <div className="min-w-0">
-        <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+        <span className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500">
           {label}
         </span>
         <span
           className={cn(
-            "block",
+            // Tabular figures so amounts and dates line up down a stack of
+            // cards instead of jittering with the glyph widths.
+            "block tabular-nums",
             isEmpty
-              ? "font-medium italic text-slate-400"
+              ? "font-medium text-slate-500"
               : emphasis
                 ? "font-semibold text-slate-900"
                 : "font-medium text-slate-800",
             truncate && "max-w-[180px] truncate sm:max-w-[220px]",
           )}
+          title={fullText}
         >
           {isEmpty ? placeholder : value}
         </span>
@@ -310,8 +356,13 @@ export function PortalCardFooter({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3.5 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex flex-wrap items-center gap-5 text-xs sm:gap-7 sm:text-sm">
+    <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      {/*
+        Two columns on phones so three or four facts stay on a readable grid
+        instead of wrapping into a ragged one-and-a-half-row block; free-
+        flowing from `sm` up, where there is room for them on one line.
+      */}
+      <div className="grid grid-cols-2 items-center gap-x-4 gap-y-4 text-xs sm:flex sm:flex-wrap sm:gap-x-8 sm:text-sm">
         {facts}
       </div>
       {actions ? (
@@ -341,13 +392,16 @@ export function PortalDetailAction({
   return (
     <Button
       asChild
-      className="rounded-md text-xs font-medium text-slate-800 hover:bg-slate-50 sm:text-sm"
+      className="group/action rounded-md text-xs font-medium text-slate-800 transition hover:border-teal-300 hover:bg-teal-50/60 active:translate-y-px motion-reduce:active:translate-y-0 sm:text-sm"
       size="sm"
       variant="outline"
     >
       <Link href={href}>
         {label}
-        <ArrowRight className="ml-1 text-teal-600" size={14} />
+        <ArrowRight
+          className="ml-1 text-teal-700 transition-transform group-hover/action:translate-x-0.5 motion-reduce:transform-none"
+          size={14}
+        />
       </Link>
     </Button>
   );
@@ -374,10 +428,13 @@ export function PortalCardAction({
   disabled?: boolean;
   loading?: boolean;
 }) {
+  // amber-600 and teal-600 both sit near 3:1 against white, under the 4.5:1
+  // WCAG AA floor for the label. The -700 steps clear it (5.0:1 and 5.5:1)
+  // without changing the hue the rest of the portal uses.
   const className = cn(
-    "rounded-md text-xs font-medium sm:text-sm",
-    tone === "accent" && "bg-amber-600 text-white shadow-xs hover:bg-amber-700",
-    tone === "brand" && "bg-teal-600 text-white shadow-xs hover:bg-teal-500",
+    "rounded-md text-xs font-medium transition active:translate-y-px motion-reduce:active:translate-y-0 sm:text-sm",
+    tone === "accent" && "bg-amber-700 text-white shadow-xs hover:bg-amber-800",
+    tone === "brand" && "bg-teal-700 text-white shadow-xs hover:bg-teal-800",
     tone === "neutral" && "text-slate-800 hover:bg-slate-50",
   );
   const variant = tone === "neutral" ? "outline" : "default";
@@ -418,6 +475,53 @@ export function PortalCardAction({
 /* -------------------------------------------------------------------------- */
 /* Async states                                                               */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Loading placeholder shaped like `PortalCard` itself: badge row, title, and a
+ * fact/action footer. Reserving the real layout keeps the list from jumping
+ * when the data lands, which a centred spinner cannot do.
+ */
+export function PortalCardSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div aria-busy="true" aria-live="polite" className="space-y-4 sm:space-y-5">
+      <span className="sr-only">Loading records</span>
+      {Array.from({ length: count }, (_, index) => (
+        <div
+          className="rounded-lg border border-slate-200/80 bg-white p-5 shadow-xs sm:p-6"
+          key={index}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-24 animate-pulse rounded-md bg-slate-200/70" />
+              <div className="h-6 w-20 animate-pulse rounded-md bg-slate-100" />
+            </div>
+            <div className="h-4 w-32 animate-pulse rounded bg-slate-100" />
+          </div>
+
+          <div className="pb-4 pt-1">
+            <div className="h-6 w-3/5 animate-pulse rounded bg-slate-200/70" />
+            <div className="mt-2 h-3.5 w-2/5 animate-pulse rounded bg-slate-100" />
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:flex sm:gap-x-8">
+              {[0, 1, 2].map((fact) => (
+                <div className="flex items-center gap-2.5" key={fact}>
+                  <div className="size-8 shrink-0 animate-pulse rounded-md bg-slate-100" />
+                  <div className="space-y-1.5">
+                    <div className="h-2.5 w-16 animate-pulse rounded bg-slate-100" />
+                    <div className="h-3.5 w-20 animate-pulse rounded bg-slate-200/70" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="h-9 w-28 animate-pulse rounded-md bg-slate-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function PortalLoading({ label = "Loading..." }: { label?: string }) {
   return (

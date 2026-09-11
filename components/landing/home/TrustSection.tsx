@@ -33,7 +33,7 @@ const benefits = [
 export function TrustSection() {
   return (
     <section className="py-16 md:py-20">
-      <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <FadeIn className="overflow-hidden rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-100 bg-[#F3F7F6] px-5 py-6 md:px-8 md:py-8 lg:px-10 lg:py-10" y={24} duration={0.65}>
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-center">
             <StaggerGroup className="grid auto-rows-fr gap-4 sm:grid-cols-2" delay={0.05} once>

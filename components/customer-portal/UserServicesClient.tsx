@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
-  FileCheck2,
   FileText,
   MapPin,
   Search,
@@ -14,16 +13,20 @@ import {
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import {
-  PortalCard,
+  columnClass,
+  PortalCell,
+  PortalRecordCell,
+  PortalRow,
+  PortalRowActions,
+  PortalTable,
+  PortalTableSkeleton,
+  PortalValue,
+  type PortalColumn,
+} from "@/components/customer-portal/PortalTable";
+import {
   PortalCardAction,
-  PortalCardFooter,
-  PortalCardTitle,
-  PortalCardTop,
   PortalDetailAction,
-  PortalFact,
   PortalFilterBar,
-  PortalList,
-  PortalLoading,
 } from "@/components/customer-portal/PortalUI";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +40,23 @@ import {
   formatShortDateTime,
 } from "@/lib/formatters";
 import type { AdminQuotation } from "@/types/domain";
+
+/**
+ * Ordered to match the cells below; the indices are referenced directly so a
+ * column and its cells can never drift out of alignment. Location, quote and
+ * submitted-at fall away on narrower viewports — the request's own screen
+ * still carries all of it.
+ */
+const REQUEST_COLUMNS: ReadonlyArray<PortalColumn> = [
+  { key: "request", label: "Request" },
+  { key: "status", label: "Status" },
+  { key: "urgency", label: "Priority", hideBelow: "lg" },
+  { key: "schedule", label: "Preferred Slot", hideBelow: "md" },
+  { key: "location", label: "Location", hideBelow: "lg" },
+  { key: "quote", label: "Quote", align: "right", hideBelow: "sm" },
+  { key: "submitted", label: "Submitted", hideBelow: "lg" },
+  { key: "actions", label: "Actions", align: "actions" },
+];
 
 const filters = [
   { label: "All", value: "all" },
@@ -96,38 +116,38 @@ export function UserServicesClient() {
         value={selectedFilter}
       />
 
-      {isLoadingRequests && (
-        <PortalLoading label="Loading service requests..." />
-      )}
-
-      {!isLoadingRequests && (
-        <PortalList>
-          {displayedRequests.length === 0 ? (
-            <EmptyState
-              icon={searchQuery ? Search : Wrench}
-              title={searchQuery ? "No matching service requests" : "No service requests found"}
-              description={
-                searchQuery
-                  ? `No requests matched "${searchQuery}". Try a different keyword or reset filters.`
-                  : "Submit an intake ticket to schedule professional inspection, diagnostic repair, or a turnkey central vacuum installation."
-              }
-              action={{
-                label: "Start New Service Request",
-                href: "/services",
-              }}
-              secondaryAction={
-                searchQuery
-                  ? {
-                      label: "Clear Search",
-                      onClick: () => setSearchQuery(""),
-                    }
-                  : undefined
-              }
-              tone="card"
-              className="py-12"
-            />
-          ) : (
-            displayedRequests.map((request) => {
+      {isLoadingRequests ? (
+        <PortalTableSkeleton columns={REQUEST_COLUMNS} />
+      ) : displayedRequests.length === 0 ? (
+        <EmptyState
+          icon={searchQuery ? Search : Wrench}
+          title={searchQuery ? "No matching service requests" : "No service requests found"}
+          description={
+            searchQuery
+              ? `No requests matched "${searchQuery}". Try a different keyword or reset filters.`
+              : "Submit an intake ticket to schedule professional inspection, diagnostic repair, or a turnkey central vacuum installation."
+          }
+          action={{
+            label: "Start New Service Request",
+            href: "/services",
+          }}
+          secondaryAction={
+            searchQuery
+              ? {
+                  label: "Clear Search",
+                  onClick: () => setSearchQuery(""),
+                }
+              : undefined
+          }
+          tone="card"
+          className="py-12"
+        />
+      ) : (
+        <PortalTable
+          caption="Your service requests, with schedule, quotation and status"
+          columns={REQUEST_COLUMNS}
+        >
+          {displayedRequests.map((request) => {
               const reqAny = request as unknown as {
                 createdAt?: string;
                 submittedAt?: string;
@@ -193,98 +213,112 @@ export function UserServicesClient() {
                 (cancelMatch ? cancelMatch[1].trim() : null);
 
               return (
-                <PortalCard key={request.id}>
-                  <PortalCardTop
-                    badges={
-                      <>
-                        <StatusBadge status={request.status} />
-                        {request.urgency ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-amber-100/80 px-2.5 py-0.5 text-xs font-medium text-amber-900">
-                            <Zap className="text-amber-700" size={12} />
-                            {request.urgency} Priority
-                          </span>
-                        ) : null}
-                        {request.service?.category ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-800">
-                            {request.service.category.replace(/_/g, " ")}
-                          </span>
-                        ) : null}
-                      </>
-                    }
-                    meta={
-                      <>
-                        Submitted:{" "}
-                        <span className="font-medium text-slate-700">
-                          {request.submittedAt || reqAny.createdAt
-                            ? formatShortDateTime(
-                                request.submittedAt || reqAny.createdAt || "",
-                              )
-                            : formatLongDate(new Date().toISOString())}
-                        </span>
-                      </>
-                    }
-                  />
+                <PortalRow key={request.id}>
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[0])}>
+                    <PortalRecordCell
+                      // A quotation waiting on the customer is the only state
+                      // on this screen that needs them to act, so it gets the
+                      // rail. The "Review Quotation" action says the same
+                      // thing in words, so the colour never stands alone.
+                      accent={isQuoted && quotation ? "brand" : undefined}
+                      href={`/user/services/${request.id}`}
+                      subtitle={
+                        request.service?.category
+                          ? request.service.category.replace(/_/g, " ")
+                          : serviceName
+                      }
+                      title={displayTitle}
+                    />
+                  </PortalCell>
 
-                  <PortalCardTitle href={`/user/services/${request.id}`}>
-                    {displayTitle}
-                  </PortalCardTitle>
-
-                  {cancelReason ? (
-                    <div className="mb-4 -mt-2 inline-flex items-center gap-2 rounded-md border border-rose-200/80 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-800 sm:text-sm">
-                      <span className="font-semibold text-rose-950">
-                        Cancellation Reason:
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[1])}>
+                    <StatusBadge status={request.status} />
+                    {cancelReason ? (
+                      <span
+                        className="mt-1 block max-w-[220px] truncate text-sm font-medium text-rose-700"
+                        title={cancelReason}
+                      >
+                        {cancelReason}
                       </span>
-                      <span>{cancelReason}</span>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </PortalCell>
 
-                  <PortalCardFooter
-                    actions={
-                      <>
-                        <PortalDetailAction href={`/user/services/${request.id}`} />
-                        {isQuoted && quotation ? (
-                          <PortalCardAction
-                            href={`/user/services/${request.id}#quotation`}
-                            icon={FileText}
-                            label="Review Quotation"
-                            tone="accent"
-                          />
-                        ) : null}
-                      </>
-                    }
-                    facts={
-                      <>
-                        <PortalFact
-                          icon={CalendarDays}
-                          label="Preferred Slot"
-                          placeholder="Pending schedule"
-                          tone="brand"
-                          value={displaySchedule}
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[2])}>
+                    {request.urgency ? (
+                      <span className="inline-flex min-h-6 items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-sm font-medium leading-none text-amber-900">
+                        <Zap
+                          aria-hidden="true"
+                          className="text-amber-700"
+                          size={13}
                         />
-                        <PortalFact
-                          icon={MapPin}
-                          label="Service Location"
-                          placeholder="Address on file"
-                          truncate
-                          value={displayAddress}
+                        {request.urgency}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Normal</span>
+                    )}
+                  </PortalCell>
+
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[3])}>
+                    <PortalValue
+                      icon={CalendarDays}
+                      placeholder="Pending schedule"
+                      truncate
+                      value={displaySchedule}
+                    />
+                  </PortalCell>
+
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[4])}>
+                    <PortalValue
+                      icon={MapPin}
+                      placeholder="Address on file"
+                      truncate
+                      value={displayAddress}
+                    />
+                  </PortalCell>
+
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[5])}>
+                    <PortalValue
+                      emphasis
+                      placeholder="Awaiting quote"
+                      tone="warning"
+                      value={
+                        quoteTotal ? formatCurrencyUsd(quoteTotal) : undefined
+                      }
+                    />
+                  </PortalCell>
+
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[6])}>
+                    <PortalValue
+                      value={
+                        request.submittedAt || reqAny.createdAt
+                          ? formatShortDateTime(
+                              request.submittedAt || reqAny.createdAt || "",
+                            )
+                          : formatLongDate(new Date().toISOString())
+                      }
+                    />
+                  </PortalCell>
+
+                  <PortalCell className={columnClass(REQUEST_COLUMNS[7])}>
+                    <PortalRowActions>
+                      <PortalDetailAction
+                        href={`/user/services/${request.id}`}
+                        label="View"
+                      />
+                      {isQuoted && quotation ? (
+                        <PortalCardAction
+                          href={`/user/services/${request.id}#quotation`}
+                          icon={FileText}
+                          label="Review Quote"
+                          tone="accent"
                         />
-                        {quoteTotal ? (
-                          <PortalFact
-                            emphasis
-                            icon={FileCheck2}
-                            label="Official Quote"
-                            tone="warning"
-                            value={formatCurrencyUsd(quoteTotal)}
-                          />
-                        ) : null}
-                      </>
-                    }
-                  />
-                </PortalCard>
+                      ) : null}
+                    </PortalRowActions>
+                  </PortalCell>
+                </PortalRow>
               );
-            })
-          )}
-        </PortalList>
+          })}
+        </PortalTable>
       )}
     </div>
   );

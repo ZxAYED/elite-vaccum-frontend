@@ -8,22 +8,24 @@ import {
   Receipt,
   ShoppingBag,
   Truck,
-  Wallet,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import {
-  PortalCard,
-  PortalCardFooter,
-  PortalCardTitle,
-  PortalCardTop,
+  columnClass,
+  PortalCell,
+  PortalRecordCell,
+  PortalRow,
+  PortalRowActions,
+  PortalTable,
+  PortalTableSkeleton,
+  PortalValue,
+  type PortalColumn,
+} from "@/components/customer-portal/PortalTable";
+import {
   PortalDetailAction,
-  PortalFact,
   PortalFilterBar,
-  PortalList,
-  PortalLoading,
   PortalPager,
-  PortalRef,
   type PortalFilterOption,
 } from "@/components/customer-portal/PortalUI";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
@@ -45,6 +47,22 @@ import {
  */
 
 const PAGE_SIZE = 10;
+
+/**
+ * Ordered to match the cells below; the indices are referenced directly so a
+ * column and its cells can never drift out of alignment. Secondary detail
+ * (dispatch, invoice number) drops away on narrow viewports — all of it is
+ * still on the order's own screen.
+ */
+const ORDER_COLUMNS: ReadonlyArray<PortalColumn> = [
+  { key: "order", label: "Order" },
+  { key: "status", label: "Status" },
+  { key: "placed", label: "Placed", hideBelow: "lg" },
+  { key: "total", label: "Total", align: "right" },
+  { key: "tracking", label: "Tracking", hideBelow: "lg" },
+  { key: "invoice", label: "Invoice", hideBelow: "lg" },
+  { key: "actions", label: "Actions", align: "actions" },
+];
 
 type OrderFilter = StoreOrderStatus | "all";
 
@@ -137,7 +155,7 @@ export function UserOrdersClient() {
       />
 
       {isLoading ? (
-        <PortalLoading label="Loading your orders..." />
+        <PortalTableSkeleton columns={ORDER_COLUMNS} />
       ) : isError ? (
         <EmptyState
           action={{ label: "Try Again", onClick: () => void refetch() }}
@@ -165,7 +183,23 @@ export function UserOrdersClient() {
           className="py-12"
         />
       ) : (
-        <PortalList isRefreshing={isFetching}>
+        <PortalTable
+          caption="Your product orders, with payment and delivery status"
+          columns={ORDER_COLUMNS}
+          footer={
+            totalPages > 1 ? (
+              <PortalPager
+                isBusy={isFetching}
+                onPageChange={setPage}
+                page={currentPage}
+                total={meta?.total}
+                totalLabel="orders"
+                totalPages={totalPages}
+              />
+            ) : null
+          }
+          isRefreshing={isFetching}
+        >
           {orders.map((order) => {
             const firstItem = order.items[0];
             const unitCount = order.items.reduce(
@@ -183,102 +217,97 @@ export function UserOrdersClient() {
               : "Product order";
 
             return (
-              <PortalCard key={order.id}>
-                <PortalCardTop
-                  badges={
-                    <>
-                      <StatusBadge status={toStatusSlug(order.status)} />
-                      <PortalRef>{orderRef}</PortalRef>
-                      <span className="inline-flex items-center gap-1 rounded-md bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-800">
-                        {order.paymentMethod === "COD"
-                          ? "Cash on delivery"
-                          : "Paid online"}
-                      </span>
-                    </>
-                  }
-                  meta={
-                    <>
-                      Placed:{" "}
-                      <span className="font-medium text-slate-700">
-                        {formatShortDateTime(order.placedAt)}
-                      </span>
-                    </>
-                  }
-                />
-
-                <div className="flex items-start gap-4 pt-1">
-                  <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-                    {firstItem?.imageUrl ? (
-                      <Image
-                        alt={firstItem.productName}
-                        className="object-cover"
-                        fill
-                        src={firstItem.imageUrl}
-                      />
-                    ) : (
-                      <Package className="text-slate-400" size={22} />
-                    )}
-                  </div>
-                  <PortalCardTitle
-                    className="pb-0 pt-0"
+              <PortalRow key={order.id}>
+                <PortalCell className={columnClass(ORDER_COLUMNS[0])}>
+                  <PortalRecordCell
                     href={`/user/orders/${order.id}`}
-                    subtitle={`${unitCount} item${unitCount === 1 ? "" : "s"} across ${order.items.length} line${order.items.length === 1 ? "" : "s"}`}
-                  >
-                    {title}
-                  </PortalCardTitle>
-                </div>
-
-                <div className="pt-4">
-                  <PortalCardFooter
-                    actions={
-                      <PortalDetailAction href={`/user/orders/${order.id}`} />
+                    media={
+                      <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50">
+                        {firstItem?.imageUrl ? (
+                          <Image
+                            alt={firstItem.productName}
+                            className="object-cover"
+                            fill
+                            sizes="40px"
+                            src={firstItem.imageUrl}
+                          />
+                        ) : (
+                          <Package
+                            aria-hidden="true"
+                            className="text-slate-400"
+                            size={18}
+                          />
+                        )}
+                      </div>
                     }
-                    facts={
+                    subtitle={
                       <>
-                        <PortalFact
-                          emphasis
-                          icon={Wallet}
-                          label="Order Total"
-                          tone="brand"
-                          value={formatCurrencyUsd(Number(order.totalUsd))}
-                        />
-                        <PortalFact
-                          icon={Truck}
-                          label="Tracking"
-                          placeholder="Not dispatched yet"
-                          truncate
-                          value={
-                            order.trackingNumber
-                              ? `${order.shippingProvider ? `${order.shippingProvider} · ` : ""}${order.trackingNumber}`
-                              : undefined
-                          }
-                        />
-                        <PortalFact
-                          icon={Receipt}
-                          label="Invoice"
-                          placeholder="Not issued"
-                          tone={invoice ? "success" : "neutral"}
-                          value={invoice?.businessId || invoice?.id}
-                        />
+                        <span className="font-mono tabular-nums">
+                          {orderRef}
+                        </span>
+                        {` · ${unitCount} item${unitCount === 1 ? "" : "s"}`}
                       </>
                     }
+                    title={title}
                   />
-                </div>
-              </PortalCard>
+                </PortalCell>
+
+                <PortalCell className={columnClass(ORDER_COLUMNS[1])}>
+                  <StatusBadge status={toStatusSlug(order.status)} />
+                  <span className="mt-1 block text-sm font-medium text-slate-500">
+                    {order.paymentMethod === "COD"
+                      ? "Cash on delivery"
+                      : "Paid online"}
+                  </span>
+                </PortalCell>
+
+                <PortalCell className={columnClass(ORDER_COLUMNS[2])}>
+                  <PortalValue value={formatShortDateTime(order.placedAt)} />
+                </PortalCell>
+
+                <PortalCell className={columnClass(ORDER_COLUMNS[3])}>
+                  <PortalValue
+                    emphasis
+                    tone="brand"
+                    value={formatCurrencyUsd(Number(order.totalUsd))}
+                  />
+                </PortalCell>
+
+                <PortalCell className={columnClass(ORDER_COLUMNS[4])}>
+                  <PortalValue
+                    icon={Truck}
+                    placeholder="Not dispatched"
+                    truncate
+                    value={
+                      order.trackingNumber
+                        ? `${order.shippingProvider ? `${order.shippingProvider} · ` : ""}${order.trackingNumber}`
+                        : undefined
+                    }
+                  />
+                </PortalCell>
+
+                <PortalCell className={columnClass(ORDER_COLUMNS[5])}>
+                  <PortalValue
+                    icon={Receipt}
+                    placeholder="Not issued"
+                    tone={invoice ? "success" : "neutral"}
+                    truncate
+                    value={invoice?.businessId || invoice?.id}
+                  />
+                </PortalCell>
+
+                <PortalCell className={columnClass(ORDER_COLUMNS[6])}>
+                  <PortalRowActions>
+                    <PortalDetailAction
+                      href={`/user/orders/${order.id}`}
+                      label="View"
+                    />
+                  </PortalRowActions>
+                </PortalCell>
+              </PortalRow>
             );
           })}
-
-          {totalPages > 1 ? (
-            <PortalPager
-              isBusy={isFetching}
-              onPageChange={setPage}
-              page={currentPage}
-              total={meta?.total}
-              totalLabel="orders"
-              totalPages={totalPages}
-            />
-          ) : null}
-        </PortalList>
+        </PortalTable>
       )}
     </div>
   );

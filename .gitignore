@@ -48,6 +48,12 @@ branch_structure.json
 frotned.zip
 *.code-profile
 .codex-temp/
+.codex/
 .agents/
 skills-lock.json
 API_INTEGRATION_GUIDE.md
+
+# Graphify local/runtime artifacts
+graphify-out/cache/
+graphify-out/manifest.json
+graphify-out/cost.json

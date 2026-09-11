@@ -2,6 +2,36 @@ import { baseApi } from "./baseApi";
 import type { Notification } from "@/types/domain";
 import type { PaginatedResponse } from "./types";
 
+/**
+ * The server enum (`enums.prisma:195`). `POST /notifications` rejects anything
+ * else with `type must be one of the following values: ...`, so never invent a
+ * slug like "system" or "service-update" here.
+ */
+export const NOTIFICATION_TYPES = [
+  "SERVICE_REQUEST_UPDATE",
+  "QUOTATION_UPDATE",
+  "SCHEDULE_DISPATCH",
+  "ORDER_STATUS_UPDATE",
+  "BILLING_INVOICE",
+  "REVIEW_MODERATION",
+  "SYSTEM_ALERT",
+] as const;
+
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
+  SERVICE_REQUEST_UPDATE: "Service Request Update",
+  QUOTATION_UPDATE: "Quotation Update",
+  SCHEDULE_DISPATCH: "Schedule & Dispatch",
+  ORDER_STATUS_UPDATE: "Order Status Update",
+  BILLING_INVOICE: "Billing & Invoice",
+  REVIEW_MODERATION: "Review Moderation",
+  SYSTEM_ALERT: "System Alert",
+};
+
+/** Server caps: `title` 200 chars, `ctaUrl` 255. */
+export const NOTIFICATION_TITLE_MAX = 200;
+
 export interface GetNotificationsParams {
   isRead?: boolean;
   type?: string;
@@ -29,13 +59,30 @@ export interface NotificationPreferencesDto {
   push: boolean;
 }
 
+/**
+ * `POST /notifications` targets exactly one recipient and requires
+ * `userId`, `type`, `title` and `message`. There is no role-broadcast and no
+ * bulk endpoint yet, so multi-recipient sends fan out client-side — one POST
+ * per id. `userId` is the **User** UUID, not a customer profile id.
+ */
 export interface AdminEnqueueNotificationRequest {
-  userId?: string;
-  role?: string;
-  type: string;
+  userId: string;
+  type: NotificationType;
   title: string;
   message: string;
   ctaLabel?: string;
+  ctaUrl?: string;
+  metadata?: Record<string, unknown>;
+  sendEmail?: boolean;
+  /** 1 = highest, 10 = normal. Server default 5. */
+  priority?: number;
+}
+
+export interface AdminEnqueueNotificationResponse {
+  success: boolean;
+  message?: string;
+  jobId?: string;
+  recipientUserId?: string;
 }
 
 function unwrapNotificationsResponse(raw: unknown): PaginatedResponse<Notification> {
@@ -172,13 +219,19 @@ export const notificationsApi = baseApi.injectEndpoints({
       transformResponse: unwrapPreferencesResponse,
       invalidatesTags: [{ type: "Notification", id: "PREFERENCES" }],
     }),
-    adminEnqueueNotification: builder.mutation<{ success: boolean; jobId: string }, AdminEnqueueNotificationRequest>({
+    adminEnqueueNotification: builder.mutation<
+      AdminEnqueueNotificationResponse,
+      AdminEnqueueNotificationRequest
+    >({
       query: (body) => ({
         url: "/notifications",
         method: "POST",
         body,
       }),
-      invalidatesTags: [{ type: "Notification", id: "LIST" }],
+      invalidatesTags: [
+        { type: "Notification", id: "LIST" },
+        { type: "Notification", id: "UNREAD_COUNT" },
+      ],
     }),
     markNotificationAsRead: builder.mutation<{ success: boolean; id: string }, string>({
       query: (id) => ({

@@ -46,7 +46,7 @@ export function OrderTotals({ totals, showTax = true }: OrderTotalsProps) {
       ) : null}
 
       <div className="flex items-center justify-between border-t border-teal-100 pt-4">
-        <span className="text-xl font-semibold text-slate-950">Total</span>
+        <span className="text-xl font-semibold text-primary">Total</span>
         <span className="text-3xl font-semibold text-primary">
           {formatCurrencyUsd(totals.total)}
         </span>

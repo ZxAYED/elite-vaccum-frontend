@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -38,6 +38,7 @@ import { QuotationDecisionPanel } from "@/components/customer-portal/QuotationDe
 import { MediaGalleryPreview } from "@/components/shared/MediaGalleryPreview";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import {
   Dialog,
   DialogContent,
@@ -50,11 +51,6 @@ import {
   useGetServiceRequestByIdQuery,
   useCancelServiceRequestMutation,
 } from "@/redux/api/serviceRequestsApi";
-import {
-  useGetMyQuotationsQuery,
-  useGetQuotationByIdQuery,
-} from "@/redux/api/quotationsApi";
-import { useGetMyServiceOrdersQuery } from "@/redux/api/serviceOrdersApi";
 import {
   formatCurrencyUsd,
   formatLongDate,
@@ -96,52 +92,17 @@ export default function ServiceRequestDetailPage() {
       skip: !requestId,
     });
 
-  const { data: myQuotations, isLoading: isLoadingQuotes } = useGetMyQuotationsQuery();
-
-  const { data: singleQuote } = useGetQuotationByIdQuery(requestId, {
-    skip: !requestId,
-  });
-
-  const { data: myOrdersResponse } = useGetMyServiceOrdersQuery();
-
   const [cancelRequestMutation, { isLoading: isCancellingRequest }] = useCancelServiceRequestMutation();
 
-  // 2. Resolve Active Quotation from request relation or standalone APIs
-  const quotation: AdminQuotation | undefined = useMemo(() => {
-    if (request?.quotations && request.quotations.length > 0) {
-      return request.quotations[0];
-    }
-    const reqAny = request as unknown as Record<string, unknown>;
-    if (reqAny?.quotation) return reqAny.quotation as AdminQuotation;
-    if (singleQuote) return singleQuote;
-    if (myQuotations && myQuotations.length > 0) {
-      const match = myQuotations.find(
-        (q) =>
-          q.serviceRequestId === requestId ||
-          q.id === requestId ||
-          (q as unknown as { businessId?: string }).businessId === requestId,
-      );
-      if (match) return match;
-    }
-    return undefined;
-  }, [request, singleQuote, myQuotations, requestId]);
-
-  // 3. Resolve Matching Service Order from request relation or standalone APIs
-  const serviceOrder = useMemo(() => {
-    if (request?.serviceOrder) {
-      return request.serviceOrder;
-    }
-    const orders = myOrdersResponse?.items || [];
-    return orders.find(
-      (o) => o.serviceRequestId === requestId || o.id === requestId,
-    );
-  }, [request, myOrdersResponse, requestId]);
+  // 2. The service-request detail response includes the newest quotation and linked service order.
+  const quotation: AdminQuotation | undefined = request?.quotations?.[0];
+  const serviceOrder = request?.serviceOrder;
 
   // 4. Resolve Primary Assigned Technician from appointments
   const primaryAppointment = request?.appointments?.[0];
   const assignedTech = primaryAppointment?.technician;
 
-  const isLoading = isLoadingRequest || (isLoadingQuotes && !request);
+  const isLoading = isLoadingRequest;
 
   // Show only service ID as requested by user (never REQ-20260903-XXXX)
   const displayId = request?.id || requestId;
@@ -192,13 +153,16 @@ export default function ServiceRequestDetailPage() {
   // 6. Not Found Fallback
   if (!request) {
     return (
-      <div className="w-full max-w-4xl space-y-6 px-4 py-8 sm:px-6">
-        <Button asChild variant="outline" size="sm" className="rounded-md font-medium">
-          <Link href="/user/services">
-            <ArrowLeft size={14} className="mr-1.5" />
-            Back to Service Requests
-          </Link>
-        </Button>
+      <PageStateShell
+        header={
+          <Button asChild variant="outline" size="sm" className="rounded-md font-medium">
+            <Link href="/user/services">
+              <ArrowLeft size={14} className="mr-1.5" />
+              Back to Service Requests
+            </Link>
+          </Button>
+        }
+      >
         <div className="rounded-lg bg-teal-50/60 p-10 text-center shadow-xs">
           <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 shadow-xs">
             <Wrench size={22} />
@@ -218,7 +182,7 @@ export default function ServiceRequestDetailPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </PageStateShell>
     );
   }
 

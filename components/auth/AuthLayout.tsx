@@ -24,7 +24,7 @@ export function AuthLayout({
 }: AuthLayoutProps) {
   return (
     <div className="min-h-svh bg-[linear-gradient(180deg,#fbfdfc_0%,#f2f8f6_100%)] px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mx-auto grid min-h-[calc(100svh-3rem)] max-w-7xl items-center gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(26rem,0.95fr)]">
+      <div className="mx-auto grid min-h-[calc(100svh-3rem)] max-w-[1400px] items-center gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(26rem,0.95fr)]">
         <main className="flex w-full justify-center">
           <section className="w-full max-w-[29rem] rounded-[1.75rem] bg-white/80 p-6 sm:p-8">
             <Link href="/" className="mb-10 inline-flex items-center">

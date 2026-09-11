@@ -124,7 +124,6 @@ export function ProductCard({ product, priority = false }: ProductCardProps) {
                           src={img}
                           alt={`${product.imageAlt || product.name} ${idx + 1}`}
                           fill
-                          quality={100}
                           priority={priority && idx === 0}
                           className="object-cover"
                           sizes="(min-width: 1280px) 22rem, (min-width: 768px) 45vw, 95vw"

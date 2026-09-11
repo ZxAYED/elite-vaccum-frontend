@@ -8,9 +8,9 @@ const contactInfo = [
   {
     icon: MessageSquare,
     title: "Live Chat",
-    description: "Use the form for the fastest routing",
-    actionLabel: "Start Request",
-    href: "/contact",
+    description: "Chat directly with our administrative & support team in real time",
+    actionLabel: "Chat with Admin",
+    href: "/user/chat",
   },
   {
     icon: PhoneCall,
@@ -31,7 +31,7 @@ const contactInfo = [
 export default function ContactInfoGrid() {
   return (
     <section className="py-12 md:py-16">
-      <div className="mx-auto max-w-7xl px-4">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <FadeIn y={20} duration={0.6}>
           <StaggerGroup className="grid gap-5 md:grid-cols-3" delay={0.05} once>
             {contactInfo.map((item) => (
