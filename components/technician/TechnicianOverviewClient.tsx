@@ -157,7 +157,7 @@ export function TechnicianOverviewClient() {
         <AdminSurface>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold text-slate-950">
+              <h2 className="text-xl font-semibold text-primary">
                 Today&apos;s Schedule
               </h2>
               <p className="mt-1 text-sm text-slate-500">Assigned work for today.</p>
@@ -289,7 +289,7 @@ export function TechnicianOverviewClient() {
             <div className="flex items-center gap-3">
               <CheckCircle2 size={20} className="text-teal-700" />
               <div>
-                <h2 className="text-xl font-semibold text-slate-950">
+                <h2 className="text-xl font-semibold text-primary">
                   {upcomingOrders.length === 0 && recentlyCompleted.length > 0
                     ? "Recently Completed"
                     : "Upcoming Jobs"}

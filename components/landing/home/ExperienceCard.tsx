@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/Button";
 
 export default function ExperienceCard() {
   return (
-    <section className="flex w-full justify-center px-4 py-20 md:py-24">
-      <div className="w-full max-w-6xl">
+    <section className="py-20 md:py-24">
+      <div className="mx-auto flex w-full max-w-[1400px] justify-center px-4 sm:px-6 lg:px-8">
+        <div className="w-full max-w-5xl">
         <FadeIn
           className="w-full rounded-[calc(var(--radius-card)+0.25rem)] border border-teal-800/30 bg-[#1f4d4f] px-6 py-14 text-white shadow-[0_36px_90px_-54px_rgba(14,39,40,0.8)] sm:px-10 lg:px-14"
           y={24}
@@ -85,6 +86,7 @@ export default function ExperienceCard() {
           </div>
         </div>
         </FadeIn>
+        </div>
       </div>
     </section>
   );

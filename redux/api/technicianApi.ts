@@ -1,5 +1,6 @@
 import { baseApi } from "./baseApi";
 import type { PaginatedResponse } from "./types";
+import { setTechnicianProfile, updateUser } from "@/redux/slices/authSlice";
 
 export interface TechnicianSummary {
   availability: "AVAILABLE" | "BUSY" | "ON_BREAK" | "OFF_DUTY";
@@ -223,7 +224,18 @@ export const technicianApi = baseApi.injectEndpoints({
     }),
     getTechnicianProfile: builder.query<TechnicianProfileDto, void>({
       query: () => "/technicians/me/profile",
+      transformResponse: (response: unknown) => unwrapData<TechnicianProfileDto>(response),
       providesTags: [{ type: "Technician", id: "PROFILE" }],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          if (data) {
+            dispatch(setTechnicianProfile(data));
+          }
+        } catch {
+          // ignore
+        }
+      },
     }),
     updateTechnicianProfile: builder.mutation<TechnicianProfileDto, Partial<TechnicianProfileDto>>({
       query: (body) => ({
@@ -231,7 +243,18 @@ export const technicianApi = baseApi.injectEndpoints({
         method: "PATCH",
         body,
       }),
+      transformResponse: (response: unknown) => unwrapData<TechnicianProfileDto>(response),
       invalidatesTags: [{ type: "Technician", id: "PROFILE" }],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          if (data) {
+            dispatch(setTechnicianProfile(data));
+          }
+        } catch {
+          // ignore
+        }
+      },
     }),
     uploadTechnicianPhoto: builder.mutation<{ success: boolean; avatarUrl: string }, FormData>({
       query: (formData) => ({
@@ -239,14 +262,36 @@ export const technicianApi = baseApi.injectEndpoints({
         method: "POST",
         body: formData,
       }),
+      transformResponse: (response: unknown) =>
+        unwrapData<{ success: boolean; avatarUrl: string }>(response),
       invalidatesTags: [{ type: "Technician", id: "PROFILE" }],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          if (data?.avatarUrl) {
+            dispatch(updateUser({ avatarUrl: data.avatarUrl }));
+          }
+        } catch {
+          // ignore
+        }
+      },
     }),
     removeTechnicianPhoto: builder.mutation<{ success: boolean; message: string }, void>({
       query: () => ({
         url: "/technicians/me/photo",
         method: "DELETE",
       }),
+      transformResponse: (response: unknown) =>
+        unwrapData<{ success: boolean; message: string }>(response),
       invalidatesTags: [{ type: "Technician", id: "PROFILE" }],
+      async onQueryStarted(_arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(updateUser({ avatarUrl: undefined }));
+        } catch {
+          // ignore
+        }
+      },
     }),
     updateTechnicianAvailability: builder.mutation<
       TechnicianProfileDto,
@@ -257,6 +302,7 @@ export const technicianApi = baseApi.injectEndpoints({
         method: "PATCH",
         body,
       }),
+      transformResponse: (response: unknown) => unwrapData<TechnicianProfileDto>(response),
       invalidatesTags: [
         { type: "Technician", id: "OVERVIEW" },
         { type: "Technician", id: "PROFILE" },

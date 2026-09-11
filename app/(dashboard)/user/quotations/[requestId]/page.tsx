@@ -20,6 +20,7 @@ import { QuotationDecisionPanel } from "@/components/customer-portal/QuotationDe
 import { ServiceMediaGallery } from "@/components/customer-portal/ServiceMediaGallery";
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import { useGetMyQuotationsQuery, useGetQuotationByIdQuery } from "@/redux/api/quotationsApi";
 import { useGetServiceRequestByIdQuery } from "@/redux/api/serviceRequestsApi";
 import { useGetMyServiceOrdersQuery } from "@/redux/api/serviceOrdersApi";
@@ -84,34 +85,37 @@ export default function QuotationDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen">
-        <PageHeader
-          eyebrow="Quotation Review"
-          title="Loading quotation details..."
-          description="Fetching official diagnostic pricing breakdown from the server."
-          actions={
-            <Button asChild variant="outline" size="sm" className="rounded-md">
-              <Link href="/user/quotations">
-                <ArrowLeft size={14} className="mr-1.5" />
-                Back to quotations
-              </Link>
-            </Button>
-          }
-        />
-        <div className="flex flex-col items-center justify-center py-20 text-teal-700">
+      <PageStateShell
+        header={
+          <PageHeader
+            eyebrow="Quotation Review"
+            title="Loading quotation details..."
+            description="Fetching official diagnostic pricing breakdown from the server."
+            actions={
+              <Button asChild variant="outline" size="sm" className="rounded-md">
+                <Link href="/user/quotations">
+                  <ArrowLeft size={14} className="mr-1.5" />
+                  Back to quotations
+                </Link>
+              </Button>
+            }
+          />
+        }
+      >
+        <div className="flex flex-col items-center justify-center text-teal-700">
           <Loader2 size={36} className="animate-spin text-teal-600" />
           <p className="mt-3 text-sm font-medium text-slate-600">
             Loading Quotation #{idOrRequestId}...
           </p>
         </div>
-      </div>
+      </PageStateShell>
     );
   }
 
   // Proper empty state if quote does not exist
   if (!quote) {
     return (
-      <div className="min-h-screen">
+      <PageStateShell width="lg">
         <PageHeader
           eyebrow="Quotation Review"
           title="Quotation In Preparation"
@@ -130,7 +134,7 @@ export default function QuotationDetailPage() {
             </div>
           }
         />
-        <div className="rounded-xl border border-teal-100/90 bg-teal-50/30 p-8 text-center shadow-xs max-w-2xl mx-auto mt-6">
+        <div className="mt-6 rounded-xl border border-teal-100/90 bg-teal-50/30 p-8 text-center shadow-xs">
           <div className="flex size-12 items-center justify-center rounded-lg bg-teal-100 text-teal-800 mx-auto shadow-xs">
             <Sparkles size={24} />
           </div>
@@ -151,7 +155,7 @@ export default function QuotationDetailPage() {
             )}
           </div>
         </div>
-      </div>
+      </PageStateShell>
     );
   }
 

@@ -41,7 +41,7 @@ Token-optimized architecture guide for AI coding agents.
 | `app/auth/forgot-password/page.tsx` | Password reset link | `ForgotPasswordForm`, `AuthCard` | None |
 | `app/(dashboard)/user/page.tsx` | Customer portal overview | `UserOverviewClient`, `UpcomingServicesCard`, `RecentOrdersCard`, `QuickBookBanner` | Reschedule Service Dialog |
 | `app/(dashboard)/user/orders/page.tsx` | Customer orders list | `UserOrdersClient`, `OrderFilterTabs`, `OrderHistoryRow`, `StatusBadge` | Cancel Order Dialog |
-| `app/(dashboard)/user/orders/[orderId]/page.tsx` | Customer product-order detail, tracking & invoice | `UserOrderDetailClient`, `OrderInvoiceCard`, `StatusBadge` | Cancel Order Dialog, Request Return Dialog |
+| `app/(dashboard)/user/orders/[orderId]/page.tsx` | Customer product-order detail, tracking, invoice & post-delivery reviews | `UserOrderDetailClient`, `OrderItems`, `ProductReviewSection`, `ProductReviewComposer`, `OrderInvoiceCard`, `StatusBadge` | Cancel Order Dialog, Request Return Dialog |
 | `app/(dashboard)/user/services/page.tsx` | Customer booked services | `UserServicesClient`, `ServiceRequestTable`, `ServiceStatusBadge` | Cancel Request Dialog |
 | `app/(dashboard)/user/quotations/page.tsx` | Customer quotation proposals | `UserQuotationsClient`, `QuoteActionPanel`, `QuotationStatusBadge` | Accept / Reject Quote Modal |
 | `app/(dashboard)/user/schedule/page.tsx` | Customer appointments calendar | `UserScheduleClient`, `AppointmentCard`, `CalendarTimeline` | Reschedule Appointment Modal |
@@ -78,10 +78,10 @@ All endpoints extend `baseApi.ts` using Redux Toolkit Query (`createApi`) with a
 | **Technician** | `redux/api/technicianApi.ts` | `GET /technician/jobs`, `GET /technician/jobs/:id`, `PATCH /technician/jobs/:id/status` | `TechnicianJob`, `TechnicianSchedule` | `TechnicianOverviewClient`, `TechnicianJobsClient`, `TechnicianJobDetailClient` | `types/domain.ts` |
 | **Billing & Invoices** (universal) | `redux/api/billingApi.ts` | `GET /billing/invoices` (+KPIs), `GET /billing/invoices/me`, `GET /billing/invoices/:id`, `GET /billing/invoices/:id/html`, `POST /billing/invoices`, `PATCH /billing/invoices/:id`, `POST /billing/invoices/:id/payments`, `POST /billing/invoices/:id/refunds`, `POST /billing/invoices/:id/stripe/payment-intent`, `POST .../stripe/confirm` | `Invoice`, `Payment` | `UserBillingClient`, `UserInvoiceDetailClient`, `AdminFinancialsClient`, `AdminInvoiceDetailClient` | `redux/api/billingApi.ts` |
 | **Customer Addresses**| `redux/api/addressesApi.ts` | `GET /addresses`, `POST /addresses`, `PATCH /addresses/:id`, `DELETE /addresses/:id` | `Address` | `ShippingAddressForm`, `UserProfileClient` | `types/domain.ts` |
-| **Reviews** | `redux/api/reviewsApi.ts` | `GET /reviews`, `POST /reviews`, `PATCH /reviews/:id` | `Review` | `ProductDetailTabs`, `AdminReviewsClient` | `types/domain.ts` |
+| **Reviews** | `redux/api/reviewsApi.ts` | `GET /reviews` (public), `GET /reviews/me`, `GET /reviews/me/products`, `GET /reviews/products/:productId/me`, `POST /reviews`, `GET /reviews/admin/all`, `PATCH /reviews/:id/moderate`, `DELETE /reviews/:id` | `Review` | `ProductDetailTabs`, `ReviewsExperience`, `UserOrderDetailClient`, `AdminReviewsClient` | `types/domain.ts`, `redux/api/reviewsApi.ts` |
 | **Admin Dashboard** | `redux/api/dashboardApi.ts` | `GET /dashboard` (no params, 60s cache) | `Dashboard` | `app/(dashboard)/admin/page.tsx` | `redux/api/dashboardApi.ts` |
 | **Reports** | `redux/api/reportsApi.ts` | `GET /reports/overview` (period, from/to, orderType), `/reports/sales`, `/reports/service-operations` (period, from/to), `/reports/technicians` and `/reports/customers` (**no params**), `GET /reports/export/{orders,service-requests,invoices,customers}/csv` | `Report` | `AdminReportsClient`, `ExportReportMenu` | `redux/api/reportsApi.ts` |
-| **Notifications** | `redux/api/notificationsApi.ts` | `GET /notifications`, `PATCH /notifications/:id/read` | `Notification` | `UserNotificationsClient`, `AdminNotificationsClient`, `Navbar` | `types/domain.ts` |
+| **Notifications** | `redux/api/notificationsApi.ts` | `GET /notifications`, `GET /notifications/unread-count`, `GET`/`PATCH /notifications/preferences`, `POST /notifications` (admin, **one recipient**), `PATCH /notifications/:id/read`, `PATCH /notifications/read-all`, `DELETE /notifications/:id` | `Notification` | `UserNotificationsClient`, `AdminNotificationsPage`, `AdminEnqueueNotificationModal`, `Navbar` | `types/domain.ts`, `redux/api/notificationsApi.ts` |
 
 ---
 
@@ -98,7 +98,7 @@ Mounted via `<ReduxProvider>` in `app/layout.tsx`:
 ### Shared UI Components & Primitives (`components/ui/`)
 Built with Radix UI primitives, Lucide icons, and Tailwind tokens (Elite Teal: `#0f766e` / `#0d9488`, Slate neutrals):
 - **Core Primitives**: `Button.tsx`, `Input.tsx`, `Textarea.tsx`, `Select.tsx`, `Checkbox.tsx`, `RadioGroup.tsx`, `Switch.tsx`.
-- **Feedback & Overlay**: `Dialog.tsx`, `Sheet.tsx` (slideout drawer), `DropdownMenu.tsx`, `Tooltip.tsx`, `Toaster.tsx` (Sonner), `Alert.tsx`, `Skeleton.tsx`.
+- **Feedback & Overlay**: `Dialog.tsx`, `Sheet.tsx` (slideout drawer), `DropdownMenu.tsx`, `Tooltip.tsx`, `Toaster.tsx` (Sonner), `Alert.tsx`, `Skeleton.tsx`, `EmptyState.tsx`, `PageStateShell.tsx`.
 - **Data Display & Layout**: `Card.tsx`, `Badge.tsx`, `Table.tsx`, `Tabs.tsx`, `Carousel.tsx`, `Separator.tsx`, `Accordion.tsx`.
 
 ### Reporting Caveats (read before editing the dashboard or reports)
@@ -153,6 +153,74 @@ Rules the kit encodes:
 Screens on the kit: `UserServicesClient`, `UserOrdersClient`, `UserBillingClient`,
 `UserScheduleClient`, `ReviewsExperience`, `user/quotations/page.tsx`,
 `user/notifications/page.tsx`.
+
+### Notification Caveats
+
+- `type` is a **server enum**, exported as `NOTIFICATION_TYPES` /
+  `NOTIFICATION_TYPE_LABELS` from `notificationsApi.ts`:
+  `SERVICE_REQUEST_UPDATE`, `QUOTATION_UPDATE`, `SCHEDULE_DISPATCH`,
+  `ORDER_STATUS_UPDATE`, `BILLING_INVOICE`, `REVIEW_MODERATION`,
+  `SYSTEM_ALERT`. Import those constants — inventing slugs like `"system"` or
+  `"service-update"` gets a 400 on write and silently matches nothing on read.
+- `POST /notifications` requires `userId` + `type` + `title` + `message`, and
+  `userId` must be the **User UUID — not a `customerId`** (a customer profile id
+  passes validation and then fails recipient lookup server-side).
+- There is **no role broadcast and no bulk endpoint**. Multi-recipient sends fan
+  out client-side, one POST per id, via `Promise.allSettled` so partial failures
+  are reported and the failed ids stay in the form for retry. A backend
+  `POST /notifications/bulk` would replace this.
+- Optional fields the API accepts but the dispatch modal does not yet collect:
+  `ctaUrl` (max 255), `metadata`, `sendEmail`, `priority` (1 highest, 10 normal,
+  default 5). `title` caps at 200.
+- When fanning out mutations in parallel, do not drive the busy state from the
+  hook's `isLoading` — it tracks only the most recent trigger. Use a local flag.
+
+### Review Caveats (Phase 13)
+
+- Reviews are keyed **per product, not per order line**. `POST /reviews` takes
+  `productId` + `productOrderId`, but a customer gets one review per product —
+  so a product reviewed on an earlier order shows as already-reviewed on this
+  order too. That is the API's rule, not a bug to route around.
+- The customer-facing review UI lives **on the order detail page**
+  (`ProductReviewSection` in `UserOrderDetailClient`), gated on order status
+  `DELIVERED` / `COMPLETED`. `/user/reviews` is the standalone hub and also
+  accepts `?compose=product|service&orderId=…`.
+- Existing-review lookup reads `GET /reviews/me/products` (13.2), which returns
+  the product and order each review belongs to. `GET /reviews/me` is a fallback
+  and its `relatedEntityId` field is **unverified against the live API** — do not
+  make it the only source.
+- `GET /reviews` live returns `{ success, items, meta.analytics: { averageRating,
+  totalReviews } }` — **not** the `ratingSummary` object the integration guide
+  documents in 13.1. `unwrapPublicReviews` currently ignores `meta.analytics` and
+  recomputes the average from the current page of items, which is wrong once the
+  feed paginates. Fix by reading `meta.analytics` when present.
+- Order status arrives in mixed case from some endpoints; `normalizeStoreOrder`
+  uppercases it. Never compare a raw API status against `"DELIVERED"` directly.
+
+### Whole-Page States (not found / error / loading)
+
+`components/ui/PageStateShell.tsx` centres a **whole-page** fallback in every
+role's dashboard. Any `if (!record) return …` / `if (isError) return …` /
+full-page spinner in a detail route must be wrapped in it — a dashboard
+`<main>` passes no height through `DashboardPageTransition`, so a bare card
+sticks to the top of the content area instead of sitting in the middle.
+
+```tsx
+<PageStateShell header={<PageHeader … />} width="md">
+  <EmptyState title="Order not found" … tone="card" />
+</PageStateShell>
+```
+
+- `header` pins a page header or back link to the top; the child block is
+  centred in the remaining space. Omit it for a plain centred card.
+- `width`: `sm` | `md` (default) | `lg` | `full`.
+- Do **not** also put `py-14`, `py-16`, `py-24` or `min-h-screen` on the child —
+  that padding was faking vertical placement and now just off-centres it.
+- `app/not-found.tsx` is the styled, viewport-centred 404 behind every
+  `notFound()` call (e.g. `/admin/service-requests/[requestId]`,
+  `/admin/products/[productId]/edit`).
+- Skeletons that mirror the real page layout (e.g. the service-request detail
+  skeleton) stay top-anchored — only single-block states get centred.
 
 ### Cross-Cutting Helpers
 - `lib/api-error.ts`: `readApiMessage(err, fallback)` surfaces the message the API itself returned (handles NestJS array messages).

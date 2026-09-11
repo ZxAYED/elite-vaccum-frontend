@@ -16,7 +16,7 @@ export default function ContactBanner() {
       />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,65,66,0.88)_0%,rgba(7,65,66,0.64)_42%,rgba(7,65,66,0.22)_100%)]" />
 
-      <div className="relative mx-auto w-full max-w-7xl px-4">
+      <div className="relative mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <FadeIn className="max-w-xl" animateOnLoad duration={0.65} y={24}>
           <StaggerGroup className="max-w-xl" delay={0.06} once>
           <StaggerItem>

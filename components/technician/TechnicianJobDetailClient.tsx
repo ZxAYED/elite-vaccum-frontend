@@ -23,6 +23,7 @@ import {
   TechnicianRouteShell,
 } from "@/components/technician/TechnicianRouteShell";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import {
   Dialog,
   DialogContent,
@@ -308,39 +309,38 @@ export function TechnicianJobDetailClient({
 
   if (isLoading) {
     return (
-      <TechnicianRouteShell
-        eyebrow="Field Service Job"
-        title="Loading job..."
-        description="Fetching the assigned service order."
-      >
+      <PageStateShell>
         <AdminSurface>
-          <div className="flex items-center gap-3 text-slate-500">
+          <div className="flex items-center justify-center gap-3 py-4 text-slate-500">
             <Loader2 className="size-5 animate-spin text-teal-700" />
             <span className="text-sm font-medium">Loading job details...</span>
           </div>
         </AdminSurface>
-      </TechnicianRouteShell>
+      </PageStateShell>
     );
   }
 
   if (isError || !job.id) {
     return (
-      <TechnicianRouteShell
-        eyebrow="Field Service Job"
-        title="Job not found"
-        description="This service order is not assigned to you, or no longer exists."
-      >
-        <AdminSurface className="max-w-2xl">
-          <p className="text-sm leading-6 text-slate-600">
+      <PageStateShell>
+        <AdminSurface className="p-8 text-center lg:p-10">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100">
+            <ClipboardList size={22} />
+          </div>
+          <h1 className="mt-4 text-lg font-bold text-slate-900">
+            Job not found
+          </h1>
+          <p className="mx-auto mt-1.5 max-w-md text-sm leading-6 text-slate-600">
+            This service order is not assigned to you, or no longer exists.
             Check the service order reference, or return to your assigned jobs.
           </p>
-          <div className="mt-5">
-            <Button asChild>
+          <div className="mt-6">
+            <Button asChild size="sm">
               <Link href="/technician/jobs">Back to My Jobs</Link>
             </Button>
           </div>
         </AdminSurface>
-      </TechnicianRouteShell>
+      </PageStateShell>
     );
   }
 
@@ -404,7 +404,7 @@ export function TechnicianJobDetailClient({
             {job.totalUsd > 0 ? (
               <p className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 Accepted quote total:{" "}
-                <strong className="text-slate-950">
+                <strong className="text-primary">
                   {formatCurrencyUsd(job.totalUsd)}
                 </strong>
               </p>
@@ -413,7 +413,7 @@ export function TechnicianJobDetailClient({
 
           {job.problemSummary || job.symptoms.length > 0 || job.customerNotes ? (
             <AdminSurface>
-              <h2 className="text-xl font-semibold text-slate-950">
+              <h2 className="text-xl font-semibold text-primary">
                 Reported Problem
               </h2>
               {job.problemSummary ? (
@@ -453,7 +453,7 @@ export function TechnicianJobDetailClient({
           <AdminSurface>
             <div className="flex items-center gap-3">
               <Truck size={20} className="text-teal-700" />
-              <h2 className="text-xl font-semibold text-slate-950">
+              <h2 className="text-xl font-semibold text-primary">
                 Field Actions
               </h2>
             </div>
@@ -514,7 +514,7 @@ export function TechnicianJobDetailClient({
           </AdminSurface>
 
           <AdminSurface>
-            <h2 className="text-lg font-semibold text-slate-950">
+            <h2 className="text-lg font-semibold text-primary">
               Field workflow
             </h2>
             <ol className="mt-4 space-y-3">

@@ -442,7 +442,7 @@ export function CheckoutExperience() {
 
         <div className="mt-6 space-y-8">
           <div>
-            <h2 className="text-3xl font-semibold text-slate-950">Contact Information</h2>
+            <h2 className="text-3xl font-semibold text-primary">Contact Information</h2>
             <div className="mt-5">
               <FormField htmlFor="email" label="Email" required error={errors.email}>
                 <Input
@@ -465,7 +465,7 @@ export function CheckoutExperience() {
 
           <div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-3xl font-semibold text-slate-950">Shipping Address</h2>
+              <h2 className="text-3xl font-semibold text-primary">Shipping Address</h2>
               <Dialog
                 open={addressDialogOpen}
                 onOpenChange={(open) => {
@@ -605,7 +605,7 @@ export function CheckoutExperience() {
                         <span className="rounded-md bg-teal-100/80 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-teal-800">
                           Saved Address
                         </span>
-                        <span className="text-sm font-semibold text-slate-950">
+                        <span className="text-sm font-semibold text-primary">
                           {selectedAddress.label}
                         </span>
                       </div>
@@ -778,7 +778,7 @@ export function CheckoutExperience() {
           </div>
 
           <div>
-            <h2 className="text-3xl font-semibold text-slate-950">Payment Method</h2>
+            <h2 className="text-3xl font-semibold text-primary">Payment Method</h2>
             <RadioGroup
               className="mt-5 gap-3 sm:grid-cols-2"
               value={paymentMethod}
@@ -823,7 +823,7 @@ export function CheckoutExperience() {
         className="landing-card landing-card-soft h-fit p-6 xl:sticky xl:top-24"
         delay={0.08}
       >
-        <h2 className="text-2xl font-semibold text-slate-950">Order Summary</h2>
+        <h2 className="text-2xl font-semibold text-primary">Order Summary</h2>
 
         <StaggerGroup className="mt-5 space-y-4" delay={0.05}>
           {items.map((item) => (

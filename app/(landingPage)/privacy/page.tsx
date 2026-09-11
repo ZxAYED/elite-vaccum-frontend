@@ -1,4 +1,4 @@
-import { LegalPage } from "@/components/landing/legal/LegalPage";
+import { DynamicPolicyPage } from "@/components/landing/legal/DynamicPolicyPage";
 
 export const metadata = {
   title: "Privacy Policy - Elite Central Vacuum",
@@ -8,11 +8,12 @@ export const metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage
-      eyebrow="Privacy"
-      title="Privacy Policy"
-      description="This page explains how the Elite Central Vacuum website is designed to handle contact, service, shopping, and customer account information."
-      sections={[
+    <DynamicPolicyPage
+      slug="privacy"
+      defaultEyebrow="Privacy"
+      defaultTitle="Privacy Policy"
+      defaultDescription="This page explains how Elite Central Vacuum handles contact, service, shopping, and customer account information."
+      fallbackSections={[
         {
           title: "Information We Collect",
           body: (

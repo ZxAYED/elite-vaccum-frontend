@@ -27,7 +27,7 @@ export function ProductDetailTabs({ product }: ProductDetailTabsProps) {
               onClick={() => setActiveTab(tab)}
               className={`border-b-2 pb-4 text-sm font-semibold transition-colors ${
                 isActive
-                  ? "border-teal-700 text-slate-950"
+                  ? "border-teal-700 text-primary"
                   : "border-transparent text-slate-400 hover:text-slate-700"
               }`}
             >

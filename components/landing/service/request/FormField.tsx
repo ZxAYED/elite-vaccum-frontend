@@ -21,7 +21,7 @@ export function FormField({
   children,
 }: FormFieldProps) {
   return (
-    <div className={cn("block text-sm font-semibold text-slate-950", className)}>
+    <div className={cn("block text-sm font-semibold text-primary", className)}>
       {htmlFor ? (
         <label htmlFor={htmlFor} className="block mb-2">
           {label}

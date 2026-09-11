@@ -735,7 +735,7 @@ export default function AdminServicesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7f7] text-slate-950">
+    <main className="min-h-screen bg-[#f4f7f7] text-primary">
       <section className="space-y-4">
         <div className="flex flex-col gap-3 rounded-lg border border-teal-100 bg-white p-4 shadow-[0_18px_48px_-42px_rgba(28,79,80,0.32)] lg:flex-row lg:items-end lg:justify-between">
           <div>

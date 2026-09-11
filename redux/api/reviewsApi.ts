@@ -215,12 +215,116 @@ export interface CheckProductReviewResponse {
   } | null;
 }
 
+/** One published review as `GET /products/:id/reviews` returns it. */
+export interface ProductReviewItem {
+  id: string;
+  rating: number;
+  title: string;
+  body: string;
+  customerName: string;
+  submittedAt: string;
+}
+
+export interface ProductReviewsResponse {
+  items: ProductReviewItem[];
+  /**
+   * Always reflects **all** published reviews, ignoring an active `rating`
+   * filter, so the histogram stays put while the reader filters.
+   */
+  summary: RatingSummary;
+  meta: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
+export interface GetProductReviewsParams {
+  productId: string;
+  page?: number;
+  limit?: number;
+  rating?: number;
+}
+
+function normalizeProductReview(raw: unknown, index: number): ProductReviewItem {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const customer = (r.customer ?? {}) as Record<string, unknown>;
+  const rating = Number(r.rating);
+
+  return {
+    id: String(r.id || `product-review-${index}`),
+    rating: Number.isFinite(rating) ? Math.min(Math.max(rating, 1), 5) : 5,
+    title: String(r.title || ""),
+    // `preview` is a truncation of `body`; prefer the full text.
+    body: String(r.body || r.preview || ""),
+    customerName: String(
+      r.customerName || customer.displayName || "Verified customer",
+    ),
+    submittedAt: String(r.submittedAt || r.publishedAt || r.createdAt || ""),
+  };
+}
+
+function unwrapProductReviews(raw: unknown): ProductReviewsResponse {
+  const obj = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const rawItems = Array.isArray(obj.items)
+    ? obj.items
+    : Array.isArray(raw)
+      ? (raw as unknown[])
+      : [];
+  const items = rawItems.map(normalizeProductReview);
+
+  const metaRaw = (obj.meta ?? {}) as Record<string, unknown>;
+  const summaryRaw = (metaRaw.summary ?? obj.summary ?? obj.ratingSummary) as
+    | RatingSummary
+    | undefined;
+
+  const averageFromItems = items.length
+    ? Number(
+        (items.reduce((sum, r) => sum + r.rating, 0) / items.length).toFixed(1),
+      )
+    : 0;
+
+  const limit = num(metaRaw.limit, items.length || 10);
+  const totalItems = num(metaRaw.totalItems ?? metaRaw.total, items.length);
+
+  return {
+    items,
+    summary: normalizeRatingSummary(summaryRaw, averageFromItems, totalItems),
+    meta: {
+      page: num(metaRaw.page ?? metaRaw.currentPage, 1),
+      limit,
+      totalItems,
+      totalPages: num(
+        metaRaw.totalPages,
+        limit > 0 ? Math.ceil(totalItems / limit) : 1,
+      ),
+    },
+  };
+}
+
 export const reviewsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getPublicReviews: builder.query<PublicReviewsResponse, void>({
       query: () => "/reviews",
       transformResponse: unwrapPublicReviews,
       providesTags: [{ type: "Review", id: "PUBLIC_LIST" }],
+    }),
+    /**
+     * Public, paginated reviews for one product. `productId` accepts a UUID or
+     * a SKU, matching the product detail route.
+     */
+    getProductReviews: builder.query<ProductReviewsResponse, GetProductReviewsParams>({
+      query: ({ productId, ...params }) => ({
+        url: `/products/${productId}/reviews`,
+        params,
+      }),
+      transformResponse: unwrapProductReviews,
+      // Shares the tag `submitReview` invalidates, so a newly posted review
+      // refreshes the product page list.
+      providesTags: (_result, _error, { productId }) => [
+        { type: "Review", id: `PRODUCT_${productId}` },
+      ],
     }),
     getMyReviews: builder.query<CustomerReview[], { type?: "PRODUCT" | "SERVICE"; rating?: number } | void>({
       query: (params) => ({
@@ -316,6 +420,7 @@ export const reviewsApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetProductReviewsQuery,
   useGetPublicReviewsQuery,
   useGetMyReviewsQuery,
   useGetMyReviewedProductsQuery,
