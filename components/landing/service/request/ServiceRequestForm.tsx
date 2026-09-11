@@ -492,7 +492,7 @@ export function ServiceRequestForm({ service }: ServiceRequestFormProps) {
     <main className="w-full min-w-0 bg-[linear-gradient(180deg,#effcfa_0%,#ffffff_34%)] py-8 sm:py-12 md:py-16">
       <form
         onSubmit={handleSubmit(onSubmit, onInvalid)}
-        className="mx-auto grid w-full max-w-7xl gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
+        className="mx-auto grid w-full max-w-[1400px] gap-8 px-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem] 2xl:grid-cols-[minmax(0,1fr)_24rem] lg:px-8"
       >
         <div className="w-full min-w-0">
           <div>

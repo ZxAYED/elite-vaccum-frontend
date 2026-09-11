@@ -16,7 +16,7 @@ import {
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { useLogoutMutation } from "@/redux/api/authApi";
-import { useAppDispatch } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { logout } from "@/redux/slices/authSlice";
 
 import { useGetTechnicianProfileQuery } from "@/redux/api/technicianApi";
@@ -42,10 +42,29 @@ export default function TechnicianDashboardSidebar({
   const dispatch = useAppDispatch();
   const [logoutMutation] = useLogoutMutation();
 
+  const reduxUser = useAppSelector((state) => state.auth.user);
+  const reduxTech = useAppSelector((state) => state.auth.technicianProfile);
+
   // Phase 17.4 `GET /technicians/me/profile` + Phase 11.2 unread badge count.
   const { data: technician } = useGetTechnicianProfileQuery();
   const { data: unread } = useGetUnreadNotificationsCountQuery();
   const unreadCount = unread?.unreadCount ?? 0;
+
+  const activeTechnician =
+    technician || reduxTech || (reduxUser?.technicianProfile as typeof technician) || null;
+  const avatarUrl = activeTechnician?.avatarUrl || reduxUser?.avatarUrl;
+  const displayName =
+    activeTechnician?.displayName ||
+    reduxUser?.fullName ||
+    [reduxUser?.firstName, reduxUser?.lastName].filter(Boolean).join(" ").trim() ||
+    "Field Technician";
+  const initials =
+    displayName
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "FT";
 
   const handleLogout = async () => {
     try {
@@ -127,21 +146,22 @@ export default function TechnicianDashboardSidebar({
 
         <div className="border-t border-slate-100 p-4">
           <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 shadow-xs">
-            <Image
-              src={technician?.avatarUrl || "/nav_profile.jpg"}
-              alt={technician?.displayName || "Technician"}
-              width={38}
-              height={38}
-              className="size-9.5 rounded-full object-cover"
-            />
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="size-9.5 rounded-full object-cover border border-slate-200 shrink-0"
+              />
+            ) : (
+              <div className="flex size-9.5 shrink-0 items-center justify-center rounded-full bg-teal-800 text-xs font-bold text-white shadow-xs">
+                {initials}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
-              {technician ? (
-                <p className="truncate text-sm font-bold text-slate-900">
-                  {technician.displayName}
-                </p>
-              ) : (
-                <span className="block h-4 w-24 animate-pulse rounded bg-slate-200" />
-              )}
+              <p className="truncate text-sm font-bold text-slate-900">
+                {displayName}
+              </p>
               <p className="text-xs text-slate-500">Field Technician</p>
             </div>
             <Shield className="text-teal-700 shrink-0" size={18} />

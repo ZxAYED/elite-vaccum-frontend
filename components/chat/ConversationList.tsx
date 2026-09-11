@@ -31,6 +31,7 @@ export function ConversationList({
   onSelect,
   currentUserId,
   onCompose,
+  isLoading = false,
   className,
 }: {
   conversations: Conversation[];
@@ -38,6 +39,7 @@ export function ConversationList({
   onSelect: (conversationId: string) => void;
   currentUserId: string;
   onCompose?: () => void;
+  isLoading?: boolean;
   className?: string;
 }) {
   const [query, setQuery] = useState("");
@@ -159,7 +161,20 @@ export function ConversationList({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {visible.length === 0 ? (
+        {isLoading && conversations.length === 0 ? (
+          <ul aria-busy="true" className="divide-y divide-slate-100">
+            <li className="sr-only">Loading conversations</li>
+            {[0, 1, 2, 3, 4].map((row) => (
+              <li className="flex items-start gap-3 px-4 py-3.5" key={row}>
+                <span className="size-11 shrink-0 animate-pulse rounded-full bg-slate-100" />
+                <span className="min-w-0 flex-1 space-y-2 pt-1">
+                  <span className="block h-3.5 w-32 animate-pulse rounded bg-slate-200/70" />
+                  <span className="block h-3 w-full animate-pulse rounded bg-slate-100" />
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : visible.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-slate-500">
             {query
               ? `Nothing matched "${query.trim()}".`

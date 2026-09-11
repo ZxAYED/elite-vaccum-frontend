@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { useLoginMutation } from "@/redux/api/authApi";
 import { useAppDispatch } from "@/redux/hooks";
 import { setCredentials } from "@/redux/slices/authSlice";
+import type { TechnicianProfileDto } from "@/redux/api/technicianApi";
 
 import { Zap } from "lucide-react";
 import { OneClickLoginModal, type DemoRoleAccount } from "./OneClickLoginModal";
@@ -37,7 +38,7 @@ export function LoginForm() {
         password,
       }).unwrap();
 
-      // Support both direct AuthResponse and wrapped { success: true, data: { user, accessToken } }
+      // Support both direct AuthResponse and wrapped { success: true, data: { user, accessToken, technicianProfile } }
       const payload = rawResponse as unknown as Record<string, unknown>;
       const dataObj =
         payload && typeof payload.data === "object" && payload.data !== null
@@ -57,10 +58,25 @@ export function LoginForm() {
         throw new Error("Missing user or access token in login response.");
       }
 
+      const techProfile =
+        (dataObj.technicianProfile as TechnicianProfileDto) ||
+        (dataObj.profile as TechnicianProfileDto) ||
+        ((dataObj.user as Record<string, unknown>)?.technicianProfile as TechnicianProfileDto) ||
+        ((user as unknown as Record<string, unknown>)?.technicianProfile as TechnicianProfileDto) ||
+        null;
+
+      if (techProfile) {
+        user.technicianProfile = techProfile;
+        if (!user.avatarUrl && techProfile.avatarUrl) {
+          user.avatarUrl = techProfile.avatarUrl;
+        }
+      }
+
       dispatch(
         setCredentials({
           user,
           token,
+          technicianProfile: techProfile,
         })
       );
 

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
   Loader2,
   Mail,
   MapPin,
+  MessageSquare,
   Package,
   Phone,
   RotateCcw,
@@ -23,6 +25,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useStartConversationMutation,
+  useSendConversationMessageMutation,
+} from "@/redux/api/chatApi";
 
 import {
   AdminPageHeader,
@@ -99,6 +105,10 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
   const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
   const [approveRefund, { isLoading: isRefunding }] =
     useApproveReturnRefundMutation();
+  const router = useRouter();
+  const [startConversation, { isLoading: isStartingChat }] =
+    useStartConversationMutation();
+  const [sendMessage] = useSendConversationMessageMutation();
 
   const [statusDraft, setStatusDraft] = useState<StoreOrderStatus | null>(null);
   const [statusNote, setStatusNote] = useState("");
@@ -249,6 +259,38 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
     }
   }
 
+  async function handleMessageCustomer() {
+    if (!order) return;
+    try {
+      const customerName = order.customer?.displayName || "Customer";
+      const initialText = `Hello ${customerName}, this is regarding your order #${orderRef}.`;
+      const res = await startConversation({
+        type: "ORDER_INQUIRY",
+        targetUserId: order.customerId ?? undefined,
+        orderId: order.id,
+        title: `Order #${orderRef} - ${customerName}`,
+        initialMessage: initialText,
+      }).unwrap();
+
+      if (res?.id) {
+        try {
+          await sendMessage({
+            conversationId: res.id,
+            content: initialText,
+          }).unwrap();
+        } catch {
+          // Room may have already processed initial message on creation
+        }
+        toast.success(`Connecting to chat with ${customerName}...`);
+        router.push(`/admin/chat?conversationId=${res.id}`);
+      }
+    } catch (err) {
+      toast.error("Could not start chat session", {
+        description: readApiMessage(err, "Please try again shortly."),
+      });
+    }
+  }
+
   return (
     <AdminPageShell>
       <AdminPageHeader
@@ -263,6 +305,17 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                 All Orders
               </Link>
             </Button>
+            {order.customerId ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isStartingChat}
+                onClick={handleMessageCustomer}
+              >
+                <MessageSquare size={14} className="mr-1.5" />
+                {isStartingChat ? "Connecting..." : "Message Customer"}
+              </Button>
+            ) : null}
             {canRefund ? (
               <Button
                 variant="outline"
@@ -660,11 +713,23 @@ export function AdminOrderDetailClient({ orderId }: { orderId: string }) {
                 </p>
               ) : null}
               {order.customerId ? (
-                <Button asChild className="mt-2 w-full" size="sm" variant="outline">
-                  <Link href={`/admin/customers/${order.customerId}`}>
-                    View Customer
-                  </Link>
-                </Button>
+                <div className="mt-3 flex flex-col gap-2">
+                  <Button asChild className="w-full" size="sm" variant="outline">
+                    <Link href={`/admin/customers/${order.customerId}`}>
+                      View Customer Profile
+                    </Link>
+                  </Button>
+                  <Button
+                    className="w-full"
+                    size="sm"
+                    variant="default"
+                    disabled={isStartingChat}
+                    onClick={handleMessageCustomer}
+                  >
+                    <MessageSquare size={14} className="mr-1.5" />
+                    {isStartingChat ? "Connecting..." : "Message Customer"}
+                  </Button>
+                </div>
               ) : null}
             </div>
             {order.customerNotes ? (

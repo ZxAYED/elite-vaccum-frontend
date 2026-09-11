@@ -38,7 +38,7 @@ const items = [
 export function CustomerAccessPanel() {
   return (
     <section className="bg-[#F4F8F8] py-16 md:py-20 lg:py-24">
-      <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <FadeIn className="max-w-2xl" y={24} duration={0.65}>
           <p className="text-xs font-semibold uppercase tracking-[0.26em] text-teal-700">
             Customer Experience

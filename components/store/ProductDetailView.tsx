@@ -84,7 +84,7 @@ export function ProductDetailView({ slug }: ProductDetailViewProps) {
 
   return (
     <main className="bg-[#f7fbfa] pb-20 pt-8 sm:pt-10">
-      <div className="mx-auto max-w-360 px-4">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <FadeIn className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
           <Pressable className="w-fit">
             <Link
