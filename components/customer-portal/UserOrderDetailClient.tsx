@@ -2,12 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   AlertCircle,
   Check,
   CreditCard,
   Loader2,
+  MessageSquare,
   Package,
   RotateCcw,
   Star,
@@ -15,6 +17,10 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  useStartConversationMutation,
+  useSendConversationMessageMutation,
+} from "@/redux/api/chatApi";
 
 import { OrderInvoiceCard } from "@/components/invoices/OrderInvoiceCard";
 import { PageHeader } from "@/components/customer-portal/PageHeader";
@@ -105,6 +111,11 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
   const { data: returnStatus } = useGetReturnStatusQuery(orderId, {
     skip: !returnable,
   });
+
+  const router = useRouter();
+  const [startConversation, { isLoading: isStartingChat }] =
+    useStartConversationMutation();
+  const [sendMessage] = useSendConversationMessageMutation();
 
   const [cancelOrder, { isLoading: isCancelling }] = useCancelOrderMutation();
   const [fetchCheckoutSession, { isLoading: isCreatingSession }] =
@@ -296,6 +307,36 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
     }
   }
 
+  async function handleMessageAdmin() {
+    if (!order) return;
+    try {
+      const initialText = `Hello, I have an inquiry regarding order #${orderRef}.`;
+      const res = await startConversation({
+        type: "ORDER_INQUIRY",
+        orderId: order.id,
+        title: `Order #${orderRef}`,
+        initialMessage: initialText,
+      }).unwrap();
+
+      if (res?.id) {
+        try {
+          await sendMessage({
+            conversationId: res.id,
+            content: initialText,
+          }).unwrap();
+        } catch {
+          // Room may have already processed initial message on creation
+        }
+        toast.success("Connecting to chat with support/admin...");
+        router.push(`/user/chat?conversationId=${res.id}`);
+      }
+    } catch (err) {
+      toast.error("Could not start chat session", {
+        description: readApiMessage(err, "Please try again shortly."),
+      });
+    }
+  }
+
   return (
     <div className="space-y-6 pb-8">
       <PageHeader
@@ -303,6 +344,17 @@ export function UserOrderDetailClient({ orderId }: { orderId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline" size="sm" className="rounded-md">
               <Link href="/user/orders">Back to orders</Link>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-md"
+              disabled={isStartingChat}
+              onClick={handleMessageAdmin}
+            >
+              <MessageSquare size={14} className="mr-1.5" />
+              {isStartingChat ? "Connecting..." : "Message Admin"}
             </Button>
 
             {canCompletePayment ? (
