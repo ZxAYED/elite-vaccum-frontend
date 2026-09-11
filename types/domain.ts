@@ -115,11 +115,15 @@ export interface User {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  avatarUrl?: string;
+  image?: string;
   isActive?: boolean;
   isEmailVerified?: boolean;
   createdAt: string;
   customerId?: string;
   technicianId?: string;
+  technicianProfile?: unknown;
+  profile?: unknown;
 }
 
 export interface Customer {

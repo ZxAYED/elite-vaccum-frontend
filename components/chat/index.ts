@@ -1,6 +1,7 @@
 export { ChatAvatar } from "./ChatAvatar";
 export { ChatExperience } from "./ChatExperience";
 export { ChatHeader } from "./ChatHeader";
+export { ChatWorkspace } from "./ChatWorkspace";
 export { ConversationList } from "./ConversationList";
 export { MessageBubble } from "./MessageBubble";
 export { MessageComposer } from "./MessageComposer";

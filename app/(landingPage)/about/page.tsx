@@ -94,7 +94,7 @@ export default function About() {
           className="object-cover"
         />
         <div className="absolute inset-0 bg-slate-950/55" />
-        <div className="relative mx-auto flex min-h-[30rem] max-w-7xl items-end px-4 py-16 sm:px-6 md:min-h-[34rem] md:py-20 lg:px-8">
+        <div className="relative mx-auto flex min-h-[30rem] max-w-[1400px] items-end px-4 py-16 sm:px-6 md:min-h-[34rem] md:py-20 lg:px-8">
           <FadeIn className="max-w-3xl text-white" y={24} duration={0.65}>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#BCFF56]">
               Our Expertise
@@ -124,7 +124,7 @@ export default function About() {
       </section>
 
       <section className="py-14 md:py-20 lg:py-24">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:gap-14 lg:px-8">
+        <div className="mx-auto grid max-w-[1400px] gap-10 px-4 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:gap-14 lg:px-8">
           <FadeIn className="max-w-2xl" y={24} duration={0.65}>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
               Brand Story
@@ -174,7 +174,7 @@ export default function About() {
       </section>
 
       <section className="bg-[#F5FAF9] py-14 md:py-20">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
           <FadeIn y={24} duration={0.65}>
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
@@ -219,7 +219,7 @@ export default function About() {
       </section>
 
       <section className="py-14 md:py-20 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
           <FadeIn className="max-w-2xl" y={24} duration={0.65}>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-teal-700">
               Why Elite
@@ -263,7 +263,7 @@ export default function About() {
       </section>
 
       <section className="bg-[#F5FAF9] py-14 md:py-20 lg:py-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
           <FadeIn
             className="mx-auto max-w-3xl text-center"
             y={24}
@@ -322,33 +322,35 @@ export default function About() {
       </section>
 
       <section className="py-14 md:py-20 lg:py-24">
-        <div className="mx-auto rounded-[32px]  max-w-5xl bg-primary px-4 sm:px-6 lg:px-8">
-          <FadeIn
-            className=" px-6 py-10 text-center sm:px-10 sm:py-14"
-            y={24}
-            duration={0.65}
-          >
-            <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
-              Ready to take care of your central vacuum system?
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white sm:text-lg">
-              Request service, schedule an installation, or speak with the Elite
-              team about your system.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-              <Button className="bg-white text-primary hover:bg-slate-100" asChild size="pill">
-                <Link href="/services">Request Service</Link>
-              </Button>
-              <Button
-                asChild
-                size="pill"
-                variant="outline"
-                className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
-              >
-                <Link href="/contact">Contact Us</Link>
-              </Button>
-            </div>
-          </FadeIn>
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-5xl rounded-[32px] bg-primary">
+            <FadeIn
+              className="px-6 py-10 text-center sm:px-10 sm:py-14"
+              y={24}
+              duration={0.65}
+            >
+              <h2 className="text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+                Ready to take care of your central vacuum system?
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white sm:text-lg">
+                Request service, schedule an installation, or speak with the Elite
+                team about your system.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button className="bg-white text-primary hover:bg-slate-100" asChild size="pill">
+                  <Link href="/services">Request Service</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="pill"
+                  variant="outline"
+                  className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Link href="/contact">Contact Us</Link>
+                </Button>
+              </div>
+            </FadeIn>
+          </div>
         </div>
       </section>
     </main>

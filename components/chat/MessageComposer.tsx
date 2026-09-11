@@ -1,7 +1,8 @@
 "use client";
 
-import { Paperclip, SendHorizontal, Smile, X } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { Paperclip, SendHorizontal, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -22,18 +23,23 @@ const MAX_COMPOSER_HEIGHT = 160;
 export function MessageComposer({
   participant,
   onSend,
+  onTyping,
   disabled = false,
   className,
 }: {
   participant: ChatParticipant;
-  /** Wired to the API later; the UI only guarantees a non-empty body. */
-  onSend?: (body: string, attachments: ChatAttachment[]) => void;
+  /** The UI only guarantees a non-empty body or at least one attachment. */
+  onSend?: (body: string, attachments: ChatAttachment[]) => Promise<void> | void;
+  /** Fires on the transitions only, never on every keystroke. */
+  onTyping?: (isTyping: boolean) => void;
   disabled?: boolean;
   className?: string;
 }) {
   const [draft, setDraft] = useState("");
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Height is a property of the DOM node, not React state: writing it here
   // keeps the growth in one paint and avoids a state write inside an effect.
@@ -44,14 +50,92 @@ export function MessageComposer({
     node.style.height = `${Math.min(node.scrollHeight, MAX_COMPOSER_HEIGHT)}px`;
   }, [draft]);
 
+  // Typing heartbeat: emit every 2.5s while draft is non-empty so the 4s receiver timer never dies
+  const isDrafting = draft.trim().length > 0;
+  useEffect(() => {
+    if (!isDrafting) {
+      onTyping?.(false);
+      return;
+    }
+
+    onTyping?.(true);
+    const interval = setInterval(() => {
+      onTyping?.(true);
+    }, 2500);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isDrafting, onTyping]);
+
   const canSend = draft.trim().length > 0 || attachments.length > 0;
   const isOffline = participant.presence === "offline";
 
-  function send() {
-    if (!canSend || disabled) return;
-    onSend?.(draft.trim(), attachments);
-    setDraft("");
-    setAttachments([]);
+  async function send() {
+    if (!canSend || disabled || isSending) return;
+    const currentDraft = draft.trim();
+    const currentAttachments = [...attachments];
+
+    setIsSending(true);
+    try {
+      await onSend?.(currentDraft, currentAttachments);
+      setDraft("");
+      setAttachments([]);
+      onTyping?.(false);
+    } catch {
+      // Keep draft & attachments intact on error so typed message is not lost
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  function updateDraft(next: string) {
+    setDraft(next);
+  }
+
+  /**
+   * Only images and videos are supported for chat attachments.
+   */
+  function addFiles(fileList: FileList | null) {
+    if (!fileList?.length) return;
+
+    const validFiles: File[] = [];
+    let hasInvalid = false;
+
+    for (const file of Array.from(fileList)) {
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
+      if (isImage || isVideo) {
+        validFiles.push(file);
+      } else {
+        hasInvalid = true;
+      }
+    }
+
+    if (hasInvalid) {
+      toast.error("Only image and video attachments are supported");
+    }
+
+    if (!validFiles.length) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setAttachments((current) => [
+      ...current,
+      ...validFiles.map((file) => ({
+        id: crypto.randomUUID(),
+        name: file.name,
+        size: file.size,
+        kind: file.type.startsWith("image/")
+          ? ("image" as const)
+          : ("video" as const),
+        file,
+      })),
+    ]);
+
+    // Clearing the input means picking the same file twice still fires change.
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   return (
@@ -108,10 +192,20 @@ export function MessageComposer({
           disabled && "opacity-60",
         )}
       >
+        <input
+          accept="image/*,video/*"
+          className="sr-only"
+          multiple
+          onChange={(event) => addFiles(event.target.files)}
+          ref={fileInputRef}
+          tabIndex={-1}
+          type="file"
+        />
         <Button
           aria-label="Attach a file"
           className="shrink-0 text-slate-500 hover:text-primary"
           disabled={disabled}
+          onClick={() => fileInputRef.current?.click()}
           size="icon-sm"
           type="button"
           variant="ghost"
@@ -129,7 +223,7 @@ export function MessageComposer({
           )}
           disabled={disabled}
           id="chat-composer"
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => updateDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
               event.preventDefault();
@@ -143,17 +237,6 @@ export function MessageComposer({
         />
 
         <Button
-          aria-label="Insert an emoji"
-          className="shrink-0 text-slate-500 hover:text-primary"
-          disabled={disabled}
-          size="icon-sm"
-          type="button"
-          variant="ghost"
-        >
-          <Smile size={18} />
-        </Button>
-
-        <Button
           aria-label="Send message"
           className="shrink-0"
           disabled={!canSend || disabled}
@@ -165,7 +248,8 @@ export function MessageComposer({
         </Button>
       </div>
 
-      <p className="mt-1.5 px-1 text-[11px] text-slate-400">
+      {/* Keyboard hint only where there is a keyboard to hint about. */}
+      <p className="mt-1.5 hidden px-1 text-[11px] text-slate-400 sm:block">
         <kbd className="font-sans font-semibold text-slate-500">Enter</kbd> to
         send,{" "}
         <kbd className="font-sans font-semibold text-slate-500">Shift</kbd> +{" "}

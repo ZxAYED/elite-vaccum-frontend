@@ -22,20 +22,22 @@ export function LegalPage({
 }: LegalPageProps) {
   return (
     <main className="bg-[var(--background)]">
-      <MotionSection className="mx-auto max-w-5xl px-4 py-16 md:py-24">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
-          {eyebrow}
-        </p>
-        <h1 className="mt-4 text-4xl font-bold tracking-tight text-primary md:text-5xl">
-          {title}
-        </h1>
-        <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
-          {description}
-        </p>
+      <MotionSection className="mx-auto max-w-[1400px] px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
+            {eyebrow}
+          </p>
+          <h1 className="mt-4 text-4xl font-bold tracking-tight text-primary md:text-5xl">
+            {title}
+          </h1>
+          <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
+            {description}
+          </p>
+        </div>
       </MotionSection>
 
-      <MotionSection className="mx-auto max-w-5xl px-4 pb-20 md:pb-28">
-        <div className="rounded-[var(--radius-card)] bg-white p-6 shadow-[0_24px_70px_-54px_rgba(28,79,80,0.52)] ring-1 ring-teal-100 md:p-10">
+      <MotionSection className="mx-auto max-w-[1400px] px-4 pb-20 sm:px-6 md:pb-28 lg:px-8">
+        <div className="mx-auto max-w-5xl rounded-[var(--radius-card)] bg-white p-6 shadow-[0_24px_70px_-54px_rgba(28,79,80,0.52)] ring-1 ring-teal-100 md:p-10">
           <div className="space-y-10">
             {sections.map((section) => (
               <section

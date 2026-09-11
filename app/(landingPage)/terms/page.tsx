@@ -1,4 +1,4 @@
-import { LegalPage } from "@/components/landing/legal/LegalPage";
+import { DynamicPolicyPage } from "@/components/landing/legal/DynamicPolicyPage";
 
 export const metadata = {
   title: "Terms of Service - Elite Central Vacuum",
@@ -8,11 +8,12 @@ export const metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage
-      eyebrow="Terms"
-      title="Terms of Service"
-      description="These terms describe expected use of the Elite Central Vacuum website and its public and customer-facing workflows."
-      sections={[
+    <DynamicPolicyPage
+      slug="terms"
+      defaultEyebrow="Terms"
+      defaultTitle="Terms of Service"
+      defaultDescription="These terms describe expected use of the Elite Central Vacuum website and its public and customer-facing workflows."
+      fallbackSections={[
         {
           title: "Website Use",
           body: (

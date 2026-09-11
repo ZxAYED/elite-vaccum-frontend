@@ -42,7 +42,6 @@ export function CartItemRow({
                   src={productImage}
                   alt={item.product.imageAlt || item.product.name}
                   fill
-                  quality={100}
                   className="object-contain"
                   sizes="6rem"
                 />

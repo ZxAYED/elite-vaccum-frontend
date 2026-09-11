@@ -9,7 +9,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { notificationsApi } from "@/redux/api/notificationsApi";
 import { playNotificationSound } from "@/lib/notificationSound";
 import { getCookie } from "@/lib/cookies";
-import { AUTH_TOKEN_KEY, API_BASE_URL } from "@/redux/constants";
+import { getSocketBaseUrl } from "@/lib/socketUrl";
+import { AUTH_TOKEN_KEY } from "@/redux/constants";
 
 interface NotificationPayload {
   id?: string;
@@ -32,20 +33,14 @@ interface UnreadCountPayload {
   unreadCount: number;
 }
 
-function getSocketBaseUrl(): string {
-  if (typeof window === "undefined") return "http://localhost:3000";
-  const explicit = process.env.NEXT_PUBLIC_SOCKET_URL;
-  if (explicit) return explicit;
-  try {
-    const parsed = new URL(API_BASE_URL);
-    return parsed.origin;
-  } catch {
-    return "http://localhost:3000";
-  }
-}
-
 export function useNotificationSocket() {
   const router = useRouter();
+  const routerRef = useRef(router);
+
+  useEffect(() => {
+    routerRef.current = router;
+  }, [router]);
+
   const dispatch = useAppDispatch();
   const tokenFromRedux = useAppSelector((state) => state.auth.token);
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
@@ -131,7 +126,7 @@ export function useNotificationSocket() {
         action: resolvedCtaUrl
           ? {
               label: resolvedCtaLabel || "View",
-              onClick: () => router.push(resolvedCtaUrl!),
+              onClick: () => routerRef.current.push(resolvedCtaUrl!),
             }
           : undefined,
         duration: 5000,
@@ -162,7 +157,7 @@ export function useNotificationSocket() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [dispatch, isAuthenticated, router, tokenFromRedux]);
+  }, [dispatch, isAuthenticated, tokenFromRedux]);
 
   return {
     getSocket: () => socketRef.current,

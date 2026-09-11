@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/Select";
 import { toast } from "sonner";
+import { useAppSelector } from "@/redux/hooks";
 import { useChangePasswordMutation, useGetMeQuery } from "@/redux/api/authApi";
 import {
   useGetTechnicianProfileQuery,
@@ -56,9 +57,20 @@ const TIMEZONES = [
 ];
 
 export default function TechnicianSettingsPage() {
-  const { data: authUser } = useGetMeQuery();
+  const reduxUser = useAppSelector((state) => state.auth.user);
+  const reduxTech = useAppSelector((state) => state.auth.technicianProfile);
+
+  const { data: authUserQuery } = useGetMeQuery();
+  const authUser = authUserQuery || reduxUser || null;
+
   // Phase 17.4 profile provides the current availability + timezone.
-  const { data: technician } = useGetTechnicianProfileQuery();
+  const { data: technicianQuery } = useGetTechnicianProfileQuery();
+  const technician =
+    technicianQuery ||
+    reduxTech ||
+    (reduxUser?.technicianProfile as typeof technicianQuery) ||
+    null;
+  const avatarUrl = technician?.avatarUrl || reduxUser?.avatarUrl;
   const [updateAvailabilityApi, { isLoading: isUpdatingAvailability }] =
     useUpdateTechnicianAvailabilityMutation();
   const [updateTechnicianProfile, { isLoading: isSavingProfile }] =
@@ -223,11 +235,11 @@ export default function TechnicianSettingsPage() {
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)] lg:items-start">
             <div className="flex items-start gap-4">
               <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-teal-200 bg-teal-50 text-lg font-semibold text-primary">
-                {technician?.avatarUrl ? (
+                {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={technician.avatarUrl}
-                    alt={`${technician.displayName || "Technician"} profile`}
+                    src={avatarUrl}
+                    alt={`${technician?.displayName || reduxUser?.fullName || "Technician"} profile`}
                     className="size-full object-cover"
                   />
                 ) : (

@@ -109,7 +109,7 @@ export function EngineeredSupportSection() {
 
   return (
     <section className="py-12 md:py-18">
-      <div className="mx-auto max-w-360 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         <FadeIn className="mx-auto max-w-2xl text-center" y={24} duration={0.65}>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-teal-700">
             Engineered Support
