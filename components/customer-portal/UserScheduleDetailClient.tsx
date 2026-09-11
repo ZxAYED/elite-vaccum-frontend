@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import { cn } from "@/lib/utils";
 import {
   useCancelServiceRequestMutation,
@@ -117,30 +118,34 @@ export function UserScheduleDetailClient({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-20 text-slate-500">
-        <Loader2 className="mr-2 size-5 animate-spin text-teal-700" />
-        Loading schedule details...
-      </div>
+      <PageStateShell>
+        <div className="flex items-center justify-center rounded-lg border border-slate-200 bg-white py-14 text-slate-500">
+          <Loader2 className="mr-2 size-5 animate-spin text-teal-700" />
+          Loading schedule details...
+        </div>
+      </PageStateShell>
     );
   }
 
   if (isError || !order) {
     return (
-      <div className="space-y-6 pb-8">
-        <PageHeader
-          eyebrow="Service Schedule"
-          title="Schedule not found"
-          description="This service order isn't on your account, or hasn't been scheduled yet."
-        />
+      <PageStateShell
+        header={
+          <PageHeader
+            eyebrow="Service Schedule"
+            title="Schedule not found"
+            description="This service order isn't on your account, or hasn't been scheduled yet."
+          />
+        }
+      >
         <EmptyState
           icon={CalendarDays}
           title="No schedule for this request"
           description="A schedule appears here once your quotation is accepted and a technician is dispatched."
           action={{ label: "Back to schedule", href: "/user/schedule" }}
           tone="card"
-          className="py-12"
         />
-      </div>
+      </PageStateShell>
     );
   }
 

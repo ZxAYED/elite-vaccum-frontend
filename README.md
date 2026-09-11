@@ -39,21 +39,21 @@ Elite Central Vacuum is a production-grade web application that combines **e-com
 
 ### 🛒 Commerce Engine
 
-| Capability | Details |
-|:---|:---|
-| **Product Catalog** | Filterable grid with category taxonomy, price-range sliders, brand facets, and sort controls |
-| **Product Detail Pages** | Image gallery, tabbed specs/reviews, dynamic variant selection, related-product recommendations |
-| **Cart & Checkout** | Persistent cart with quantity controls, real-time order totals, shipping address form with Zod validation, Stripe-ready payment integration |
-| **Order Confirmation** | Post-checkout success page with receipt breakdown and recommended next steps |
+| Capability               | Details                                                                                                                                     |
+| :----------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Product Catalog**      | Filterable grid with category taxonomy, price-range sliders, brand facets, and sort controls                                                |
+| **Product Detail Pages** | Image gallery, tabbed specs/reviews, dynamic variant selection, related-product recommendations                                             |
+| **Cart & Checkout**      | Persistent cart with quantity controls, real-time order totals, shipping address form with Zod validation, Stripe-ready payment integration |
+| **Order Confirmation**   | Post-checkout success page with receipt breakdown and recommended next steps                                                                |
 
 ### 🔧 Service Management
 
-| Capability | Details |
-|:---|:---|
-| **Service Catalog** | Categorized service listings (installation, repair, maintenance) with pricing tiers and inclusion breakdowns |
+| Capability                    | Details                                                                                                             |
+| :---------------------------- | :------------------------------------------------------------------------------------------------------------------ |
+| **Service Catalog**           | Categorized service listings (installation, repair, maintenance) with pricing tiers and inclusion breakdowns        |
 | **Multi-Step Booking Wizard** | Step indicator, property details collection, date/time slot picker, and service type selection — all form-validated |
-| **Quotation Workflow** | Admin-generated quotes with line items → customer review → accept/reject flow with status tracking |
-| **Scheduling** | Calendar-based appointment views for customers, technicians, and admins with reschedule/cancel capabilities |
+| **Quotation Workflow**        | Admin-generated quotes with line items → customer review → accept/reject flow with status tracking                  |
+| **Scheduling**                | Calendar-based appointment views for customers, technicians, and admins with reschedule/cancel capabilities         |
 
 ### 👤 Customer Portal
 
@@ -93,17 +93,17 @@ Elite Central Vacuum is a production-grade web application that combines **e-com
 
 ### Tech Stack
 
-| Layer | Technology |
-|:---|:---|
-| **Framework** | Next.js 16 (App Router) |
-| **UI** | React 19, Tailwind CSS 4, Radix UI primitives, Lucide icons |
-| **State** | Redux Toolkit + RTK Query with automatic cache tagging/invalidation |
-| **Forms** | React Hook Form + Zod schema validation |
-| **Animation** | Framer Motion (respects `prefers-reduced-motion`) |
-| **Real-Time** | Socket.IO client for live notifications |
-| **Charts** | Recharts for admin analytics dashboards |
-| **Notifications** | Sonner toast system |
-| **Language** | Strict TypeScript throughout — no implicit `any` |
+| Layer             | Technology                                                          |
+| :---------------- | :------------------------------------------------------------------ |
+| **Framework**     | Next.js 16 (App Router)                                             |
+| **UI**            | React 19, Tailwind CSS 4, Radix UI primitives, Lucide icons         |
+| **State**         | Redux Toolkit + RTK Query with automatic cache tagging/invalidation |
+| **Forms**         | React Hook Form + Zod schema validation                             |
+| **Animation**     | Framer Motion (respects `prefers-reduced-motion`)                   |
+| **Real-Time**     | Socket.IO client for live notifications                             |
+| **Charts**        | Recharts for admin analytics dashboards                             |
+| **Notifications** | Sonner toast system                                                 |
+| **Language**      | Strict TypeScript throughout — no implicit `any`                    |
 
 ### Project Structure
 
@@ -181,16 +181,16 @@ data/mock/                  # Mock data layer for development
 
 ## Performance & Optimizations
 
-| Optimization | Implementation |
-|:---|:---|
-| **RTK Query cache management** | Tag-based automatic invalidation — mutations invalidate only affected query caches, eliminating redundant network requests |
-| **Local-first cart** | `useCartSync` hook persists cart state locally and reconciles with the API on auth, reducing perceived latency |
-| **Debounced search** | `useDebouncedValue` hook prevents excessive API calls during catalog filtering and search |
-| **Code splitting** | Next.js App Router automatic route-based code splitting — each dashboard portal loads independently |
-| **Font optimization** | `next/font` with Geist font family — zero layout shift, self-hosted subset |
-| **Image optimization** | Next.js `<Image>` with automatic resizing, format negotiation, and lazy loading |
-| **Component-level loading states** | Skeleton loaders on every data-fetching component — no blank flashes |
-| **Reduced motion** | Framer Motion animations respect `prefers-reduced-motion` media query |
+| Optimization                       | Implementation                                                                                                             |
+| :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------- |
+| **RTK Query cache management**     | Tag-based automatic invalidation — mutations invalidate only affected query caches, eliminating redundant network requests |
+| **Local-first cart**               | `useCartSync` hook persists cart state locally and reconciles with the API on auth, reducing perceived latency             |
+| **Debounced search**               | `useDebouncedValue` hook prevents excessive API calls during catalog filtering and search                                  |
+| **Code splitting**                 | Next.js App Router automatic route-based code splitting — each dashboard portal loads independently                        |
+| **Font optimization**              | `next/font` with Geist font family — zero layout shift, self-hosted subset                                                 |
+| **Image optimization**             | Next.js `<Image>` with automatic resizing, format negotiation, and lazy loading                                            |
+| **Component-level loading states** | Skeleton loaders on every data-fetching component — no blank flashes                                                       |
+| **Reduced motion**                 | Framer Motion animations respect `prefers-reduced-motion` media query                                                      |
 
 ---
 
@@ -202,24 +202,24 @@ The frontend communicates with a **NestJS REST API** backend through a centraliz
 
 **20+ API domains covered:**
 
-| Domain | Operations |
-|:---|:---|
-| Authentication | Login, register, session refresh, logout |
-| Products | CRUD, variant management, image upload |
-| Categories | Hierarchical CRUD, product association |
-| Orders | Checkout, status transitions, fulfillment, cancellation |
-| Cart | Add/update/remove items, sync with authenticated session |
-| Services | Service catalog CRUD, slug-based lookup |
-| Service Requests | Multi-step creation, status progression, technician assignment |
-| Quotations | Quote builder, customer accept/reject, admin pipeline |
-| Invoices & Billing | Invoice generation, payment processing, history |
-| Technician Jobs | Assignment, status stepper, job completion |
-| Customers | Directory, detail views, order history lookup |
-| Reviews | Submission, moderation, analytics |
-| Notifications | Real-time via Socket.IO, read/unread management |
-| Addresses | CRUD for shipping/billing addresses |
-| Reports | Configurable business intelligence queries |
-| Settings | User and system-level preference management |
+| Domain             | Operations                                                     |
+| :----------------- | :------------------------------------------------------------- |
+| Authentication     | Login, register, session refresh, logout                       |
+| Products           | CRUD, variant management, image upload                         |
+| Categories         | Hierarchical CRUD, product association                         |
+| Orders             | Checkout, status transitions, fulfillment, cancellation        |
+| Cart               | Add/update/remove items, sync with authenticated session       |
+| Services           | Service catalog CRUD, slug-based lookup                        |
+| Service Requests   | Multi-step creation, status progression, technician assignment |
+| Quotations         | Quote builder, customer accept/reject, admin pipeline          |
+| Invoices & Billing | Invoice generation, payment processing, history                |
+| Technician Jobs    | Assignment, status stepper, job completion                     |
+| Customers          | Directory, detail views, order history lookup                  |
+| Reviews            | Submission, moderation, analytics                              |
+| Notifications      | Real-time via Socket.IO, read/unread management                |
+| Addresses          | CRUD for shipping/billing addresses                            |
+| Reports            | Configurable business intelligence queries                     |
+| Settings           | User and system-level preference management                    |
 
 ---
 
@@ -227,27 +227,27 @@ The frontend communicates with a **NestJS REST API** backend through a centraliz
 
 ### Public Routes
 
-| Route | Page |
-|:---|:---|
-| `/` | Marketing homepage with hero, trust signals, featured products, testimonials |
-| `/store` | Product catalog with filters, sort, and pagination |
-| `/store/[slug]` | Product detail page with gallery, tabs, reviews |
-| `/services` | Professional service catalog with category tabs |
-| `/services/[slug]` | Service detail with pricing tiers and FAQ |
-| `/services/request` | Multi-step service booking wizard |
-| `/cart` | Full cart review with order totals |
-| `/checkout` | Shipping + payment checkout flow |
-| `/checkout/success` | Order confirmation receipt |
-| `/about` | Company information |
-| `/contact` | Contact form |
+| Route               | Page                                                                         |
+| :------------------ | :--------------------------------------------------------------------------- |
+| `/`                 | Marketing homepage with hero, trust signals, featured products, testimonials |
+| `/store`            | Product catalog with filters, sort, and pagination                           |
+| `/store/[slug]`     | Product detail page with gallery, tabs, reviews                              |
+| `/services`         | Professional service catalog with category tabs                              |
+| `/services/[slug]`  | Service detail with pricing tiers and FAQ                                    |
+| `/services/request` | Multi-step service booking wizard                                            |
+| `/cart`             | Full cart review with order totals                                           |
+| `/checkout`         | Shipping + payment checkout flow                                             |
+| `/checkout/success` | Order confirmation receipt                                                   |
+| `/about`            | Company information                                                          |
+| `/contact`          | Contact form                                                                 |
 
 ### Authenticated Routes
 
-| Portal | Route Prefix | Key Pages |
-|:---|:---|:---|
-| **Customer** | `/user` | Overview, orders, services, quotations, schedule, billing, reviews, profile, settings |
-| **Technician** | `/technician` | Overview, jobs, job detail (execution), schedule, notifications, profile |
-| **Admin** | `/admin` | Analytics, orders, products, categories, quotations, service requests, schedule, customers, technicians, financials, reports, reviews, notifications, settings |
+| Portal         | Route Prefix  | Key Pages                                                                                                                                                      |
+| :------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Customer**   | `/user`       | Overview, orders, services, quotations, schedule, billing, reviews, profile, settings                                                                          |
+| **Technician** | `/technician` | Overview, jobs, job detail (execution), schedule, notifications, profile                                                                                       |
+| **Admin**      | `/admin`      | Analytics, orders, products, categories, quotations, service requests, schedule, customers, technicians, financials, reports, reviews, notifications, settings |
 
 ---
 
@@ -286,13 +286,13 @@ npm run lint       # ESLint check
 
 The application includes a **one-click login** modal for exploring all three role portals without manual credential entry:
 
-| Role | Email | Portal |
-|:---|:---|:---|
-| Administrator | `admin@elitecentralvac.com` | `/admin` |
-| Technician | `technician@elitecentralvac.com` | `/technician` |
-| Customer | `zayed@yzcalo.com` | `/user` |
+| Role          | Email                            | Portal        |
+| :------------ | :------------------------------- | :------------ |
+| Administrator | `admin@elitecentralvac.com`      | `/admin`      |
+| Technician    | `technician@elitecentralvac.com` | `/technician` |
+| Customer      | `zayed@yzcalo.com`               | `/user`       |
 
----
+## all passowrd is-!Password123
 
 ## Form Validation
 

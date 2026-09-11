@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import { readApiMessage } from "@/lib/api-error";
 import { formatCurrencyUsd, formatLongDate } from "@/lib/formatters";
 import {
@@ -117,28 +118,30 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
 
   if (isError) {
     return (
-      <EmptyState
-        action={{ label: "Try Again", onClick: () => void refetch() }}
-        className="py-14"
-        description="We couldn't load this invoice. Please try again in a moment."
-        icon={ReceiptText}
-        secondaryAction={{ label: "Back to Billing", href: "/user/billing" }}
-        title="Invoice unavailable"
-        tone="card"
-      />
+      <PageStateShell>
+        <EmptyState
+          action={{ label: "Try Again", onClick: () => void refetch() }}
+          description="We couldn't load this invoice. Please try again in a moment."
+          icon={ReceiptText}
+          secondaryAction={{ label: "Back to Billing", href: "/user/billing" }}
+          title="Invoice unavailable"
+          tone="card"
+        />
+      </PageStateShell>
     );
   }
 
   if (!invoice) {
     return (
-      <EmptyState
-        action={{ label: "Back to Billing", href: "/user/billing" }}
-        className="py-14"
-        description={`We couldn't find an invoice matching ID "${invoiceId}". It may have been archived or removed.`}
-        icon={FileText}
-        title="Invoice not found"
-        tone="card"
-      />
+      <PageStateShell>
+        <EmptyState
+          action={{ label: "Back to Billing", href: "/user/billing" }}
+          description={`We couldn't find an invoice matching ID "${invoiceId}". It may have been archived or removed.`}
+          icon={FileText}
+          title="Invoice not found"
+          tone="card"
+        />
+      </PageStateShell>
     );
   }
 
@@ -219,7 +222,7 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
                 {kind === "PRODUCT" ? <Package size={18} /> : <Wrench size={18} />}
               </span>
               <div>
-                <h2 id="invoice-items-heading" className="text-lg font-bold text-slate-950">
+                <h2 id="invoice-items-heading" className="text-lg font-bold text-primary">
                   Itemized breakdown
                 </h2>
                 <p className="text-sm text-slate-500">Quantity, unit rate, and line total</p>
@@ -240,7 +243,7 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
                       key={`${lineItem.description}-${index}`}
                     >
                       <div className="min-w-0">
-                        <p className="text-[15px] font-semibold leading-6 text-slate-950">
+                        <p className="text-[15px] font-semibold leading-6 text-primary">
                           {lineItem.description}
                         </p>
                         <p className="mt-0.5 text-sm text-slate-500">
@@ -255,7 +258,7 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
                       </div>
                       <div className="flex items-center justify-between sm:block sm:text-right">
                         <span className="text-sm font-medium text-slate-500 sm:hidden">Amount</span>
-                        <span className="text-base font-bold tabular-nums text-slate-950">
+                        <span className="text-base font-bold tabular-nums text-primary">
                           {formatCurrencyUsd(lineItemTotal(lineItem))}
                         </span>
                       </div>
@@ -274,7 +277,7 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
             <div className="grid border-t border-teal-100 lg:grid-cols-2 lg:divide-x lg:divide-teal-100">
               {payments.length > 0 && (
                 <section aria-labelledby="payment-history-heading" className="px-5 py-5 sm:px-6">
-                  <h2 id="payment-history-heading" className="text-base font-bold text-slate-950">
+                  <h2 id="payment-history-heading" className="text-base font-bold text-primary">
                     Payment history
                   </h2>
                   <div className="mt-3 space-y-3">
@@ -291,7 +294,7 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-bold tabular-nums text-slate-950">
+                          <p className="text-sm font-bold tabular-nums text-primary">
                             {formatCurrencyUsd(Number(payment.amountUsd))}
                           </p>
                           <StatusBadge className="mt-1" status={payment.status} />
@@ -304,7 +307,7 @@ export function UserInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
 
               {invoice.notes && (
                 <section className="px-5 py-5 sm:px-6">
-                  <h2 className="text-base font-bold text-slate-950">Invoice notes</h2>
+                  <h2 className="text-base font-bold text-primary">Invoice notes</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">{invoice.notes}</p>
                 </section>
               )}
@@ -464,7 +467,7 @@ function InvoiceFact({
       <Icon aria-hidden="true" className="mt-0.5 shrink-0 text-teal-700" size={17} />
       <div>
         <dt className="text-xs font-semibold uppercase text-slate-500">{label}</dt>
-        <dd className="mt-1 text-sm font-semibold leading-5 text-slate-950">{value}</dd>
+        <dd className="mt-1 text-sm font-semibold leading-5 text-primary">{value}</dd>
       </div>
     </div>
   );

@@ -569,7 +569,7 @@ export function StoreCatalog() {
           </div>
         ) : isProductsError ? (
           <div className="landing-card landing-card-soft mt-10 p-8 text-center">
-            <p className="text-lg font-semibold text-slate-950">
+            <p className="text-lg font-semibold text-primary">
               We couldn&apos;t load the store
             </p>
             <p className="mt-2 text-sm text-slate-500">
@@ -579,7 +579,7 @@ export function StoreCatalog() {
           </div>
         ) : productItems.length === 0 ? (
           <div className="landing-card landing-card-soft mt-10 p-8 text-center">
-            <p className="text-lg font-semibold text-slate-950">No matching products</p>
+            <p className="text-lg font-semibold text-primary">No matching products</p>
             <p className="mt-2 text-sm text-slate-500">
               {hasActiveFilters
                 ? "Adjust the filters or search query to see more Elite store items."

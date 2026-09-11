@@ -384,7 +384,7 @@ function RequestReviewExperience({ request }: { request: ServiceRequest }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f7f7] text-slate-950">
+    <main className="min-h-screen bg-[#f4f7f7] text-primary">
       <section className="space-y-4">
         <Link
           className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 hover:text-teal-950"

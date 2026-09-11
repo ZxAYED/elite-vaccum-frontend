@@ -393,7 +393,7 @@ export function AdminOrdersClient() {
                     key={order.id}
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-950">
+                      <p className="truncate font-semibold text-primary">
                         {order.businessId || order.id}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
@@ -422,7 +422,7 @@ export function AdminOrdersClient() {
                           : ""}
                       </p>
                     </div>
-                    <p className="font-semibold text-slate-950">
+                    <p className="font-semibold text-primary">
                       {formatCurrencyUsd(Number(order.totalUsd))}
                     </p>
                     <StatusBadge status={toStatusSlug(order.status)} />
@@ -446,7 +446,7 @@ export function AdminOrdersClient() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-2">
                       <StatusBadge status={toStatusSlug(order.status)} />
-                      <p className="text-lg font-semibold text-slate-950">
+                      <p className="text-lg font-semibold text-primary">
                         {order.businessId || order.id}
                       </p>
                       <p className="text-sm text-slate-500">
@@ -483,7 +483,7 @@ export function AdminOrdersClient() {
                   </div>
 
                   <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-4 py-3">
-                    <span className="font-semibold text-slate-950">
+                    <span className="font-semibold text-primary">
                       {formatCurrencyUsd(Number(order.totalUsd))}
                     </span>
                     <Link

@@ -42,17 +42,42 @@ export default function ContactForm() {
       serviceCategory: "",
       message: "",
     },
-    onValidSubmit: async () => ({
-      type: "ready",
-      message:
-        "Your request passed frontend validation and is ready for API submission. Nothing has been sent yet because the contact backend is not connected.",
-    }),
+    onValidSubmit: async (values) => {
+      const categoryLabel =
+        serviceCategoryOptions.find((opt) => opt.value === values.serviceCategory)
+          ?.label || "General Inquiry";
+
+      const subject = `[${categoryLabel}] Inquiry from ${values.name}`;
+      const body = [
+        `Name: ${values.name}`,
+        `Email: ${values.email}`,
+        `Phone: ${values.phone || "Not provided"}`,
+        `Service Category: ${categoryLabel}`,
+        "",
+        "Message:",
+        values.message,
+      ].join("\n");
+
+      const mailtoUrl = `mailto:zzayediqbalofficial@gmail.com?subject=${encodeURIComponent(
+        subject,
+      )}&body=${encodeURIComponent(body)}`;
+
+      if (typeof window !== "undefined") {
+        window.location.href = mailtoUrl;
+      }
+
+      return {
+        type: "success",
+        message:
+          "Your inquiry has been prepared for zzayediqbalofficial@gmail.com! Opening your email client to send it.",
+      };
+    },
   });
 
   return (
     <>
       <section className="py-10 md:py-14">
-        <div className="mx-auto max-w-7xl px-4">
+        <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
           <div className="grid gap-6 lg:grid-cols-[2fr_1fr] lg:items-stretch">
             <FadeIn
               className="h-full rounded-[var(--radius-card)] bg-white p-6 shadow-[0_20px_60px_-46px_rgba(28,79,80,0.48)] ring-1 ring-teal-100 md:p-8"
@@ -66,8 +91,8 @@ export default function ContactForm() {
                   Send a Message
                 </h2>
                 <p className="mt-3 max-w-2xl text-slate-600">
-                  Share the service details and we will route the request to the
-                  right Elite support workflow once backend wiring is connected.
+                  Share your service details and inquiry. Messages are routed directly
+                  to our support inbox at <a href="mailto:zzayediqbalofficial@gmail.com" className="font-medium text-teal-700 underline underline-offset-2">zzayediqbalofficial@gmail.com</a>.
                 </p>
               </div>
 
@@ -252,30 +277,32 @@ export default function ContactForm() {
         </div>
       </section>
 
-      <FadeIn
-        className="mx-auto my-10 max-w-7xl rounded-[var(--radius-card)] bg-primary py-12 text-primary-foreground md:my-14"
-        once={false}
-      >
-        <div className="mx-auto max-w-4xl px-4 text-center">
-          <h2 className="mb-6 text-3xl font-bold text-white md:text-4xl">
-            Ready to get started?
-          </h2>
-          <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/90">
-            Prepare your next service request now and connect it to live support
-            once the backend workflow is enabled.
-          </p>
-          <Pressable>
-            <Button
-              asChild
-              className="rounded-full bg-white px-8 py-6 text-base text-primary shadow-[0_18px_40px_-24px_rgba(255,255,255,0.75)] hover:bg-teal-50 hover:text-primary"
-            >
-              <Link href="/services/request?service=vacuum-repair">
-                Schedule Service
-              </Link>
-            </Button>
-          </Pressable>
-        </div>
-      </FadeIn>
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+        <FadeIn
+          className="my-10 rounded-[var(--radius-card)] bg-primary py-12 text-primary-foreground md:my-14"
+          once={false}
+        >
+          <div className="mx-auto max-w-4xl px-4 text-center">
+            <h2 className="mb-6 text-3xl font-bold text-white md:text-4xl">
+              Ready to get started?
+            </h2>
+            <p className="mx-auto mb-8 max-w-2xl text-lg text-primary-foreground/90">
+              Prepare your next service request now and connect it to live support
+              once the backend workflow is enabled.
+            </p>
+            <Pressable>
+              <Button
+                asChild
+                className="rounded-full bg-white px-8 py-6 text-base text-primary shadow-[0_18px_40px_-24px_rgba(255,255,255,0.75)] hover:bg-teal-50 hover:text-primary"
+              >
+                <Link href="/services/request?service=vacuum-repair">
+                  Schedule Service
+                </Link>
+              </Button>
+            </Pressable>
+          </div>
+        </FadeIn>
+      </div>
     </>
   );
 }

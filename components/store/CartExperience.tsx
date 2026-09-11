@@ -22,7 +22,7 @@ export function CartExperience() {
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-teal-700/80">
               Checkout
             </p>
-            <h2 className="mt-2 text-3xl font-semibold text-slate-950">Your cart</h2>
+            <h2 className="mt-2 text-3xl font-semibold text-primary">Your cart</h2>
           </div>
           <Pressable>
             <Button asChild size="pill" variant="outline">
@@ -65,7 +65,7 @@ export function CartExperience() {
         className="landing-card landing-card-soft h-fit p-6 xl:sticky xl:top-24"
         delay={0.08}
       >
-        <h2 className="text-2xl font-semibold text-slate-950">Order summary</h2>
+        <h2 className="text-2xl font-semibold text-primary">Order summary</h2>
 
         <div className="mt-6">
           <OrderTotals totals={totals} />

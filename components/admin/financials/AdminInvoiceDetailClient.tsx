@@ -23,6 +23,7 @@ import {
 import { StatusBadge } from "@/components/customer-portal/StatusBadge";
 import { TypeBadge } from "@/components/customer-portal/TypeBadge";
 import { Button } from "@/components/ui/Button";
+import { PageStateShell } from "@/components/ui/PageStateShell";
 import {
   Dialog,
   DialogContent,
@@ -159,19 +160,19 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
 
   if (isLoading) {
     return (
-      <AdminPageShell>
-        <div className="flex flex-col items-center justify-center py-24 text-slate-500">
+      <PageStateShell>
+        <div className="flex flex-col items-center justify-center text-slate-500">
           <Loader2 className="size-8 animate-spin text-teal-600 mb-3" />
           <p className="text-sm font-medium">Loading invoice record...</p>
         </div>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 
   if (!invoice) {
     return (
-      <AdminPageShell>
-        <AdminSurface className="text-center py-16">
+      <PageStateShell>
+        <AdminSurface className="text-center py-10">
           <FileText size={48} className="mx-auto text-slate-400 mb-4" />
           <h2 className="text-lg font-bold text-slate-900">Invoice Not Found</h2>
           <p className="mt-1 text-sm text-slate-500 max-w-md mx-auto">
@@ -184,7 +185,7 @@ export function AdminInvoiceDetailClient({ invoiceId }: { invoiceId: string }) {
             </Link>
           </Button>
         </AdminSurface>
-      </AdminPageShell>
+      </PageStateShell>
     );
   }
 

@@ -2,29 +2,32 @@
 
 import { useMemo, useState } from "react";
 import {
-  CalendarClock,
   CreditCard,
   FileText,
   Loader2,
   Printer,
   Receipt,
   ShieldCheck,
-  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/customer-portal/PageHeader";
 import {
-  PortalCard,
+  columnClass,
+  PortalCell,
+  PortalRecordCell,
+  PortalRow,
+  PortalRowActions,
+  PortalStackedValue,
+  PortalTable,
+  PortalTableSkeleton,
+  PortalValue,
+  type PortalColumn,
+} from "@/components/customer-portal/PortalTable";
+import {
   PortalCardAction,
-  PortalCardFooter,
-  PortalCardTitle,
-  PortalCardTop,
   PortalDetailAction,
-  PortalFact,
   PortalFilterBar,
-  PortalList,
-  PortalLoading,
   PortalPager,
   PortalRef,
   type PortalFilterOption,
@@ -63,6 +66,30 @@ import {
  */
 
 const PAGE_SIZE = 10;
+
+/**
+ * Both column sets are ordered to match their cells; the indices are
+ * referenced directly so a column and its cells can never drift apart.
+ */
+const INVOICE_COLUMNS: ReadonlyArray<PortalColumn> = [
+  { key: "invoice", label: "Invoice" },
+  { key: "status", label: "Status" },
+  { key: "type", label: "Type", hideBelow: "lg" },
+  { key: "issued", label: "Issued", hideBelow: "lg" },
+  { key: "due", label: "Due / Paid", hideBelow: "md" },
+  { key: "amount", label: "Amount", align: "right" },
+  { key: "actions", label: "Actions", align: "actions" },
+];
+
+const RECEIPT_COLUMNS: ReadonlyArray<PortalColumn> = [
+  { key: "payment", label: "Payment" },
+  { key: "status", label: "Status" },
+  { key: "invoice", label: "Invoice", hideBelow: "md" },
+  { key: "paid", label: "Paid On", hideBelow: "lg" },
+  { key: "method", label: "Method", hideBelow: "lg" },
+  { key: "reference", label: "Reference", hideBelow: "lg" },
+  { key: "actions", label: "Actions", align: "actions" },
+];
 
 type BillingView = "invoices" | "receipts";
 
@@ -211,7 +238,9 @@ export function UserBillingClient({
       />
 
       {isLoading ? (
-        <PortalLoading label="Loading your billing history..." />
+        <PortalTableSkeleton
+          columns={view === "invoices" ? INVOICE_COLUMNS : RECEIPT_COLUMNS}
+        />
       ) : isError ? (
         <EmptyState
           action={{ label: "Try Again", onClick: () => void refetch() }}
@@ -246,99 +275,110 @@ export function UserBillingClient({
           }
           tone="card"
         />
-      ) : (
-        <PortalList isRefreshing={isFetching}>
-          {view === "invoices"
-            ? invoices.map((invoice) => (
-                <InvoiceCardRow
-                  invoice={invoice}
-                  isPrinting={isOpeningHtml}
-                  key={invoice.id}
-                  onPay={() => setPayTarget(invoice)}
-                  onPrint={() => void handlePrint(invoice.id)}
-                />
-              ))
-            : receipts.map(({ payment, invoice }) => (
-                <PortalCard key={payment.id}>
-                  <PortalCardTop
-                    badges={
-                      <>
-                        <StatusBadge status={toStatusSlug(payment.status)} />
-                        <PortalRef>{invoice.businessId || invoice.id}</PortalRef>
-                        <TypeBadge type={invoiceKind(invoice)} />
-                      </>
-                    }
-                    meta={
-                      payment.paidAt || payment.createdAt ? (
-                        <>
-                          Paid:{" "}
-                          <span className="font-medium text-slate-700">
-                            {formatLongDate(
-                              payment.paidAt || payment.createdAt || "",
-                            )}
-                          </span>
-                        </>
-                      ) : null
-                    }
-                  />
-
-                  <PortalCardTitle
-                    subtitle={
-                      invoice.lineItems?.[0]?.description ||
-                      invoice.notes ||
-                      undefined
-                    }
-                  >
-                    {formatCurrencyUsd(Number(payment.amountUsd))} received
-                  </PortalCardTitle>
-
-                  <PortalCardFooter
-                    actions={
-                      <>
-                        {invoice.productOrderId ? (
-                          <PortalDetailAction
-                            href={`/user/orders/${invoice.productOrderId}`}
-                            label="View Order"
-                          />
-                        ) : null}
-                        <PortalDetailAction
-                          href={`/user/billing/invoices/${invoice.id}`}
-                          label="View Invoice"
-                        />
-                      </>
-                    }
-                    facts={
-                      <>
-                        <PortalFact
-                          icon={CreditCard}
-                          label="Method"
-                          placeholder="Not recorded"
-                          value={payment.methodLabel}
-                        />
-                        <PortalFact
-                          icon={Receipt}
-                          label="Reference"
-                          placeholder="Not provided"
-                          truncate
-                          value={payment.transactionReference}
-                        />
-                      </>
-                    }
-                  />
-                </PortalCard>
-              ))}
-
-          {view === "invoices" && totalPages > 1 ? (
-            <PortalPager
-              isBusy={isFetching}
-              onPageChange={setPage}
-              page={meta?.page ?? page}
-              total={meta?.total}
-              totalLabel="invoices"
-              totalPages={totalPages}
+      ) : view === "invoices" ? (
+        <PortalTable
+          caption="Your invoices, with balance, due date and payment status"
+          columns={INVOICE_COLUMNS}
+          footer={
+            totalPages > 1 ? (
+              <PortalPager
+                isBusy={isFetching}
+                onPageChange={setPage}
+                page={meta?.page ?? page}
+                total={meta?.total}
+                totalLabel="invoices"
+                totalPages={totalPages}
+              />
+            ) : null
+          }
+          isRefreshing={isFetching}
+        >
+          {invoices.map((invoice) => (
+            <InvoiceTableRow
+              invoice={invoice}
+              isPrinting={isOpeningHtml}
+              key={invoice.id}
+              onPay={() => setPayTarget(invoice)}
+              onPrint={() => void handlePrint(invoice.id)}
             />
-          ) : null}
-        </PortalList>
+          ))}
+        </PortalTable>
+      ) : (
+        <PortalTable
+          caption="Payments recorded against your invoices"
+          columns={RECEIPT_COLUMNS}
+          isRefreshing={isFetching}
+        >
+          {receipts.map(({ payment, invoice }) => (
+            <PortalRow key={payment.id}>
+              <PortalCell className={columnClass(RECEIPT_COLUMNS[0])}>
+                <PortalRecordCell
+                  href={`/user/billing/invoices/${invoice.id}`}
+                  subtitle={
+                    invoice.lineItems?.[0]?.description ||
+                    invoice.notes ||
+                    undefined
+                  }
+                  title={`${formatCurrencyUsd(Number(payment.amountUsd))} received`}
+                />
+              </PortalCell>
+
+              <PortalCell className={columnClass(RECEIPT_COLUMNS[1])}>
+                <StatusBadge status={toStatusSlug(payment.status)} />
+              </PortalCell>
+
+              <PortalCell className={columnClass(RECEIPT_COLUMNS[2])}>
+                <span className="inline-flex items-center gap-2">
+                  <PortalRef>{invoice.businessId || invoice.id}</PortalRef>
+                  <TypeBadge type={invoiceKind(invoice)} />
+                </span>
+              </PortalCell>
+
+              <PortalCell className={columnClass(RECEIPT_COLUMNS[3])}>
+                <PortalValue
+                  placeholder="Not recorded"
+                  value={
+                    payment.paidAt || payment.createdAt
+                      ? formatLongDate(payment.paidAt || payment.createdAt || "")
+                      : undefined
+                  }
+                />
+              </PortalCell>
+
+              <PortalCell className={columnClass(RECEIPT_COLUMNS[4])}>
+                <PortalValue
+                  icon={CreditCard}
+                  placeholder="Not recorded"
+                  value={payment.methodLabel}
+                />
+              </PortalCell>
+
+              <PortalCell className={columnClass(RECEIPT_COLUMNS[5])}>
+                <PortalValue
+                  icon={Receipt}
+                  placeholder="Not provided"
+                  truncate
+                  value={payment.transactionReference}
+                />
+              </PortalCell>
+
+              <PortalCell className={columnClass(RECEIPT_COLUMNS[6])}>
+                <PortalRowActions>
+                  {invoice.productOrderId ? (
+                    <PortalDetailAction
+                      href={`/user/orders/${invoice.productOrderId}`}
+                      label="Order"
+                    />
+                  ) : null}
+                  <PortalDetailAction
+                    href={`/user/billing/invoices/${invoice.id}`}
+                    label="Invoice"
+                  />
+                </PortalRowActions>
+              </PortalCell>
+            </PortalRow>
+          ))}
+        </PortalTable>
       )}
 
       <Dialog
@@ -429,7 +469,13 @@ export function UserBillingClient({
 }
 
 
-function InvoiceCardRow({
+/**
+ * One invoice as a table row. The balance column carries the figure the
+ * customer cares about (what is still owed, or what was paid) with the
+ * qualifier under it, so the amount column stays scannable while the "of
+ * $X total" detail stays available.
+ */
+function InvoiceTableRow({
   invoice,
   onPay,
   onPrint,
@@ -446,103 +492,63 @@ function InvoiceCardRow({
   const canPay = canPayInvoiceOnline(invoice);
   const lineItem = invoice.lineItems?.[0]?.description;
   const extraLines = Math.max(0, (invoice.lineItems?.length ?? 0) - 1);
+  const isOverdue = state.balance > 0 && state.slug === "overdue";
+
+  /*
+    The balance is derived, never stored:
+    total − Σ(SUCCEEDED payments) + Σ(COMPLETED refunds).
+  */
+  const amountLabel = state.hasRefund
+    ? "Refunded"
+    : state.balance > 0
+      ? "Balance due"
+      : "Amount paid";
+  const amount = state.hasRefund
+    ? state.refunded
+    : state.balance > 0
+      ? state.balance
+      : state.paid || state.total;
 
   return (
-    <PortalCard>
-      <PortalCardTop
-        badges={
-          <>
-            <StatusBadge label={state.label} status={state.slug} />
-            <PortalRef>{invoice.businessId || invoice.id}</PortalRef>
-            <TypeBadge type={invoiceKind(invoice)} />
-          </>
-        }
-        meta={
-          <>
-            Issued:{" "}
-            <span className="font-medium text-slate-700">
-              {invoice.issueDate ? formatLongDate(invoice.issueDate) : "—"}
-            </span>
-          </>
-        }
-      />
+    <PortalRow>
+      <PortalCell className={columnClass(INVOICE_COLUMNS[0])}>
+        <PortalRecordCell
+          // Only an outstanding balance needs the customer to act, and the
+          // status badge plus the "Pay Now" action say so in words too.
+          accent={isOverdue ? "danger" : state.balance > 0 ? "warning" : undefined}
+          href={`/user/billing/invoices/${invoice.id}`}
+          subtitle={
+            lineItem
+              ? extraLines > 0
+                ? `${lineItem} +${extraLines} more item${extraLines === 1 ? "" : "s"}`
+                : lineItem
+              : invoice.notes || undefined
+          }
+          title={invoice.businessId || invoice.id}
+        />
+      </PortalCell>
 
-      <PortalCardTitle
-        href={`/user/billing/invoices/${invoice.id}`}
-        subtitle={
-          lineItem
-            ? extraLines > 0
-              ? `${lineItem} +${extraLines} more item${extraLines === 1 ? "" : "s"}`
-              : lineItem
-            : invoice.notes || undefined
-        }
-      >
-        {formatCurrencyUsd(Number(invoice.totalUsd))}
-      </PortalCardTitle>
+      <PortalCell className={columnClass(INVOICE_COLUMNS[1])}>
+        <StatusBadge label={state.label} status={state.slug} />
+      </PortalCell>
 
-      <PortalCardFooter
-        actions={
-          <>
-            <PortalCardAction
-              icon={Printer}
-              label="Print"
-              loading={isPrinting}
-              onClick={onPrint}
-            />
-            <PortalDetailAction
-              href={`/user/billing/invoices/${invoice.id}`}
-            />
-            {canPay ? (
-              <PortalCardAction
-                icon={CreditCard}
-                label="Pay Now"
-                onClick={onPay}
-                tone="brand"
-              />
-            ) : null}
-          </>
-        }
-        facts={
-          <>
-            {/*
-              The balance is derived, never stored:
-              total − Σ(SUCCEEDED payments) + Σ(COMPLETED refunds).
-            */}
-            <PortalFact
-              emphasis
-              icon={Wallet}
-              label={
-                state.hasRefund
-                  ? "Refunded"
-                  : state.balance > 0
-                    ? "Balance Due"
-                    : "Amount Paid"
-              }
-              tone={state.balance > 0 ? "warning" : "success"}
-              value={formatCurrencyUsd(
-                state.hasRefund
-                  ? state.refunded
-                  : state.balance > 0
-                    ? state.balance
-                    : state.paid || state.total,
-              )}
-            />
-            {state.balance > 0 && state.paid > 0 ? (
-              <PortalFact
-                icon={Receipt}
-                label="Part Paid"
-                value={`${formatCurrencyUsd(state.paid)} of ${formatCurrencyUsd(state.total)}`}
-              />
-            ) : null}
-            <PortalFact
-              icon={CalendarClock}
-              label={state.balance > 0 ? "Due Date" : "Paid On"}
+      <PortalCell className={columnClass(INVOICE_COLUMNS[2])}>
+        <TypeBadge type={invoiceKind(invoice)} />
+      </PortalCell>
+
+      <PortalCell className={columnClass(INVOICE_COLUMNS[3])}>
+        <PortalValue
+          placeholder="Not issued"
+          value={invoice.issueDate ? formatLongDate(invoice.issueDate) : undefined}
+        />
+      </PortalCell>
+
+      <PortalCell className={columnClass(INVOICE_COLUMNS[4])}>
+        <PortalStackedValue
+          primary={
+            <PortalValue
               placeholder={state.balance > 0 ? "No due date" : "Not recorded"}
-              tone={
-                state.balance > 0 && state.slug === "overdue"
-                  ? "danger"
-                  : "neutral"
-              }
+              tone={isOverdue ? "danger" : "neutral"}
               value={
                 state.balance > 0
                   ? invoice.dueDate
@@ -553,17 +559,54 @@ function InvoiceCardRow({
                     : undefined
               }
             />
-            {invoice.productOrderId ? (
-              <PortalFact
-                icon={Receipt}
-                label="Linked Order"
-                truncate
-                value={invoice.productOrderId}
-              />
-            ) : null}
-          </>
-        }
-      />
-    </PortalCard>
+          }
+          secondary={state.balance > 0 ? "Due" : "Paid on"}
+        />
+      </PortalCell>
+
+      <PortalCell className={columnClass(INVOICE_COLUMNS[5])}>
+        <PortalStackedValue
+          align="right"
+          primary={formatCurrencyUsd(amount)}
+          secondary={
+            state.balance > 0 && state.paid > 0
+              ? `${amountLabel} · ${formatCurrencyUsd(state.paid)} of ${formatCurrencyUsd(state.total)} paid`
+              : amountLabel
+          }
+          tone={
+            state.hasRefund
+              ? "neutral"
+              : state.balance > 0
+                ? isOverdue
+                  ? "danger"
+                  : "warning"
+                : "success"
+          }
+        />
+      </PortalCell>
+
+      <PortalCell className={columnClass(INVOICE_COLUMNS[6])}>
+        <PortalRowActions>
+          <PortalCardAction
+            icon={Printer}
+            label="Print"
+            loading={isPrinting}
+            onClick={onPrint}
+          />
+          <PortalDetailAction
+            href={`/user/billing/invoices/${invoice.id}`}
+            label="View"
+          />
+          {canPay ? (
+            <PortalCardAction
+              icon={CreditCard}
+              label="Pay Now"
+              onClick={onPay}
+              tone="brand"
+            />
+          ) : null}
+        </PortalRowActions>
+      </PortalCell>
+    </PortalRow>
   );
 }

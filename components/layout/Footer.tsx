@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Mail, MapPin, Smartphone } from "lucide-react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 import facebookImage from "@/public/common/facebook.png";
 import instaImage from "@/public/common/instagram.png";
@@ -15,6 +16,7 @@ const footerLinks = {
     { label: "Home", href: "/" },
     { label: "Store", href: "/store" },
     { label: "Services", href: "/services" },
+    { label: "FAQs", href: "/faqs" },
     { label: "About Us", href: "/about" },
     { label: "Contact", href: "/contact" },
   ],
@@ -28,8 +30,9 @@ const footerLinks = {
     },
   ],
   legal: [
-    { label: "Privacy", href: "/privacy" },
-    { label: "Terms", href: "/terms" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
+    { label: "Warranty & Guarantee", href: "/warranty" },
     { label: "Accessibility", href: "/accessibility" },
   ],
 };
@@ -39,16 +42,19 @@ const contactLinks = [
     icon: MapPin,
     label: "Service coverage available by request",
     href: "/contact",
+    isEmail: false,
   },
   {
     icon: Smartphone,
-    label: "01902320296",
+    label: "+880 1902-320296",
     href: "tel:+8801902320296",
+    isEmail: false,
   },
   {
     icon: Mail,
     label: "zzayediqbalofficial@gmail.com",
     href: "mailto:zzayediqbalofficial@gmail.com",
+    isEmail: true,
   },
 ];
 
@@ -63,22 +69,22 @@ const motionTransition = { type: "spring", stiffness: 400, damping: 17 } as cons
 export function Footer() {
   return (
     <footer className="bg-primary text-primary-foreground">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-8 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <div className="mb-12 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 xl:gap-14">
+          <div className="space-y-4">
             <motion.div
               whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.8 }}
+              whileTap={{ scale: 0.95 }}
               className="inline-block origin-left"
               transition={motionTransition}
             >
               <Link href="/" className="flex items-center gap-2 text-xl font-bold">
-                <Image src={logo} alt="Elite Central Vacuum" />
+                <Image src={logo} alt="Elite Central Vacuum" priority className="h-auto w-32 object-contain" />
               </Link>
             </motion.div>
-            <p className="mt-4 max-w-xs text-sm text-primary-foreground/80">
-              Professional central vacuum product guidance, service requests,
-              and customer account tools.
+            <p className="max-w-xs text-sm leading-relaxed text-primary-foreground/80">
+              Professional central vacuum product guidance, certified service requests,
+              and customer account management tools.
             </p>
           </div>
 
@@ -86,22 +92,25 @@ export function Footer() {
           <FooterLinkGroup title="Services" links={footerLinks.services} />
 
           <div>
-            <h3 className="mb-4 font-bold">Contact Us</h3>
-            <ul className="space-y-3 text-sm">
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-teal-300">Contact Us</h3>
+            <ul className="space-y-3.5 text-sm">
               {contactLinks.map((item) => {
                 const Icon = item.icon;
                 return (
                   <motion.li
                     className="flex min-w-0 items-start gap-3 origin-left"
                     key={item.href}
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.8 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.95 }}
                     transition={motionTransition}
                   >
-                    <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                    <Icon className="mt-0.5 size-4.5 shrink-0 text-teal-300" aria-hidden="true" />
                     <Link
                       href={item.href}
-                      className="min-w-0 break-all text-primary-foreground/85 transition-colors hover:text-accent"
+                      className={cn(
+                        "min-w-0 text-primary-foreground/85 transition-colors hover:text-accent",
+                        item.isEmail ? "break-all text-xs sm:text-sm" : "break-words leading-snug",
+                      )}
                     >
                       {item.label}
                     </Link>
@@ -112,18 +121,18 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-white/25 py-8">
-          <div className="mx-auto grid w-full max-w-7xl items-center gap-6 text-center md:grid-cols-3 md:text-left">
-            <p className="text-sm text-primary-foreground/80">
-              © 2025 | ELITE CENTRAL VACUUM SERVICES LLC.
+        <div className="border-t border-white/20 pt-8">
+          <div className="flex flex-col items-center justify-between gap-6 text-center lg:flex-row lg:text-left">
+            <p className="text-xs text-primary-foreground/75 sm:text-sm">
+              © {new Date().getFullYear()} | ELITE CENTRAL VACUUM SERVICES LLC. All rights reserved.
             </p>
 
-            <ul className="flex flex-col items-center justify-center gap-3 text-sm md:flex-row md:gap-6">
+            <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm">
               {footerLinks.legal.map((link) => (
                 <motion.li
                   key={link.href}
                   whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.8 }}
+                  whileTap={{ scale: 0.95 }}
                   transition={motionTransition}
                 >
                   <Link
@@ -136,20 +145,20 @@ export function Footer() {
               ))}
             </ul>
 
-            <div className="flex justify-center gap-4 md:justify-end">
+            <div className="flex items-center justify-center gap-3">
               {socialLinks.map((link) => (
                 <motion.div
                   key={link.label}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.8 }}
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.92 }}
                   transition={motionTransition}
                 >
                   <Link
                     href={link.href}
-                    className="flex size-10 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+                    className="flex size-9.5 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/20"
                     aria-label={link.label}
                   >
-                    <Image src={link.image} alt="" aria-hidden="true" />
+                    <Image src={link.image} alt="" aria-hidden="true" className="size-4.5 object-contain" />
                   </Link>
                 </motion.div>
               ))}

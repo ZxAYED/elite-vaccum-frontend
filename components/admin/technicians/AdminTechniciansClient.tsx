@@ -507,7 +507,7 @@ export function AdminTechniciansClient() {
                           {technician.displayName.charAt(0)}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-slate-950">
+                          <p className="truncate font-semibold text-primary">
                             {technician.displayName}
                           </p>
                           <p className="truncate text-sm text-slate-500">
@@ -581,7 +581,7 @@ export function AdminTechniciansClient() {
                   <div className="rounded-lg border border-teal-100 bg-white p-4" key={technician.id}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h2 className="truncate text-lg font-semibold text-slate-950">
+                        <h2 className="truncate text-lg font-semibold text-primary">
                           {technician.displayName}
                         </h2>
                         <p className="truncate text-sm text-slate-500">{technician.email}</p>
